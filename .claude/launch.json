@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "barkfind-website-v1",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": ["-c", "cd /Users/joshholder/Desktop/barkfind-website-v1 && exec ./node_modules/.bin/vite --port 5174"],
+      "port": 5174
+    }
+  ]
+}

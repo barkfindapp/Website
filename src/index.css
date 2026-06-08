@@ -1,0 +1,19 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+  html {
+    font-family: "Nunito", sans-serif;
+    scroll-behavior: smooth;
+  }
+  body {
+    margin: 0;
+    background: #fff;
+    color: #212121;
+    -webkit-font-smoothing: antialiased;
+  }
+}
