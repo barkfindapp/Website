@@ -444,7 +444,12 @@ const SCREENS = [
 ];
 
 function AppShowcase() {
-  const [active, setActive] = useState(0);
+  const initialTab = (() => {
+    const id = new URLSearchParams(window.location.search).get("tab");
+    const idx = SCREENS.findIndex((s) => s.id === id);
+    return idx >= 0 ? idx : 0;
+  })();
+  const [active, setActive] = useState(initialTab);
 
   return (
     <section className="py-24 bg-white overflow-hidden">
