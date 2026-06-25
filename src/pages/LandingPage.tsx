@@ -163,249 +163,19 @@ function Hero() {
 
 // ─── App Showcase ─────────────────────────────────────────────────────────────
 
-// NOTE: Filters and Dog Profile PNGs generated via /mockup capture page
-// Re-run: open Chrome headless on /mockup?screen=filter and /mockup?screen=dogprofile
-
-function PhoneFrame({ children }: { children: React.ReactNode }) {
+// Uniform phone-card frame. Screenshots are flush captures of varying heights;
+// object-cover + top anchor normalises them all to one phone shape.
+function PhoneShot({ src, alt, className = "" }: { src: string; alt: string; className?: string }) {
   return (
     <div
-      className="relative flex-shrink-0 drop-shadow-2xl"
-      style={{ width: "256px" }}
+      className={`relative overflow-hidden rounded-[2.2rem] bg-white ring-1 ring-black/5 shadow-2xl ${className}`}
+      style={{ aspectRatio: "1125 / 1701" }}
     >
-      {/* Outer shell — light silver, matches screenshot frames */}
-      <div
-        className="relative rounded-[40px] overflow-hidden"
-        style={{
-          background: "#D8D8D8",
-          padding: "6px",
-          boxShadow: "0 2px 8px rgba(0,0,0,0.08), 0 24px 48px rgba(0,0,0,0.18)",
-        }}
-      >
-        {/* Side buttons — right (power) */}
-        <div className="absolute -right-[5px] top-[88px] w-[5px] h-10 rounded-r-sm" style={{ background: "#C8C8C8" }} />
-        {/* Side buttons — left (volume up/down) */}
-        <div className="absolute -left-[5px] top-[72px] w-[5px] h-7 rounded-l-sm" style={{ background: "#C8C8C8" }} />
-        <div className="absolute -left-[5px] top-[108px] w-[5px] h-7 rounded-l-sm" style={{ background: "#C8C8C8" }} />
-
-        {/* Inner screen */}
-        <div className="rounded-[34px] overflow-hidden bg-white" style={{ minHeight: "520px" }}>
-          {/* Status bar — matches screenshots exactly */}
-          <div className="flex items-center justify-between px-5 py-2 bg-white">
-            <span className="text-[11px] font-bold text-[#1a1a1a]" style={{ fontFamily: "Nunito, sans-serif" }}>9:41</span>
-            <div className="flex items-center gap-1.5">
-              {/* Signal bars */}
-              <svg className="w-3.5 h-3" viewBox="0 0 17 12" fill="none">
-                <rect x="0" y="8" width="3" height="4" rx="0.5" fill="#1a1a1a"/>
-                <rect x="4.5" y="5" width="3" height="7" rx="0.5" fill="#1a1a1a"/>
-                <rect x="9" y="2" width="3" height="10" rx="0.5" fill="#1a1a1a"/>
-                <rect x="13.5" y="0" width="3" height="12" rx="0.5" fill="#1a1a1a" opacity="0.3"/>
-              </svg>
-              {/* Wifi */}
-              <svg className="w-3.5 h-3" viewBox="0 0 20 14" fill="none">
-                <path d="M1 5C4.5 1.5 15.5 1.5 19 5" stroke="#1a1a1a" strokeWidth="2" strokeLinecap="round"/>
-                <path d="M4 8.5C6.5 6 13.5 6 16 8.5" stroke="#1a1a1a" strokeWidth="2" strokeLinecap="round"/>
-                <path d="M7.5 12C8.5 11 11.5 11 12.5 12" stroke="#1a1a1a" strokeWidth="2" strokeLinecap="round"/>
-                <circle cx="10" cy="14" r="1" fill="#1a1a1a"/>
-              </svg>
-              {/* Battery */}
-              <svg className="w-5 h-3" viewBox="0 0 23 12" fill="none">
-                <rect x="0.5" y="0.5" width="18" height="11" rx="2.5" stroke="#1a1a1a" strokeOpacity="0.35"/>
-                <rect x="2" y="2" width="14" height="8" rx="1.5" fill="#1a1a1a"/>
-                <path d="M20 4v4c1.1-.5 1.1-3.5 0-4z" fill="#1a1a1a" opacity="0.4"/>
-              </svg>
-            </div>
-          </div>
-          {/* App content */}
-          <div className="overflow-hidden" style={{ maxHeight: "520px" }}>{children}</div>
-        </div>
-      </div>
+      <img src={src} alt={alt} className="absolute inset-0 w-full h-full object-cover object-top" />
     </div>
   );
 }
 
-function FilterScreenMockup() {
-  const amenities = ["Water Bowl", "Off Lead Area", "Outdoor Seating", "Dog Treats", "Leads Hooks", "Shaded Area"];
-  const selected = ["Water Bowl", "Off Lead Area", "Outdoor Seating"];
-
-  return (
-    <div className="h-full bg-[#FDFDFD] flex flex-col overflow-hidden text-[#212121]" style={{ fontFamily: "Nunito, sans-serif" }}>
-      {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-[#F0F0F0]">
-        <div className="w-9 h-9" />
-        <span className="text-sm font-bold">Filters</span>
-        <div className="w-9 h-9 rounded-full bg-[#EEEEEE] flex items-center justify-center">
-          <svg className="w-3.5 h-3.5 text-[#585858]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12"/></svg>
-        </div>
-      </div>
-
-      <div className="flex-1 overflow-hidden px-4 py-3 flex flex-col gap-3">
-        {/* Location Type */}
-        <div>
-          <p className="text-xs font-bold mb-1.5 text-[#212121]">Location Type</p>
-          <div className="h-9 px-3 flex items-center justify-between rounded-lg border border-[#E0E0E0] bg-white">
-            <span className="text-xs text-[#212121] font-semibold">Cafe / Restaurant</span>
-            <svg className="w-4 h-4 text-[#585858]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7"/></svg>
-          </div>
-        </div>
-
-        {/* Distance */}
-        <div>
-          <div className="flex items-center justify-between mb-1.5">
-            <p className="text-xs font-bold text-[#212121]">Distance</p>
-            <span className="text-xs font-bold text-[#4FA4A1]">2.4 km</span>
-          </div>
-          <div className="relative h-4">
-            <div className="absolute top-[4px] left-0 right-0 h-2 rounded-full bg-[#D9D9D9] border border-[#4FA4A1]" />
-            <div className="absolute top-[4px] left-0 h-2 rounded-full bg-[#4FA4A1] border border-[#4FA4A1]" style={{ width: "24%" }} />
-            <div className="absolute top-0 w-4 h-4 rounded-full bg-white border-2 border-[#4FA4A1]" style={{ left: "calc(24% - 8px)" }} />
-          </div>
-          <div className="flex justify-between mt-1">
-            <span className="text-[9px] text-[#828282]">0 km</span>
-            <span className="text-[9px] text-[#828282]">10 km</span>
-          </div>
-        </div>
-
-        {/* Paw Rating */}
-        <div>
-          <p className="text-xs font-bold mb-1.5 text-[#212121]">Minimum Paw Rating</p>
-          <div className="flex items-center gap-0.5">
-            {[1,2,3,4,5].map((i) => (
-              <svg key={i} width="26" height="26" viewBox="0 0 40 40" fill={i <= 3 ? "#B74217" : "none"} stroke={i <= 3 ? "none" : "#585858"} strokeWidth="1.85">
-                <path d="M7.29239 19.4593C8.11648 20.724 9.40644 21.4576 10.6485 21.4978C11.2588 21.5175 11.8582 21.3693 12.3828 21.0295C13.167 20.5196 13.6537 19.6758 13.7571 18.652C13.8591 17.6714 13.5952 16.6357 13.0081 15.7355C12.4209 14.8353 11.5826 14.1757 10.6464 13.8698C9.66742 13.5516 8.69637 13.6553 7.91763 14.1654C6.33819 15.1955 6.05616 17.5651 7.29239 19.4593ZM16.4619 15.7553C17.3854 15.6176 18.1874 15.0543 18.708 14.1683C19.2112 13.3196 19.4019 12.2715 19.2471 11.2069C18.9192 8.97445 17.1434 7.38172 15.2804 7.65127C14.3569 7.789 13.5602 8.35251 13.0344 9.23292C12.5313 10.0816 12.3404 11.1351 12.4954 12.1942C12.6502 13.2588 13.133 14.2097 13.8573 14.8818C14.4716 15.4477 15.2022 15.7579 15.9474 15.7819C16.1202 15.7875 16.2936 15.7769 16.4619 15.7553ZM27.8596 12.6908C28.0826 11.6438 27.9602 10.5803 27.5129 9.70083C27.045 8.78829 26.2864 8.17451 25.3738 7.97742C24.4609 7.78573 23.5176 8.03635 22.7183 8.68086C21.952 9.30482 21.4088 10.2225 21.1857 11.2695C20.7144 13.4761 21.8298 15.5935 23.666 15.9881C23.8379 16.0207 24.0048 16.0423 24.1722 16.0477C25.8409 16.1016 27.4324 14.6988 27.8596 12.6908ZM25.1617 21.7288C24.7014 21.5842 24.3454 21.2267 24.1824 20.7511C23.5508 18.8818 21.9151 17.6396 20.0141 17.5781C18.1078 17.5165 16.3951 18.6559 15.6443 20.4751C15.4507 20.9446 15.0725 21.2729 14.6092 21.3877C12.4408 21.9069 10.8223 23.8115 10.7544 25.9123C10.6687 28.5639 12.6726 30.7911 15.227 30.8737C16.1235 30.9027 17.0285 30.667 17.8439 30.196C18.9679 29.5404 20.2856 29.583 21.3649 30.3099C22.1427 30.8324 23.0307 31.126 23.9271 31.1549C26.4815 31.2375 28.6251 29.1444 28.7109 26.4928C28.7789 24.3866 27.2866 22.3868 25.1617 21.7288ZM33.5237 17.4148C33.4813 16.3863 33.05 15.5127 32.3004 14.9533C31.5562 14.3941 30.5939 14.2278 29.5964 14.4821C28.6424 14.7269 27.7579 15.3309 27.1192 16.1914C25.7686 18.002 25.897 20.3849 27.4012 21.5147C27.8921 21.882 28.4804 22.0794 29.1069 22.0996C29.4309 22.1101 29.7673 22.0723 30.1053 21.9859C31.0646 21.7412 31.9437 21.1372 32.5824 20.2766C33.2265 19.4162 33.5621 18.3999 33.5237 17.4148Z"/>
-              </svg>
-            ))}
-          </div>
-        </div>
-
-        {/* Amenities */}
-        <div>
-          <p className="text-xs font-bold mb-1.5 text-[#212121]">Amenities</p>
-          <div className="flex flex-wrap gap-1.5">
-            {amenities.map((a) => (
-              <span
-                key={a}
-                className={`px-2.5 py-1 rounded-full text-[10px] font-semibold border transition-colors ${
-                  selected.includes(a)
-                    ? "bg-[#FAEFD1] border-[#B74217]/30 text-[#B74217]"
-                    : "bg-white border-[#E0E0E0] text-[#585858]"
-                }`}
-              >
-                {a}
-              </span>
-            ))}
-          </div>
-        </div>
-
-        {/* Open Now toggle */}
-        <div className="flex items-center justify-between">
-          <p className="text-xs font-bold text-[#212121]">Open Now</p>
-          <div className="flex w-11 h-6 items-center rounded-full bg-[#B74217] px-0.5">
-            <div className="w-5 h-5 rounded-full bg-white shadow ml-auto" />
-          </div>
-        </div>
-
-        {/* Apply button */}
-        <button className="mt-auto w-full h-10 rounded-full bg-[#B74217] flex items-center justify-center">
-          <span className="text-xs font-bold uppercase text-white tracking-wider">Apply Filters</span>
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function DogProfileMockup() {
-  const temperaments = ["Friendly", "Playful", "Energetic"];
-
-  return (
-    <div className="h-full bg-[#FDFDFD] flex flex-col overflow-hidden text-[#212121]" style={{ fontFamily: "Nunito, sans-serif" }}>
-      {/* Header */}
-      <div className="flex items-center px-4 py-3 relative border-b border-[#F0F0F0]">
-        <div className="w-7 h-7 rounded-full bg-[#585858] flex items-center justify-center flex-shrink-0">
-          <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="#EEEEEE"><path d="M15 19l-7-7 7-7"/></svg>
-        </div>
-        <span className="flex-1 text-center text-sm font-bold">Premium Dog Profile</span>
-        <div className="w-7" />
-      </div>
-
-      <div className="flex-1 overflow-hidden px-4 py-3 flex flex-col gap-2.5">
-        {/* Avatar */}
-        <div className="flex justify-center mb-1">
-          <div className="relative">
-            <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-[#FAEFD1]"
-              style={{ background: "url('https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=200&h=200&fit=crop') center/cover" }} />
-            <div className="absolute -bottom-0.5 -right-0.5 w-5 h-5 rounded-full bg-[#B74217] border border-white flex items-center justify-center">
-              <svg className="w-2.5 h-2.5" viewBox="0 0 16 16" fill="white"><path d="M11.5 2.5l2 2-9 9H2.5v-2l9-9z"/></svg>
-            </div>
-          </div>
-        </div>
-
-        {/* Fields */}
-        {[
-          { label: "Dog's Name", value: "Buddy" },
-          { label: "Breed", value: "Golden Retriever" },
-          { label: "Date of Birth", value: "12 / 03 / 2020" },
-        ].map((f) => (
-          <div key={f.label}>
-            <p className="text-[10px] font-semibold text-[#212121] mb-1">{f.label}</p>
-            <div className="h-8 px-3 flex items-center rounded-lg border border-[#E0E0E0] bg-white">
-              <span className="text-xs text-[#212121]">{f.value}</span>
-            </div>
-          </div>
-        ))}
-
-        {/* Gender */}
-        <div>
-          <p className="text-[10px] font-semibold text-[#212121] mb-1">Gender</p>
-          <div className="flex gap-2">
-            <div className="flex-1 h-8 flex items-center justify-center rounded-lg border border-[#E0E0E0] bg-[#FAEFD1]">
-              <span className="text-xs font-semibold">Male</span>
-            </div>
-            <div className="flex-1 h-8 flex items-center justify-center rounded-lg border border-[#E0E0E0] bg-white">
-              <span className="text-xs text-[#828282]">Female</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Temperament tags */}
-        <div>
-          <p className="text-[10px] font-semibold text-[#212121] mb-1">Temperament</p>
-          <div className="flex flex-wrap gap-1">
-            {temperaments.map((t) => (
-              <span key={t} className="px-2 py-0.5 rounded-full bg-[#FAEFD1] text-[10px] font-medium text-[#585858] flex items-center gap-1">
-                {t}
-                <svg className="w-1.5 h-1.5 text-[#828282]" viewBox="0 0 8 8" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M1 1l6 6M7 1L1 7"/></svg>
-              </span>
-            ))}
-          </div>
-        </div>
-
-        {/* Premium section */}
-        <div className="mt-1 pt-2 border-t border-[#F0F0F0]">
-          <p className="text-[10px] font-bold text-[#B74217] mb-2">✦ Premium Fields</p>
-          {[
-            { label: "Behaviour with Humans", value: "Very Friendly" },
-            { label: "Behaviour with Dogs", value: "Plays Well" },
-          ].map((f) => (
-            <div key={f.label} className="mb-2">
-              <p className="text-[10px] font-semibold text-[#212121] mb-1">{f.label}</p>
-              <div className="h-8 px-3 flex items-center justify-between rounded-lg border border-[#E0E0E0] bg-white">
-                <span className="text-xs text-[#212121]">{f.value}</span>
-                <svg className="w-3.5 h-3.5 text-[#828282]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7"/></svg>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Save button */}
-      <div className="px-4 pb-4">
-        <div className="w-full h-9 rounded-full bg-[#B74217] flex items-center justify-center">
-          <span className="text-xs font-bold uppercase text-white tracking-wider">Save Dog Profile</span>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 const SCREENS = [
   {
@@ -466,9 +236,41 @@ function AppShowcase() {
           </p>
         </div>
 
-        <div className="flex flex-col lg:flex-row items-center gap-12 lg:gap-16">
-          {/* Tab list + descriptions */}
-          <div className="flex-1 w-full max-w-lg mx-auto lg:mx-0">
+        {/* ── Mobile: compact pill tabs on top, phone always visible ── */}
+        <div className="lg:hidden">
+          <div className="flex gap-2 overflow-x-auto pb-3 -mx-6 px-6 mb-7 snap-x">
+            {SCREENS.map((screen, i) => (
+              <button
+                key={screen.id}
+                onClick={() => setActive(i)}
+                className={`snap-start whitespace-nowrap px-4 py-2 rounded-full text-sm font-bold transition-all flex-shrink-0 ${
+                  active === i
+                    ? "bg-[#B74217] text-white shadow-sm"
+                    : "bg-[#FAEFD1] text-[#585858]"
+                }`}
+              >
+                {screen.label}
+              </button>
+            ))}
+          </div>
+
+          <div className="relative flex justify-center">
+            <div
+              className="absolute inset-0 scale-75 blur-3xl opacity-30 pointer-events-none"
+              style={{ background: "radial-gradient(circle, #B74217 0%, #4FA4A1 100%)" }}
+            />
+            <PhoneShot key={active} src={SCREENS[active].image} alt={SCREENS[active].title} className="relative w-60 fade-in" />
+          </div>
+
+          <div className="text-center mt-7 max-w-sm mx-auto">
+            <h3 className="font-bold text-[#1a1a1a] text-lg mb-2">{SCREENS[active].title}</h3>
+            <p className="text-sm text-[#585858] leading-relaxed">{SCREENS[active].description}</p>
+          </div>
+        </div>
+
+        {/* ── Desktop: tabs left, phone right ── */}
+        <div className="hidden lg:flex flex-row items-center gap-16">
+          <div className="flex-1 max-w-lg">
             <div className="flex flex-col gap-3">
               {SCREENS.map((screen, i) => (
                 <button
@@ -488,9 +290,7 @@ function AppShowcase() {
                     >
                       {screen.label}
                     </span>
-                    {active === i && (
-                      <span className="w-1.5 h-1.5 rounded-full bg-[#B74217]" />
-                    )}
+                    {active === i && <span className="w-1.5 h-1.5 rounded-full bg-[#B74217]" />}
                   </div>
                   <p className={`font-bold text-base mb-1 ${active === i ? "text-[#1a1a1a]" : "text-[#585858]"}`}>
                     {screen.title}
@@ -503,25 +303,19 @@ function AppShowcase() {
             </div>
           </div>
 
-          {/* Phone mockup */}
           <div className="flex-shrink-0 flex justify-center relative">
             <div
               className="absolute inset-0 scale-75 blur-3xl opacity-30 pointer-events-none"
               style={{ background: "radial-gradient(circle, #B74217 0%, #4FA4A1 100%)" }}
             />
-            <img
-              key={active}
-              src={SCREENS[active].image}
-              alt={SCREENS[active].title}
-              className="relative w-64 md:w-72 drop-shadow-2xl"
-              style={{ animation: "fadeIn 0.25s ease" }}
-            />
+            <PhoneShot key={active} src={SCREENS[active].image} alt={SCREENS[active].title} className="relative w-72 fade-in" />
           </div>
         </div>
       </div>
 
       <style>{`
         @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+        .fade-in { animation: fadeIn 0.25s ease; }
       `}</style>
     </section>
   );
@@ -604,13 +398,13 @@ function MyloCarousel() {
           className="absolute inset-0 scale-90 blur-3xl opacity-30 pointer-events-none rounded-full"
           style={{ background: "radial-gradient(circle, #B74217 0%, #4FA4A1 100%)" }}
         />
-        <div className="relative" style={{ width: 264, height: 572 }}>
+        <div className="relative w-60 sm:w-64 overflow-hidden rounded-[2.2rem] bg-white ring-1 ring-black/5 shadow-2xl" style={{ aspectRatio: "1125 / 1701" }}>
           {MYLO_SHOTS.map((shot, i) => (
             <img
               key={shot.image}
               src={shot.image}
               alt={shot.caption}
-              className="absolute inset-0 w-full drop-shadow-2xl transition-opacity duration-700"
+              className="absolute inset-0 w-full h-full object-cover object-top transition-opacity duration-700"
               style={{ opacity: i === idx ? 1 : 0 }}
             />
           ))}
