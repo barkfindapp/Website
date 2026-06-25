@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 // ─── Nav ─────────────────────────────────────────────────────────────────────
 
@@ -13,6 +13,7 @@ function Nav() {
         </a>
 
         <nav className="hidden md:flex items-center gap-8 text-sm font-semibold text-[#585858]">
+          <a href="#mylo" className="hover:text-[#B74217] transition-colors">Mylo AI</a>
           <a href="#features" className="hover:text-[#B74217] transition-colors">Features</a>
           <a href="#pricing" className="hover:text-[#B74217] transition-colors">Pricing</a>
           <a href="#faq" className="hover:text-[#B74217] transition-colors">FAQ</a>
@@ -44,6 +45,7 @@ function Nav() {
 
       {menuOpen && (
         <div className="md:hidden bg-[#FAEFD1] border-t border-[#B74217]/10 px-6 py-4 flex flex-col gap-4 text-sm font-semibold">
+          <a href="#mylo" onClick={() => setMenuOpen(false)} className="text-[#585858]">Mylo AI</a>
           <a href="#features" onClick={() => setMenuOpen(false)} className="text-[#585858]">Features</a>
           <a href="#pricing" onClick={() => setMenuOpen(false)} className="text-[#585858]">Pricing</a>
           <a href="#faq" onClick={() => setMenuOpen(false)} className="text-[#585858]">FAQ</a>
@@ -521,6 +523,183 @@ function AppShowcase() {
       <style>{`
         @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
       `}</style>
+    </section>
+  );
+}
+
+// ─── Mylo AI Section ──────────────────────────────────────────────────────────
+
+const MYLO_SHOTS = [
+  { image: "/mylo-chat.png", caption: "Just tell Mylo what you need" },
+  { image: "/mylo-explore.png", caption: "Get real, rated places back" },
+];
+
+const MYLO_POINTS = [
+  {
+    title: "Talk to it like a friend, not a search box",
+    body: "No forms, no filter toggles. Say “a quiet pub where my Great Dane can stretch out with a water bowl” and Mylo just gets it.",
+    icon: (
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={1.75} viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-4 4v-4z" />
+      </svg>
+    ),
+  },
+  {
+    title: "It thinks like a dog owner",
+    body: "Off-lead space to run, fresh water, room for big dogs, indoor seating when it rains, and calm corners for nervous, reactive, or senior pups.",
+    icon: (
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={1.75} viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+      </svg>
+    ),
+  },
+  {
+    title: "Real places, real ratings — never made up",
+    body: "Every suggestion comes from BarkFind's directory of genuinely dog-friendly places, each rated by real owners. Mylo never invents a name, address, or rating.",
+    icon: (
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={1.75} viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+      </svg>
+    ),
+  },
+  {
+    title: "It asks the right question, then gets out of your way",
+    body: "If your request is broad, Mylo asks one quick clarifying question to narrow it down — then points you to specific places by name.",
+    icon: (
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={1.75} viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+      </svg>
+    ),
+  },
+];
+
+const MYLO_PROMPTS = [
+  "Find a calm café where my anxious rescue can settle, with water and space away from the door.",
+  "Somewhere my spaniel can run off-lead near me.",
+  "A lively pub with a beer garden that's cool with dogs inside too.",
+  "Dog-friendly brunch, not too pricey.",
+];
+
+function MyloAvatar({ className = "" }: { className?: string }) {
+  return (
+    <div className={`rounded-full bg-[#B74217] flex items-center justify-center ${className}`}>
+      <img src="/barkfind-paw-logo.png" alt="" className="w-1/2 h-1/2 brightness-0 invert" />
+    </div>
+  );
+}
+
+function MyloCarousel() {
+  const [idx, setIdx] = useState(0);
+
+  useEffect(() => {
+    const t = setInterval(() => setIdx((i) => (i + 1) % MYLO_SHOTS.length), 4500);
+    return () => clearInterval(t);
+  }, []);
+
+  return (
+    <div className="flex-shrink-0 flex flex-col items-center gap-5">
+      <div className="relative">
+        {/* Glow */}
+        <div
+          className="absolute inset-0 scale-90 blur-3xl opacity-30 pointer-events-none rounded-full"
+          style={{ background: "radial-gradient(circle, #B74217 0%, #4FA4A1 100%)" }}
+        />
+        <div className="relative" style={{ width: 264, height: 572 }}>
+          {MYLO_SHOTS.map((shot, i) => (
+            <img
+              key={shot.image}
+              src={shot.image}
+              alt={shot.caption}
+              className="absolute inset-0 w-full drop-shadow-2xl transition-opacity duration-700"
+              style={{ opacity: i === idx ? 1 : 0 }}
+            />
+          ))}
+        </div>
+      </div>
+
+      {/* Caption + dots */}
+      <div className="flex flex-col items-center gap-3 relative z-10">
+        <p className="text-sm font-semibold text-[#585858] min-h-[20px] text-center">
+          {MYLO_SHOTS[idx].caption}
+        </p>
+        <div className="flex gap-2">
+          {MYLO_SHOTS.map((_, i) => (
+            <button
+              key={i}
+              onClick={() => setIdx(i)}
+              aria-label={`Show screenshot ${i + 1}`}
+              className={`h-2 rounded-full transition-all ${i === idx ? "w-6 bg-[#B74217]" : "w-2 bg-[#B74217]/25"}`}
+            />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Mylo() {
+  return (
+    <section
+      id="mylo"
+      className="py-24 overflow-hidden relative"
+      style={{ background: "linear-gradient(135deg, #FAEFD1 0%, #f5e8c8 100%)" }}
+    >
+      <div className="absolute -top-24 -left-24 w-96 h-96 rounded-full opacity-20 pointer-events-none" style={{ background: "radial-gradient(circle, #B74217 0%, transparent 70%)" }} />
+
+      <div className="relative max-w-6xl mx-auto px-6">
+        <div className="text-center mb-14">
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#B74217]/10 text-[#B74217] text-xs font-bold mb-5 border border-[#B74217]/20">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#B74217] animate-pulse" />
+            New · AI Assistant
+          </div>
+          <div className="flex items-center justify-center gap-3 mb-5">
+            <MyloAvatar className="w-12 h-12" />
+            <h2 className="font-serif text-3xl md:text-4xl lg:text-5xl text-[#1a1a1a]">
+              Meet Mylo
+            </h2>
+          </div>
+          <p className="text-lg md:text-xl text-[#585858] max-w-2xl mx-auto leading-relaxed">
+            Mylo turns <span className="text-[#1a1a1a] font-semibold">“where can I take my dog?”</span> into a simple conversation — and answers it with real, dog-owner-rated places.
+          </p>
+        </div>
+
+        <div className="flex flex-col lg:flex-row items-center gap-12 lg:gap-16">
+          {/* Carousel */}
+          <div className="flex-1 flex justify-center w-full">
+            <MyloCarousel />
+          </div>
+
+          {/* Copy */}
+          <div className="flex-1 w-full">
+            <div className="flex flex-col gap-5 mb-8">
+              {MYLO_POINTS.map((p) => (
+                <div key={p.title} className="flex gap-4">
+                  <div className="w-10 h-10 rounded-xl bg-white shadow-sm flex items-center justify-center text-[#B74217] flex-shrink-0">
+                    {p.icon}
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-[#1a1a1a] text-base mb-1">{p.title}</h3>
+                    <p className="text-sm text-[#585858] leading-relaxed">{p.body}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Example prompts */}
+            <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-5 border border-[#B74217]/10">
+              <p className="text-xs font-bold text-[#585858] uppercase tracking-widest mb-3">Try saying things like…</p>
+              <div className="flex flex-col gap-2">
+                {MYLO_PROMPTS.map((prompt) => (
+                  <div key={prompt} className="flex items-start gap-2.5 bg-[#FAEFD1] rounded-xl px-3.5 py-2.5">
+                    <MyloAvatar className="w-5 h-5 mt-0.5 flex-shrink-0" />
+                    <p className="text-sm text-[#1a1a1a] italic leading-snug">“{prompt}”</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     </section>
   );
 }
@@ -1237,6 +1416,7 @@ export default function LandingPage() {
       <Hero />
       <TrustBar />
       <AppShowcase />
+      <Mylo />
       <Features />
       <Rewards />
       <HowItWorks />
