@@ -163,15 +163,23 @@ function Hero() {
 
 // ─── App Showcase ─────────────────────────────────────────────────────────────
 
-// Uniform phone-card frame. Screenshots are flush captures of varying heights;
-// object-cover + top anchor normalises them all to one phone shape.
+// Screenshots shown full (no crop) inside a real iPhone device frame so every
+// tab reads as a phone, regardless of the screenshot's native height.
 function PhoneShot({ src, alt, className = "" }: { src: string; alt: string; className?: string }) {
   return (
-    <div
-      className={`relative overflow-hidden rounded-[2.2rem] bg-white ring-1 ring-black/5 shadow-2xl ${className}`}
-      style={{ aspectRatio: "1125 / 1701" }}
-    >
-      <img src={src} alt={alt} className="absolute inset-0 w-full h-full object-cover object-top" />
+    <div className={`relative ${className}`}>
+      {/* Device body */}
+      <div
+        className="rounded-[2.6rem] bg-[#111316] p-[9px] shadow-2xl"
+        style={{ aspectRatio: "118 / 236" }}
+      >
+        {/* Screen */}
+        <div className="relative h-full w-full overflow-hidden rounded-[2.1rem] bg-white">
+          <img src={src} alt={alt} className="absolute top-0 left-0 w-full h-auto" />
+          {/* Dynamic island */}
+          <div className="absolute top-[10px] left-1/2 -translate-x-1/2 w-[34%] h-[16px] rounded-full bg-black/90" />
+        </div>
+      </div>
     </div>
   );
 }
@@ -398,16 +406,19 @@ function MyloCarousel() {
           className="absolute inset-0 scale-90 blur-3xl opacity-30 pointer-events-none rounded-full"
           style={{ background: "radial-gradient(circle, #B74217 0%, #4FA4A1 100%)" }}
         />
-        <div className="relative w-60 sm:w-64 overflow-hidden rounded-[2.2rem] bg-white ring-1 ring-black/5 shadow-2xl" style={{ aspectRatio: "1125 / 1701" }}>
-          {MYLO_SHOTS.map((shot, i) => (
-            <img
-              key={shot.image}
-              src={shot.image}
-              alt={shot.caption}
-              className="absolute inset-0 w-full h-full object-cover object-top transition-opacity duration-700"
-              style={{ opacity: i === idx ? 1 : 0 }}
-            />
-          ))}
+        <div className="relative w-60 sm:w-64 rounded-[2.6rem] bg-[#111316] p-[9px] shadow-2xl" style={{ aspectRatio: "118 / 236" }}>
+          <div className="relative h-full w-full overflow-hidden rounded-[2.1rem] bg-white">
+            {MYLO_SHOTS.map((shot, i) => (
+              <img
+                key={shot.image}
+                src={shot.image}
+                alt={shot.caption}
+                className="absolute top-0 left-0 w-full h-auto transition-opacity duration-700"
+                style={{ opacity: i === idx ? 1 : 0 }}
+              />
+            ))}
+            <div className="absolute top-[10px] left-1/2 -translate-x-1/2 w-[34%] h-[16px] rounded-full bg-black/90" />
+          </div>
         </div>
       </div>
 
