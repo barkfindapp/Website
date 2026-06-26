@@ -1,5 +1,8 @@
 import { useState, useEffect } from "react";
 
+// TODO: replace with the real App Store listing URL once live.
+const APP_STORE_URL = "#download";
+
 // ─── Nav ─────────────────────────────────────────────────────────────────────
 
 function Nav() {
@@ -20,10 +23,10 @@ function Nav() {
         </nav>
 
         <a
-          href="#early-access"
+          href="#download"
           className="hidden md:inline-flex items-center px-5 py-2.5 rounded-full bg-[#B74217] text-white text-sm font-bold hover:opacity-90 transition-opacity shadow-sm shadow-[#B74217]/30"
         >
-          Get Early Access
+          Start Free Trial
         </a>
 
         <button
@@ -50,11 +53,11 @@ function Nav() {
           <a href="#pricing" onClick={() => setMenuOpen(false)} className="text-[#585858]">Pricing</a>
           <a href="#faq" onClick={() => setMenuOpen(false)} className="text-[#585858]">FAQ</a>
           <a
-            href="#early-access"
+            href="#download"
             onClick={() => setMenuOpen(false)}
             className="text-center px-5 py-2 rounded-full bg-[#B74217] text-white font-bold shadow-sm"
           >
-            Get Early Access
+            Start Free Trial
           </a>
         </div>
       )}
@@ -86,30 +89,30 @@ function Hero() {
         <div className="flex-1 text-center md:text-left">
           <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/60 text-[#B74217] text-xs font-bold mb-7 border border-[#B74217]/20 shadow-sm backdrop-blur-sm">
             <span className="w-1.5 h-1.5 rounded-full bg-[#B74217] animate-pulse" />
-            Early Access Now Open
+            Now live on iOS
           </div>
 
           <h1 className="font-serif text-4xl md:text-5xl lg:text-[3.75rem] text-[#1a1a1a] leading-[1.1] mb-5 tracking-tight">
-            Dog-friendly places,<br />
-            <span className="text-[#B74217] italic">found in seconds.</span>
+            Be the first to explore<br />
+            <span className="text-[#B74217] italic">every dog-friendly place.</span>
           </h1>
 
           <p className="text-lg text-[#585858] mb-9 max-w-xl mx-auto md:mx-0 leading-relaxed">
-            BarkFind is the community-powered map for dog owners. Discover cafes, parks, restaurants, and more — all reviewed by people who actually bring their dogs.
+            BarkFind is the community-powered map that helps you and your dog discover cafes, parks, pubs, and more — all reviewed by people who actually bring their dogs. Start your 14-day free trial today.
           </p>
 
           <div className="flex flex-col sm:flex-row items-center gap-4 justify-center md:justify-start">
             <a
-              href="#early-access"
+              href="#download"
               className="w-full sm:w-auto px-8 py-3.5 rounded-full bg-[#B74217] text-white font-bold text-base hover:opacity-90 transition-all shadow-lg shadow-[#B74217]/25 text-center"
             >
-              Get Early Access
+              Start your 14-day free trial
             </a>
             <a
               href="#features"
               className="w-full sm:w-auto px-8 py-3.5 rounded-full border-2 border-[#B74217]/30 text-[#B74217] font-bold text-base hover:border-[#B74217] hover:bg-[#B74217]/5 transition-all text-center"
             >
-              Explore Features
+              See how it works
             </a>
           </div>
 
@@ -755,18 +758,18 @@ function Rewards() {
 const STEPS = [
   {
     number: "01",
-    title: "Sign up for early access",
-    description: "Join the waitlist and be first to know when BarkFind launches in your area.",
+    title: "Download & start your free trial",
+    description: "Get BarkFind on iOS and unlock everything free for 14 days — no card required.",
   },
   {
     number: "02",
-    title: "Download the app",
-    description: "Available now on iOS. Set up your profile and add your dog in under a minute.",
+    title: "Add your dog",
+    description: "Set up your dog's profile in under a minute so Mylo can tailor recommendations to your pup.",
   },
   {
     number: "03",
-    title: "Discover & review",
-    description: "Browse the map, save favourites, and share your experiences with the community.",
+    title: "Explore & review",
+    description: "Discover dog-friendly spots near you, save your favourites, and share reviews with the community.",
   },
 ];
 
@@ -917,7 +920,7 @@ function Pricing() {
               </ul>
 
               <a
-                href="#early-access"
+                href="#download"
                 className={`text-center px-5 py-3 rounded-full font-bold text-sm transition-all ${
                   plan.highlight
                     ? "bg-white text-[#B74217] hover:bg-[#FAEFD1] shadow-md"
@@ -964,7 +967,7 @@ function Testimonials() {
     <section className="py-24" style={{ background: "linear-gradient(135deg, #FAEFD1 0%, #f5e8c8 100%)" }}>
       <div className="max-w-6xl mx-auto px-6">
         <div className="text-center mb-16">
-          <p className="text-sm font-bold text-[#B74217] uppercase tracking-widest mb-3">Early Access Feedback</p>
+          <p className="text-sm font-bold text-[#B74217] uppercase tracking-widest mb-3">Loved by dog owners</p>
           <h2 className="font-serif text-3xl md:text-4xl lg:text-5xl text-[#1a1a1a]">
             What dog owners say
           </h2>
@@ -1011,10 +1014,10 @@ function Testimonials() {
 // ─── FAQ ──────────────────────────────────────────────────────────────────────
 
 const FAQ_ITEMS = [
-  { q: "When is BarkFind launching?", a: "We're currently in early access, with a full public launch planned for later this year. Sign up to be notified the moment it's available in your area." },
+  { q: "How do I get started?", a: "Download BarkFind from the App Store and start your 14-day free trial — full access to every feature, no credit card required." },
   { q: "How does the free trial work?", a: "You get 14 days of full, unrestricted access to every BarkFind feature — no credit card required. After your trial, choose a monthly (£4/month) or annual (£40/year) subscription to keep going." },
   { q: "What happens after my trial ends?", a: "You'll be prompted to subscribe to either the monthly or annual plan. If you choose not to subscribe, your access to the app will pause until you do." },
-  { q: "Is BarkFind available on Android?", a: "BarkFind is launching on iOS first. Android is on the roadmap and coming soon — sign up to be notified when it's available." },
+  { q: "Is BarkFind available on Android?", a: "BarkFind is on iOS first. Android is on the roadmap and coming soon — follow us to be the first to know when it lands." },
   { q: "How are locations verified?", a: "Locations are verified through a combination of community reports, business owner claims, and our moderation team. A verified badge means the dog-friendly status has been confirmed." },
   { q: "What is a Dog Profile?", a: "A Dog Profile lets you add details about your dog — breed, size, temperament — so BarkFind can personalise recommendations based on what suits your dog specifically." },
   { q: "How do the review rewards work?", a: "Submit 10 reviews to earn 25% off your next bill, 20 reviews for 50% off, or 50 reviews for a full year free. Once you hit a milestone, tap Redeem in the app to receive your unique promo code. Discounts apply to your next billing cycle (monthly or annual)." },
@@ -1068,41 +1071,29 @@ function FAQ() {
   );
 }
 
-// ─── Early Access CTA ─────────────────────────────────────────────────────────
+// ─── Download CTA ─────────────────────────────────────────────────────────────
 
-function EarlyAccessCTA() {
-  const [email, setEmail] = useState("");
-  const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
-  const [errorMsg, setErrorMsg] = useState("");
+function AppStoreButton({ className = "" }: { className?: string }) {
+  return (
+    <a
+      href={APP_STORE_URL}
+      className={`inline-flex items-center gap-3 px-6 py-3.5 rounded-2xl bg-[#1a1a1a] text-white hover:opacity-90 transition-opacity shadow-lg ${className}`}
+    >
+      <svg className="w-7 h-7" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+        <path d="M17.564 12.78c-.02-2.14 1.75-3.17 1.83-3.22-1-1.46-2.55-1.66-3.1-1.68-1.32-.13-2.58.78-3.25.78-.67 0-1.7-.76-2.8-.74-1.44.02-2.77.84-3.51 2.13-1.5 2.6-.38 6.44 1.07 8.55.71 1.03 1.55 2.19 2.66 2.15 1.07-.04 1.47-.69 2.76-.69 1.29 0 1.65.69 2.78.67 1.15-.02 1.88-1.05 2.58-2.09.81-1.2 1.15-2.36 1.17-2.42-.03-.01-2.24-.86-2.26-3.4zM15.43 6.27c.59-.72.99-1.71.88-2.71-.85.04-1.88.57-2.49 1.28-.55.63-1.03 1.64-.9 2.61.95.07 1.92-.48 2.51-1.18z" />
+      </svg>
+      <span className="text-left leading-tight">
+        <span className="block text-[10px] font-medium opacity-80">Download on the</span>
+        <span className="block text-lg font-bold -mt-0.5">App Store</span>
+      </span>
+    </a>
+  );
+}
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!email.trim()) return;
-    setStatus("loading");
-    setErrorMsg("");
-
-    try {
-      const res = await fetch("/api/early-access", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: email.trim().toLowerCase() }),
-      });
-      if (res.ok) {
-        setStatus("success");
-      } else {
-        const data = await res.json().catch(() => ({}));
-        setErrorMsg(data.error || "Something went wrong. Please try again.");
-        setStatus("error");
-      }
-    } catch {
-      setErrorMsg("Something went wrong. Please try again.");
-      setStatus("error");
-    }
-  };
-
+function DownloadCTA() {
   return (
     <section
-      id="early-access"
+      id="download"
       className="relative py-28 overflow-hidden"
       style={{ background: "linear-gradient(135deg, #B74217 0%, #9a3512 100%)" }}
     >
@@ -1115,42 +1106,16 @@ function EarlyAccessCTA() {
           <img src="/barkfind-paw-logo.png" alt="" className="w-8 h-8 brightness-0 invert" />
         </div>
         <h2 className="font-serif text-3xl md:text-4xl lg:text-5xl text-white mb-5">
-          Be first to explore<br />with BarkFind
+          Be the first to explore<br />every adventure with your dog
         </h2>
-        <p className="text-white/75 text-lg mb-10 leading-relaxed">
-          Join the early access list. We'll let you know as soon as BarkFind launches — no spam, ever.
+        <p className="text-white/75 text-lg mb-9 leading-relaxed">
+          Download BarkFind and start your 14-day free trial — full access to the map, Mylo AI, reviews, and rewards. No credit card required.
         </p>
 
-        {status === "success" ? (
-          <div className="bg-white/15 backdrop-blur-sm rounded-2xl p-7 text-white border border-white/20">
-            <p className="text-2xl font-serif mb-2">You're on the list!</p>
-            <p className="text-white/75 text-sm">We'll be in touch soon with launch updates.</p>
-          </div>
-        ) : (
-          <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row gap-3 max-w-md mx-auto">
-            <input
-              type="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="Enter your email"
-              className="flex-1 px-5 py-3.5 rounded-full text-[#1a1a1a] text-sm font-medium outline-none focus:ring-2 focus:ring-white/40 bg-white shadow-lg"
-            />
-            <button
-              type="submit"
-              disabled={status === "loading"}
-              className="px-7 py-3.5 rounded-full bg-[#1a1a1a] text-white font-bold text-sm hover:opacity-90 transition-opacity disabled:opacity-60 whitespace-nowrap shadow-lg"
-            >
-              {status === "loading" ? "Joining..." : "Get Early Access"}
-            </button>
-          </form>
-        )}
-
-        {status === "error" && (
-          <p className="mt-4 text-white/60 text-sm">{errorMsg}</p>
-        )}
-
-        <p className="mt-6 text-white/50 text-xs">No credit card required · Unsubscribe any time</p>
+        <div className="flex flex-col items-center gap-4">
+          <AppStoreButton />
+          <p className="text-white/50 text-xs">14-day free trial · Cancel any time · Android coming soon</p>
+        </div>
       </div>
     </section>
   );
@@ -1209,7 +1174,7 @@ export default function LandingPage() {
       <Pricing />
       <Testimonials />
       <FAQ />
-      <EarlyAccessCTA />
+      <DownloadCTA />
       <Footer />
     </div>
   );
