@@ -523,6 +523,15 @@ function TrustBar() {
 
 const FEATURES = [
   {
+    title: "Mylo, your AI guide",
+    description: "Just tell Mylo what you and your dog need in plain English — “a quiet pub with a water bowl” — and it finds the right spots from BarkFind's rated directory.",
+    icon: (
+      <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth={1.75} viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-4 4v-4z" />
+      </svg>
+    ),
+  },
+  {
     title: "Everything on One Map",
     description: "Stop juggling multiple apps. BarkFind consolidates dog-friendly cafes, parks, restaurants, vets, groomers, and more onto a single interactive map.",
     icon: (
@@ -583,6 +592,15 @@ const FEATURES = [
     icon: (
       <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth={1.75} viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5.5A2.5 2.5 0 109.5 8H12zm-7 4h14M5 12a2 2 0 110-4h14a2 2 0 110 4M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7" />
+      </svg>
+    ),
+  },
+  {
+    title: "Exclusive In-App Promotions",
+    description: "Unlock special offers and discounts from nearby dog-friendly locations and brands — treats, meals, and perks you won't find anywhere else.",
+    icon: (
+      <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth={1.75} viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M7 7h.01M7 3h5a1.99 1.99 0 011.414.586l7 7a2 2 0 010 2.828l-5.172 5.172a2 2 0 01-2.828 0l-7-7A1.99 1.99 0 013 9V4a1 1 0 011-1z" />
       </svg>
     ),
   },
