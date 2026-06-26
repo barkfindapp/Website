@@ -827,9 +827,9 @@ function HowItWorks() {
 
 // ─── Pricing ──────────────────────────────────────────────────────────────────
 
-const PLAN_FEATURES = [
+const SHARED_FEATURES = [
   "Full access to all BarkFind features",
-  "Interactive map with paw pin locations",
+  "Interactive map with paw-pin locations",
   "Advanced filters (off-lead, water access & more)",
   "Unlimited saved favourites",
   "Dog profile & personalised recommendations",
@@ -840,21 +840,31 @@ const PLAN_FEATURES = [
 const PLANS = [
   {
     name: "Monthly",
-    price: "£4",
+    price: "£4.99",
     period: "per month",
-    description: "Full access, cancel any time.",
+    description: "Full access, cancel anytime.",
     highlight: false,
     badge: null,
     saving: null,
+    features: [
+      ...SHARED_FEATURES.map((text) => ({ text, strong: false })),
+      { text: "10 Mylo AI searches per day", strong: true },
+      { text: "Includes occasional sponsored places", strong: true },
+    ],
   },
   {
     name: "Annual",
-    price: "£40",
+    price: "£39.99",
     period: "per year",
-    description: "Best value — equivalent to £3.33/month.",
+    description: "Best value — just £3.33/month.",
     highlight: true,
-    badge: "Save 17%",
-    saving: "2 months free",
+    badge: "Save 33%",
+    saving: "~4 months free",
+    features: [
+      ...SHARED_FEATURES.map((text) => ({ text, strong: false })),
+      { text: "Unlimited Mylo AI searches", strong: true },
+      { text: "Ad-free — turn off sponsored content", strong: true },
+    ],
   },
 ];
 
@@ -922,8 +932,8 @@ function Pricing() {
               </div>
 
               <ul className="flex flex-col gap-2.5 flex-1">
-                {PLAN_FEATURES.map((f) => (
-                  <li key={f} className="flex items-start gap-2.5 text-sm">
+                {plan.features.map((f) => (
+                  <li key={f.text} className="flex items-start gap-2.5 text-sm">
                     <svg
                       className={`w-4 h-4 mt-0.5 flex-shrink-0 ${plan.highlight ? "text-white" : "text-[#4FA4A1]"}`}
                       fill="none"
@@ -932,7 +942,11 @@ function Pricing() {
                     >
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
                     </svg>
-                    <span className={plan.highlight ? "text-white/90" : "text-[#1a1a1a]"}>{f}</span>
+                    <span
+                      className={`${f.strong ? "font-bold" : ""} ${plan.highlight ? "text-white/90" : "text-[#1a1a1a]"}`}
+                    >
+                      {f.text}
+                    </span>
                   </li>
                 ))}
               </ul>
