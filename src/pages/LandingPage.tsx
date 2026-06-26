@@ -316,8 +316,8 @@ function AppShowcase() {
 // ─── Mylo AI Section ──────────────────────────────────────────────────────────
 
 const MYLO_SHOTS = [
-  { image: "/mylo-chat.png", caption: "Just tell Mylo what you need" },
-  { image: "/mylo-explore.png", caption: "Get real, rated places back" },
+  { image: "/mylo-prompts.png", caption: "Tell Mylo what you're after" },
+  { image: "/mylo-chat.png", caption: "Mylo sniffs out the best matches" },
 ];
 
 const MYLO_POINTS = [
@@ -390,7 +390,7 @@ function MyloCarousel() {
           className="absolute inset-0 scale-90 blur-3xl opacity-30 pointer-events-none rounded-full"
           style={{ background: "radial-gradient(circle, #B74217 0%, #4FA4A1 100%)" }}
         />
-        <div className="relative w-60 sm:w-64" style={{ aspectRatio: "1170 / 2532" }}>
+        <div className="relative w-64 sm:w-72" style={{ aspectRatio: "1570 / 2932" }}>
           {MYLO_SHOTS.map((shot, i) => (
             <img
               key={shot.image}
