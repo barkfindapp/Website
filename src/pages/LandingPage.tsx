@@ -1108,6 +1108,65 @@ function AppStoreButton({ className = "" }: { className?: string }) {
   );
 }
 
+function AndroidNotify() {
+  const [email, setEmail] = useState("");
+  const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email.trim()) return;
+    setStatus("loading");
+    try {
+      const res = await fetch("/api/early-access", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email.trim().toLowerCase(), source: "android-waitlist" }),
+      });
+      setStatus(res.ok ? "success" : "error");
+    } catch {
+      setStatus("error");
+    }
+  };
+
+  return (
+    <div className="mt-10 pt-8 border-t border-white/15 w-full max-w-md mx-auto">
+      <div className="flex items-center justify-center gap-2 mb-3 text-white/90">
+        {/* Android robot */}
+        <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+          <path d="M6 18a1 1 0 001 1h1v3.5a1.5 1.5 0 003 0V19h2v3.5a1.5 1.5 0 003 0V19h1a1 1 0 001-1V8H6v10zM3.5 8A1.5 1.5 0 002 9.5v6a1.5 1.5 0 003 0v-6A1.5 1.5 0 003.5 8zm17 0A1.5 1.5 0 0019 9.5v6a1.5 1.5 0 003 0v-6A1.5 1.5 0 0020.5 8zM15.5 3.2l1.3-1.3a.4.4 0 10-.56-.56l-1.48 1.48A5.96 5.96 0 0012 2c-.99 0-1.92.24-2.75.66L7.77 1.34a.4.4 0 10-.56.56l1.3 1.3A5.98 5.98 0 006 7h12a5.98 5.98 0 00-2.5-3.8zM9.5 5.5a.75.75 0 110-1.5.75.75 0 010 1.5zm5 0a.75.75 0 110-1.5.75.75 0 010 1.5z" />
+        </svg>
+        <p className="font-bold text-sm">On Android?</p>
+      </div>
+
+      {status === "success" ? (
+        <p className="text-white/85 text-sm">You're on the list — we'll email you the moment BarkFind lands on Android. 🐾</p>
+      ) : (
+        <>
+          <p className="text-white/60 text-sm mb-4">Get notified the moment we launch on Android.</p>
+          <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row gap-2.5">
+            <input
+              type="email"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="Enter your email"
+              className="flex-1 px-5 py-3 rounded-full text-[#1a1a1a] text-sm font-medium outline-none focus:ring-2 focus:ring-white/40 bg-white"
+            />
+            <button
+              type="submit"
+              disabled={status === "loading"}
+              className="px-6 py-3 rounded-full bg-[#1a1a1a] text-white font-bold text-sm hover:opacity-90 transition-opacity disabled:opacity-60 whitespace-nowrap"
+            >
+              {status === "loading" ? "…" : "Notify me"}
+            </button>
+          </form>
+          {status === "error" && <p className="mt-3 text-white/60 text-xs">Something went wrong. Please try again.</p>}
+        </>
+      )}
+    </div>
+  );
+}
+
 function DownloadCTA() {
   return (
     <section
@@ -1132,8 +1191,10 @@ function DownloadCTA() {
 
         <div className="flex flex-col items-center gap-4">
           <AppStoreButton />
-          <p className="text-white/50 text-xs">14-day free trial · Cancel any time · Android coming soon</p>
+          <p className="text-white/50 text-xs">14-day free trial · Cancel any time</p>
         </div>
+
+        <AndroidNotify />
       </div>
     </section>
   );
