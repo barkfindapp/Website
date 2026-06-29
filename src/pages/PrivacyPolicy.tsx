@@ -184,6 +184,7 @@ export default function PrivacyPolicy() {
           <img src="/barkfind-logo-white.png" alt="BarkFind" className="h-7 opacity-80" />
           <div className="flex gap-6">
             <a href="/" className="hover:text-white transition-colors">Home</a>
+            <a href="/terms" className="hover:text-white transition-colors">Terms</a>
             <a href="mailto:info@barkfind.com" className="hover:text-white transition-colors">Contact</a>
           </div>
           <span className="text-xs">© {new Date().getFullYear()} BarkFind. All rights reserved.</span>
