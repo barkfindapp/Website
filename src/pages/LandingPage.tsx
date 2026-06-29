@@ -1228,6 +1228,7 @@ function Footer() {
           <a href="#features" className="hover:text-white transition-colors">Features</a>
           <a href="#pricing" className="hover:text-white transition-colors">Pricing</a>
           <a href="#faq" className="hover:text-white transition-colors">FAQ</a>
+          <a href="/privacy" className="hover:text-white transition-colors">Privacy</a>
           <a href="mailto:info@barkfind.com" className="hover:text-white transition-colors">Contact</a>
         </nav>
 
