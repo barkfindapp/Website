@@ -174,6 +174,7 @@ export default function PrivacyPolicy() {
               Email:{" "}
               <a href="mailto:info@barkfind.com" className="text-[#B74217] font-semibold hover:underline">info@barkfind.com</a>
             </p>
+            <p className="text-sm text-[#585858] mt-1">ICO registration: ZC184707</p>
           </div>
         </Section>
       </main>
