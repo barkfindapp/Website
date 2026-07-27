@@ -1224,10 +1224,12 @@ function Footer() {
           <img src="/barkfind-logo-white.png" alt="BarkFind" className="h-7 opacity-80" />
         </div>
 
-        <nav className="flex flex-wrap justify-center gap-7 text-sm">
+        <nav className="flex flex-wrap justify-center gap-x-7 gap-y-3 text-sm">
           <a href="#features" className="hover:text-white transition-colors">Features</a>
           <a href="#pricing" className="hover:text-white transition-colors">Pricing</a>
           <a href="#faq" className="hover:text-white transition-colors">FAQ</a>
+          <a href="/business" className="hover:text-white transition-colors">For Businesses</a>
+          <a href="/support" className="hover:text-white transition-colors">Support</a>
           <a href="/privacy" className="hover:text-white transition-colors">Privacy</a>
           <a href="/terms" className="hover:text-white transition-colors">Terms</a>
           <a href="mailto:info@barkfind.com" className="hover:text-white transition-colors">Contact</a>
