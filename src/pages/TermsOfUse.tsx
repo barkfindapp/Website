@@ -1,55 +1,12 @@
 // BarkFind Terms of Use — rendered at /terms
 // Source: company-supplied draft.
 // Defaults applied: Last updated = 29 June 2026; contact = info@barkfind.com.
-// TODO: confirm date + contact email before relying on this publicly.
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <section className="mt-10">
-      <h2 className="font-serif text-2xl md:text-3xl text-[#1a1a1a] mb-4">{title}</h2>
-      <div className="flex flex-col gap-4 text-[#444] leading-relaxed">{children}</div>
-    </section>
-  );
-}
-
-function Bullets({ items }: { items: React.ReactNode[] }) {
-  return (
-    <ul className="flex flex-col gap-2.5 list-none">
-      {items.map((item, i) => (
-        <li key={i} className="flex items-start gap-2.5">
-          <span className="mt-2 w-1.5 h-1.5 rounded-full bg-[#B74217] flex-shrink-0" />
-          <span>{item}</span>
-        </li>
-      ))}
-    </ul>
-  );
-}
+import PageShell, { Section, Bullets } from "../components/PageShell";
 
 export default function TermsOfUse() {
   return (
-    <div className="min-h-screen font-sans bg-white text-[#212121]">
-      {/* Top bar */}
-      <header className="sticky top-0 z-50 bg-[#FAEFD1]/80 backdrop-blur-md border-b border-[#B74217]/10">
-        <div className="max-w-3xl mx-auto px-6 h-16 flex items-center justify-between">
-          <a href="/" className="flex items-center">
-            <img src="/barkfind-logo-rust.png" alt="BarkFind" className="h-8" />
-          </a>
-          <a href="/" className="text-sm font-semibold text-[#585858] hover:text-[#B74217] transition-colors">
-            ← Back to home
-          </a>
-        </div>
-      </header>
-
-      {/* Hero strip */}
-      <div className="bg-[#FAEFD1]">
-        <div className="max-w-3xl mx-auto px-6 py-14">
-          <h1 className="font-serif text-4xl md:text-5xl text-[#1a1a1a] mb-3">Terms of Use</h1>
-          <p className="text-sm text-[#585858] font-semibold">Last updated: 29 June 2026</p>
-        </div>
-      </div>
-
-      {/* Body */}
-      <main className="max-w-3xl mx-auto px-6 py-14">
+    <PageShell title="Terms of Use" meta="Last updated: 29 June 2026">
         <p className="text-[#444] leading-relaxed">
           These Terms of Use ("Terms") govern your access to and use of the BarkFind mobile app and the
           barkfind.com website (together, the "Service"), operated by BarkFind Limited (company no. GB17093288),
@@ -235,20 +192,6 @@ export default function TermsOfUse() {
             </p>
           </div>
         </Section>
-      </main>
-
-      {/* Footer */}
-      <footer className="bg-[#1a1a1a] text-white/50 py-10">
-        <div className="max-w-3xl mx-auto px-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-sm">
-          <img src="/barkfind-logo-white.png" alt="BarkFind" className="h-7 opacity-80" />
-          <div className="flex gap-6">
-            <a href="/" className="hover:text-white transition-colors">Home</a>
-            <a href="/privacy" className="hover:text-white transition-colors">Privacy</a>
-            <a href="mailto:info@barkfind.com" className="hover:text-white transition-colors">Contact</a>
-          </div>
-          <span className="text-xs">© {new Date().getFullYear()} BarkFind. All rights reserved.</span>
-        </div>
-      </footer>
-    </div>
+    </PageShell>
   );
 }
