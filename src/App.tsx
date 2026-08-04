@@ -5,6 +5,7 @@ import TermsOfUse from "./pages/TermsOfUse";
 import Support from "./pages/Support";
 import DeleteAccount from "./pages/DeleteAccount";
 import Business from "./pages/Business";
+import Treats from "./pages/Treats";
 
 const ROUTES: Record<string, () => JSX.Element> = {
   "/mockup": MockupCapture,
@@ -13,6 +14,7 @@ const ROUTES: Record<string, () => JSX.Element> = {
   "/support": Support,
   "/delete-account": DeleteAccount,
   "/business": Business,
+  "/treats": Treats,
 };
 
 export default function App() {

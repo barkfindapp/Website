@@ -218,6 +218,7 @@ export default function PageShell({
           <img src="/barkfind-logo-white.png" alt="BarkFind" className="h-7 opacity-80" />
           <div className="flex flex-wrap justify-center gap-6">
             <a href="/" className="hover:text-white transition-colors">Home</a>
+            <a href="/treats" className="hover:text-white transition-colors">Treats</a>
             <a href="/support" className="hover:text-white transition-colors">Support</a>
             <a href="/business" className="hover:text-white transition-colors">Business</a>
             <a href="/privacy" className="hover:text-white transition-colors">Privacy</a>

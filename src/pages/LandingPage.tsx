@@ -716,6 +716,12 @@ function Rewards() {
             <p className="text-sm text-[#585858] bg-stone-50 rounded-xl px-4 py-3 inline-block border border-stone-100">
               Once you hit a milestone, tap <strong className="text-[#1a1a1a]">Redeem</strong> in the app to get your unique promo code. Discounts apply to your next billing cycle.
             </p>
+            <p className="mt-4">
+              <a href="/treats" className="inline-flex items-center gap-1.5 text-sm font-bold text-[#B74217] hover:underline">
+                How Treats work
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg>
+              </a>
+            </p>
           </div>
 
           {/* Right — milestone cards */}
@@ -1228,6 +1234,7 @@ function Footer() {
           <a href="#features" className="hover:text-white transition-colors">Features</a>
           <a href="#pricing" className="hover:text-white transition-colors">Pricing</a>
           <a href="#faq" className="hover:text-white transition-colors">FAQ</a>
+          <a href="/treats" className="hover:text-white transition-colors">Treats</a>
           <a href="/business" className="hover:text-white transition-colors">For Businesses</a>
           <a href="/support" className="hover:text-white transition-colors">Support</a>
           <a href="/privacy" className="hover:text-white transition-colors">Privacy</a>
