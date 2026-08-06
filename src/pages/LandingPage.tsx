@@ -1006,7 +1006,7 @@ function Testimonials() {
     <section className="py-24" style={{ background: "linear-gradient(135deg, #FAEFD1 0%, #f5e8c8 100%)" }}>
       <div className="max-w-6xl mx-auto px-6">
         <div className="text-center mb-16">
-          <p className="text-sm font-bold text-[#B74217] uppercase tracking-widest mb-3">Loved by dog owners</p>
+          <p className="text-sm font-bold text-[#B74217] uppercase tracking-widest mb-3">From our beta testers</p>
           <h2 className="font-serif text-3xl md:text-4xl lg:text-5xl text-[#1a1a1a]">
             What dog owners say
           </h2>
@@ -1018,8 +1018,9 @@ function Testimonials() {
               key={t.author}
               className="bg-white rounded-2xl p-7 flex flex-col gap-5 shadow-sm shadow-stone-200 border border-stone-50"
             >
-              {/* Paw rating — matches in-app icon exactly */}
-              <div className="flex gap-0.5">
+              {/* Paw rating + beta pill */}
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex gap-0.5">
                 {[...Array(5)].map((_, i) => (
                   <svg key={i} width="20" height="20" viewBox="0 0 40 40" fill="#B74217">
                     <path d="M7.29239 19.4593C8.11648 20.724 9.40644 21.4576 10.6485 21.4978C11.2588 21.5175 11.8582 21.3693 12.3828 21.0295C13.167 20.5196 13.6537 19.6758 13.7571 18.652C13.8591 17.6714 13.5952 16.6357 13.0081 15.7355C12.4209 14.8353 11.5826 14.1757 10.6464 13.8698C9.66742 13.5516 8.69637 13.6553 7.91763 14.1654C6.33819 15.1955 6.05616 17.5651 7.29239 19.4593Z"/>
@@ -1029,6 +1030,11 @@ function Testimonials() {
                     <path d="M33.5237 17.4148C33.4813 16.3863 33.05 15.5127 32.3004 14.9533C31.5562 14.3941 30.5939 14.2278 29.5964 14.4821C28.6424 14.7269 27.7579 15.3309 27.1192 16.1914C25.7686 18.002 25.897 20.3849 27.4012 21.5147C27.8921 21.882 28.4804 22.0794 29.1069 22.0996C29.4309 22.1101 29.7673 22.0723 30.1053 21.9859C31.0646 21.7412 31.9437 21.1372 32.5824 20.2766C33.2265 19.4162 33.5621 18.3999 33.5237 17.4148Z"/>
                   </svg>
                 ))}
+                </div>
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-[#4FA4A1]/12 text-[#4FA4A1] text-[11px] font-bold whitespace-nowrap">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#4FA4A1]" />
+                  Beta tester
+                </span>
               </div>
 
               <p className="text-[#1a1a1a] text-sm leading-relaxed flex-1">"{t.quote}"</p>
