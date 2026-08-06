@@ -121,21 +121,21 @@ function Hero() {
               <svg className="w-4 h-4 text-[#4FA4A1]" fill="currentColor" viewBox="0 0 20 20">
                 <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
               </svg>
-              iOS First
+              Launching soon on iPhone
             </span>
             <span className="w-1 h-1 rounded-full bg-[#585858]/40" />
             <span className="flex items-center gap-1.5">
               <svg className="w-4 h-4 text-[#4FA4A1]" fill="currentColor" viewBox="0 0 20 20">
                 <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
               </svg>
-              Free to download
+              Founding-member pricing
             </span>
             <span className="w-1 h-1 rounded-full bg-[#585858]/40" />
             <span className="flex items-center gap-1.5">
               <svg className="w-4 h-4 text-[#4FA4A1]" fill="currentColor" viewBox="0 0 20 20">
                 <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
               </svg>
-              14-day free trial — full access
+              14-day free trial at launch
             </span>
           </div>
         </div>
@@ -660,7 +660,7 @@ const REWARDS = [
   {
     reviews: 10,
     reward: "25% off",
-    detail: "your next bill",
+    detail: "off a monthly bill",
     icon: (
       <div className="w-9 h-9 rounded-full bg-[#4FA4A1]/10 flex items-center justify-center flex-shrink-0">
         <PawMark className="w-5 h-5" color="#4FA4A1" />
@@ -670,7 +670,7 @@ const REWARDS = [
   {
     reviews: 20,
     reward: "50% off",
-    detail: "your next bill",
+    detail: "off a monthly bill",
     icon: (
       <div className="w-9 h-9 rounded-full bg-[#4FA4A1]/15 flex items-center justify-center flex-shrink-0">
         <PawMark className="w-5 h-5" color="#3d8a87" />
@@ -714,7 +714,7 @@ function Rewards() {
               Every review you leave helps the BarkFind community find great spots. And the more you contribute, the more you save — all the way up to a full year free.
             </p>
             <p className="text-sm text-[#585858] bg-stone-50 rounded-xl px-4 py-3 inline-block border border-stone-100">
-              Once you hit a milestone, tap <strong className="text-[#1a1a1a]">Redeem</strong> in the app to get your unique promo code. Discounts apply to your next billing cycle.
+              Once you hit a milestone, tap <strong className="text-[#1a1a1a]">Redeem</strong> in the app for your promo code. Percentage discounts apply to monthly billing; annual members get one reward claim per account. Fifty reviews earns a free year on either plan.
             </p>
             <p className="mt-4">
               <a href="/treats" className="inline-flex items-center gap-1.5 text-sm font-bold text-[#B74217] hover:underline">
@@ -769,7 +769,7 @@ function Rewards() {
               </div>
             </div>
 
-            <p className="text-center text-xs text-[#585858]">Discounts apply to monthly or annual subscriptions</p>
+            <p className="text-center text-xs text-[#585858]">Percentage discounts apply to monthly billing · Annual: one reward claim per account · 50 reviews = a free year on either plan</p>
           </div>
         </div>
       </div>
@@ -782,8 +782,8 @@ function Rewards() {
 const STEPS = [
   {
     number: "01",
-    title: "Download & start your free trial",
-    description: "Get BarkFind on iOS and unlock everything free for 14 days — no card required.",
+    title: "Join early access",
+    description: "BarkFind launches on iPhone soon. Sign up on the homepage and we'll email you the moment it's live — with your founding-member offer.",
   },
   {
     number: "02",
@@ -841,12 +841,13 @@ const SHARED_FEATURES = [
   "Dog profile & personalised recommendations",
   "Community reviews, photos & paw ratings",
   "Real-time nearby alerts",
+  "Ask Mylo — your AI dog-friendly guide",
 ];
 
 const PLANS = [
   {
     name: "Monthly",
-    price: "£4.99",
+    price: "£5.99",
     period: "per month",
     description: "Full access, cancel anytime.",
     highlight: false,
@@ -854,7 +855,7 @@ const PLANS = [
     saving: null,
     features: [
       ...SHARED_FEATURES.map((text) => ({ text, strong: false })),
-      { text: "10 Mylo AI searches per day", strong: true },
+      { text: "Review rewards: rolling discounts (25% at 10 reviews, 50% at 20)", strong: true },
       { text: "Includes occasional sponsored places", strong: true },
     ],
   },
@@ -864,11 +865,11 @@ const PLANS = [
     period: "per year",
     description: "Best value — just £3.33/month.",
     highlight: true,
-    badge: "Save 33%",
-    saving: "~4 months free",
+    badge: "Save 44%",
+    saving: "~5 months free",
     features: [
       ...SHARED_FEATURES.map((text) => ({ text, strong: false })),
-      { text: "Unlimited Mylo AI searches", strong: true },
+      { text: "One review reward claim per account", strong: true },
       { text: "Ad-free — turn off sponsored content", strong: true },
     ],
   },
@@ -883,7 +884,7 @@ function Pricing() {
           <h2 className="font-serif text-3xl md:text-4xl lg:text-5xl text-[#1a1a1a] mb-5">
             Simple, transparent pricing
           </h2>
-          <p className="text-lg text-[#585858] max-w-xl mx-auto">Try the full app free for 14 days — no credit card required.</p>
+          <p className="text-lg text-[#585858] max-w-xl mx-auto">When BarkFind launches, start with a 14-day free trial — cancel anytime before it renews.</p>
         </div>
 
         {/* Trial banner */}
@@ -894,8 +895,8 @@ function Pricing() {
             </svg>
           </div>
           <div>
-            <p className="font-bold text-[#1a1a1a] text-base">14-day free trial — full access, no restrictions</p>
-            <p className="text-sm text-[#585858] mt-0.5">Every feature unlocked from day one. After your trial, choose a plan to keep exploring.</p>
+            <p className="font-bold text-[#1a1a1a] text-base">14-day free trial — full access, every feature</p>
+            <p className="text-sm text-[#585858] mt-0.5">The trial is card-gated through Apple: add a payment method to start, pay £0 up front, and it auto-renews into your plan after 14 days unless you cancel.</p>
           </div>
         </div>
 
@@ -971,7 +972,7 @@ function Pricing() {
           ))}
         </div>
 
-        <p className="text-center text-sm text-[#585858] mt-4">No credit card required to start your trial · Cancel any time</p>
+        <p className="text-center text-sm text-[#585858] mt-4">Prices apply when BarkFind launches on iPhone · Founding members get their first year for £19.99</p>
       </div>
     </section>
   );
@@ -1052,13 +1053,13 @@ function Testimonials() {
 // ─── FAQ ──────────────────────────────────────────────────────────────────────
 
 const FAQ_ITEMS = [
-  { q: "How do I get started?", a: "Download BarkFind from the App Store and start your 14-day free trial — full access to every feature, no credit card required." },
-  { q: "How does the free trial work?", a: "You get 14 days of full, unrestricted access to every BarkFind feature — no credit card required. After your trial, choose a monthly (£4/month) or annual (£40/year) subscription to keep going." },
-  { q: "What happens after my trial ends?", a: "You'll be prompted to subscribe to either the monthly or annual plan. If you choose not to subscribe, your access to the app will pause until you do." },
-  { q: "Is BarkFind available on Android?", a: "BarkFind is on iOS first. Android is on the roadmap and coming soon — follow us to be the first to know when it lands." },
+  { q: "How do I get started?", a: "BarkFind is launching on iPhone soon. Join early access on our homepage to be first in — and to get first shot at founding-member pricing (your first year for £19.99). We'll email you the moment it's live." },
+  { q: "How does the free trial work?", a: "When BarkFind launches, you can start a 14-day free trial. It's card-gated through Apple: you add a payment method to begin, but you're charged £0 up front. After 14 days it auto-renews into your chosen plan (Monthly £5.99 or Annual £39.99) unless you cancel before then." },
+  { q: "What happens after my trial ends?", a: "If you don't subscribe, BarkFind switches to read-only rather than locking you out. You keep your saved spots, your profile and dog profile, and your own reviews — and you can still read other people's reviews and leave new ones. You lose searching for new places, Ask Mylo, saving new favourites, and dog-profile recommendations until you subscribe." },
+  { q: "Is BarkFind available on Android?", a: "BarkFind is on iOS first. Android is on the roadmap and coming soon — join the list on our homepage to be the first to know when it lands." },
   { q: "How are locations verified?", a: "Locations are verified through a combination of community reports, business owner claims, and our moderation team. A verified badge means the dog-friendly status has been confirmed." },
   { q: "What is a Dog Profile?", a: "A Dog Profile lets you add details about your dog — breed, size, temperament — so BarkFind can personalise recommendations based on what suits your dog specifically." },
-  { q: "How do the review rewards work?", a: "Submit 10 reviews to earn 25% off your next bill, 20 reviews for 50% off, or 50 reviews for a full year free. Once you hit a milestone, tap Redeem in the app to receive your unique promo code. Discounts apply to your next billing cycle (monthly or annual)." },
+  { q: "How do the review rewards work?", a: "Leave reviews to unlock Treats. On a monthly plan, 10 reviews earns 25% off and 20 reviews 50% off your monthly bill. Annual members get one reward claim per account. Hit 50 reviews and both plans get a full year free. Tap Redeem in the app for your promo code." },
   { q: "Can I list my business on BarkFind?", a: "Yes! Business owners can claim their listing for free. Premium business features (sponsored placement, analytics) are coming soon." },
   { q: "Is my data safe?", a: "Absolutely. We never sell your data. All personal information is stored securely and you can delete your account at any time." },
 ];

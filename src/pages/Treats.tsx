@@ -14,8 +14,8 @@ function PawMark({ className = "", color = "currentColor" }: { className?: strin
 }
 
 const TIERS = [
-  { reviews: 10, reward: "25% off", detail: "your next BarkFind bill" },
-  { reviews: 20, reward: "50% off", detail: "your next BarkFind bill" },
+  { reviews: 10, reward: "25% off", detail: "a monthly bill" },
+  { reviews: 20, reward: "50% off", detail: "a monthly bill" },
   { reviews: 50, reward: "1 year free", detail: "on us — our biggest treat", highlight: true },
 ];
 
@@ -29,14 +29,15 @@ const REDEEM_STEPS = [
   { n: 1, title: "Open BarkFind", body: "Go to the Profile tab, then open Treats." },
   { n: 2, title: "Find your unlocked milestone", body: "Any milestone you've reached (10, 20 or 50 reviews) will be ready to claim." },
   { n: 3, title: "Tap Redeem", body: "You'll get a unique promo code for your reward." },
-  { n: 4, title: "Enjoy the discount", body: "Your discount applies to your next billing cycle — monthly or annual. No vouchers to chase, no fuss." },
+  { n: 4, title: "Enjoy the reward", body: "The percentage discounts apply to your next monthly bill. On an annual plan you get one reward claim per account. The 50-review reward — a free year — applies to either plan. No vouchers to chase, no fuss." },
 ];
 
 const FAQ = [
   { q: "Do my reviews need photos?", a: "Photos aren't required to earn Treats, but they're hugely helpful to other dog owners — a quick snap of the space, the water bowl, or the garden makes your review much more useful." },
   { q: "What counts as a review?", a: "A genuine review of a dog-friendly place you've visited — a paw rating plus your honest thoughts. Reviews should reflect a real visit." },
-  { q: "Do Treats expire?", a: "Once unlocked, a Treat stays in your Treats screen ready to claim. Redeem it whenever suits you — the discount then applies to your next billing cycle. (Reward validity terms to be confirmed.)" },
-  { q: "Can I earn a Treat more than once?", a: "Each milestone — 10, 20 and 50 reviews — can be claimed once." },
+  { q: "Do the discounts apply to annual plans?", a: "The percentage discounts (25% and 50%) apply to monthly billing. On an annual plan you instead get one reward claim per account. The 50-review reward — a free year — applies to either plan." },
+  { q: "Do Treats expire?", a: "Once unlocked, a Treat stays in your Treats screen ready to claim. Redeem it whenever suits you and the reward applies to your next bill. (Reward validity terms to be confirmed.)" },
+  { q: "Can I earn a Treat more than once?", a: "Each review milestone — 10, 20 and 50 — can be claimed once. Annual members get one reward claim per account." },
   { q: "My claim didn't come through — what do I do?", a: "Get in touch at info@barkfind.com with your account email and the milestone you claimed, and we'll sort it out." },
   { q: "Do fake or low-quality reviews count?", a: "No. Treats reward genuine contributions. Reviews found to be fake, spammy or manipulated may have their rewards withheld or revoked — see our Terms of Use." },
 ];
@@ -61,7 +62,8 @@ export default function Treats() {
     >
       <p className="text-[#444] leading-relaxed">
         Treats are our way of saying thank you. Every review you leave helps other dog owners find great
-        dog-friendly places — and the more you contribute, the more you save on BarkFind.
+        dog-friendly places — and the more you contribute, the more you save on BarkFind. BarkFind launches on
+        iPhone soon, and Treats go live with it.
       </p>
 
       {/* Milestone tiers */}
@@ -109,8 +111,8 @@ export default function Treats() {
           ))}
         </div>
         <div className="rounded-xl bg-[#FAEFD1] border border-[#B74217]/15 p-4 mt-2 text-sm text-[#585858]">
-          Your promo code is unique to you and applies the discount to your next BarkFind subscription payment. If
-          anything doesn't come through, email{" "}
+          Your promo code is unique to you. Percentage discounts apply to your next monthly bill; annual members get
+          one reward claim per account. If anything doesn't come through, email{" "}
           <a href="mailto:info@barkfind.com" className="text-[#B74217] font-semibold hover:underline">info@barkfind.com</a>.
         </div>
       </Section>
@@ -129,12 +131,12 @@ export default function Treats() {
 
       {/* CTA */}
       <Section title="Start earning Treats">
-        <p>Got BarkFind? Head to Profile → Treats to see your progress. New here?</p>
+        <p>BarkFind is launching on iPhone soon. Join early access to be first in — and to lock in founding-member pricing — then start earning Treats from your very first review.</p>
         <a
           href="/#download"
           className="inline-flex items-center justify-center mt-1 px-7 py-3.5 rounded-full bg-[#B74217] text-white font-bold text-sm hover:opacity-90 transition-opacity shadow-sm shadow-[#B74217]/25 self-start"
         >
-          Get BarkFind — start your 14-day free trial
+          Get early access
         </a>
       </Section>
     </PageShell>
