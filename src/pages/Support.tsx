@@ -67,7 +67,7 @@ export default function Support() {
 
       <Section title="Reviews & rewards">
         <QA q="How do the review rewards (Treats) work?">
-          <p>Submit approved reviews to unlock Treats. On a monthly plan, 10 reviews = 25% off and 20 = 50% off your monthly bill; annual members get one reward claim per account; 50 reviews = a free year on either plan. Tap Redeem in the app when you hit a milestone to get your promo code. <a href="/treats" className="text-[#B74217] font-semibold hover:underline">More on how Treats work</a>.</p>
+          <p>Reviews earn points — one per review, or two with a photo and a description. On a monthly plan, 10 points = 25% off and 20 = 50% off your monthly bill (rolling 90 days); annual members get one reward claim per account; 50 points = a free year on either plan. Tap Redeem in the app to get your promo code. <a href="/treats" className="text-[#B74217] font-semibold hover:underline">More on how Treats work</a>.</p>
         </QA>
         <QA q="How do I report an inappropriate review or listing?">
           <p>Use the report option within the app on any review or place. We review reports and remove content that breaks our rules. See our <a href="/terms" className="text-[#B74217] font-semibold hover:underline">Terms of Use</a> for details.</p>

@@ -13,33 +13,31 @@ function PawMark({ className = "", color = "currentColor" }: { className?: strin
   );
 }
 
-const TIERS = [
-  { reviews: 10, reward: "25% off", detail: "a monthly bill" },
-  { reviews: 20, reward: "50% off", detail: "a monthly bill" },
-  { reviews: 50, reward: "1 year free", detail: "on us — our biggest treat", highlight: true },
+const EARN = [
+  { pts: "1 point", body: "An approved review — your paw rating and a quick verdict on the place." },
+  { pts: "2 points", body: "A review with a written description and at least one photo. Same trip out — double the points.", highlight: true },
 ];
 
-const STEPS = [
-  { n: 1, title: "Visit & review", body: "Head out with your dog, then leave an honest review of any dog-friendly place in the app — a paw rating, a few words, and a photo if you have one." },
-  { n: 2, title: "Hit a milestone", body: "Your review count climbs as you go. Treats unlock at 10, 20 and 50 reviews." },
-  { n: 3, title: "Claim your treat", body: "When you hit a milestone, a Treat unlocks in the app. Tap to claim it and get your reward." },
+const TIERS = [
+  { points: 10, reward: "25% off", detail: "your next monthly bill", note: "Per rolling 90 days" },
+  { points: 20, reward: "50% off", detail: "your next monthly bill", note: "Per rolling 90 days" },
+  { points: 50, reward: "1 year free", detail: "on us — our biggest treat", note: "Lifetime · one-time", highlight: true },
 ];
 
 const REDEEM_STEPS = [
   { n: 1, title: "Open BarkFind", body: "Go to the Profile tab, then open Treats." },
-  { n: 2, title: "Find your unlocked milestone", body: "Any milestone you've reached (10, 20 or 50 reviews) will be ready to claim." },
-  { n: 3, title: "Tap Redeem", body: "You'll get a unique promo code for your reward." },
-  { n: 4, title: "Enjoy the reward", body: "The percentage discounts apply to your next monthly bill. On an annual plan you get one reward claim per account. The 50-review reward — a free year — applies to either plan. No vouchers to chase, no fuss." },
+  { n: 2, title: "Find your unlocked reward", body: "Any tier you've reached (10, 20 or 50 points) will be ready to claim." },
+  { n: 3, title: "Tap Redeem", body: "You'll get a unique promo code, delivered through Apple's offer system." },
+  { n: 4, title: "It's applied to your next bill", body: "The code applies to your next billing cycle automatically. No vouchers to chase, no fuss." },
 ];
 
 const FAQ = [
-  { q: "Do my reviews need photos?", a: "Photos aren't required to earn Treats, but they're hugely helpful to other dog owners — a quick snap of the space, the water bowl, or the garden makes your review much more useful." },
-  { q: "What counts as a review?", a: "A genuine review of a dog-friendly place you've visited — a paw rating plus your honest thoughts. Reviews should reflect a real visit." },
-  { q: "Do the discounts apply to annual plans?", a: "The percentage discounts (25% and 50%) apply to monthly billing. On an annual plan you instead get one reward claim per account. The 50-review reward — a free year — applies to either plan." },
-  { q: "Do Treats expire?", a: "Once unlocked, a Treat stays in your Treats screen ready to claim. Redeem it whenever suits you and the reward applies to your next bill. (Reward validity terms to be confirmed.)" },
-  { q: "Can I earn a Treat more than once?", a: "Each review milestone — 10, 20 and 50 — can be claimed once. Annual members get one reward claim per account." },
-  { q: "My claim didn't come through — what do I do?", a: "Get in touch at info@barkfind.com with your account email and the milestone you claimed, and we'll sort it out." },
-  { q: "Do fake or low-quality reviews count?", a: "No. Treats reward genuine contributions. Reviews found to be fake, spammy or manipulated may have their rewards withheld or revoked — see our Terms of Use." },
+  { q: "How do I earn points?", a: "Every approved review earns 1 point. Add a written description and at least one photo and that review is worth 2 points — so a few words and a snap earns you double." },
+  { q: "Do my reviews need photos?", a: "No — a paw rating and a quick verdict still earns a point. But a description plus a photo earns 2 points and is far more useful to other dog owners, so it's well worth the extra moment." },
+  { q: "What counts as a review?", a: "An approved review of a dog-friendly place you've genuinely visited. Reviews found to be fake, spammy or manipulated may have their rewards withheld or revoked — see our Terms of Use." },
+  { q: "Do points expire?", a: "The 25% and 50% tiers work on a rolling 90-day window — you need 10 or 20 points earned in the last 90 days, and each is claimable once per 90-day period. The 50-point '1 year free' is a lifetime total and can be claimed once, ever." },
+  { q: "Monthly or annual — who gets what?", a: "The 25% and 50% discounts apply to monthly billing (one claim per billing cycle, no stacking). Annual subscribers instead get one reward claim per account, for life. The 50-point free year applies to both." },
+  { q: "My promo code didn't arrive — what do I do?", a: "Email info@barkfind.com with your account email and the reward you claimed, and we'll sort it out." },
 ];
 
 function Step({ n, title, body }: { n: number; title: string; body: string }) {
@@ -58,7 +56,7 @@ export default function Treats() {
   return (
     <PageShell
       title="How Treats work"
-      subtitle="Write reviews, earn Treats. Here's everything you need to know about BarkFind's rewards programme — from your first review to redeeming your reward."
+      subtitle="Write reviews, earn points, get treats. Here's everything you need to know about BarkFind's rewards programme — from your first review to redeeming your reward."
     >
       <p className="text-[#444] leading-relaxed">
         Treats are our way of saying thank you. Every review you leave helps other dog owners find great
@@ -66,13 +64,37 @@ export default function Treats() {
         iPhone soon, and Treats go live with it.
       </p>
 
-      {/* Milestone tiers */}
-      <Section title="The Treats">
-        <p>Treats unlock at three review milestones:</p>
+      {/* Earning — points */}
+      <Section title="How you earn points">
+        <p>You earn <strong className="text-[#1a1a1a]">points</strong> for reviews — and a fuller review is worth more:</p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-2">
+          {EARN.map((e) => (
+            <div
+              key={e.pts}
+              className={`rounded-2xl p-6 flex flex-col gap-2 border ${
+                e.highlight ? "bg-[#FAEFD1] border-[#B74217]/20" : "bg-white border-stone-100 shadow-sm shadow-stone-100"
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                <div className="w-9 h-9 rounded-full bg-[#B74217]/10 flex items-center justify-center flex-shrink-0">
+                  <PawMark className="w-5 h-5" color="#B74217" />
+                </div>
+                <p className="font-serif text-2xl text-[#1a1a1a]">{e.pts}</p>
+              </div>
+              <p className="text-sm text-[#585858] leading-relaxed">{e.body}</p>
+            </div>
+          ))}
+        </div>
+        <p className="text-sm text-[#585858]">Add a photo and a few words, earn double. Simple as that.</p>
+      </Section>
+
+      {/* Tiers */}
+      <Section title="The rewards">
+        <p>Your points unlock treats at three tiers:</p>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-2">
           {TIERS.map((t) => (
             <div
-              key={t.reviews}
+              key={t.points}
               className={`rounded-2xl p-6 flex flex-col items-center text-center gap-2 border ${
                 t.highlight ? "bg-[#B74217] border-[#B74217] text-white" : "bg-white border-stone-100 shadow-sm shadow-stone-100"
               }`}
@@ -81,25 +103,36 @@ export default function Treats() {
                 <PawMark className="w-6 h-6" color={t.highlight ? "#ffffff" : "#B74217"} />
               </div>
               <p className={`text-xs font-bold uppercase tracking-widest ${t.highlight ? "text-white/70" : "text-[#585858]"}`}>
-                {t.reviews} reviews
+                {t.points} points
               </p>
               <p className={`font-serif text-2xl ${t.highlight ? "text-white" : "text-[#1a1a1a]"}`}>{t.reward}</p>
               <p className={`text-sm ${t.highlight ? "text-white/80" : "text-[#585858]"}`}>{t.detail}</p>
+              <span className={`mt-1 text-[11px] font-bold px-2.5 py-1 rounded-full ${t.highlight ? "bg-white/20 text-white" : "bg-[#4FA4A1]/10 text-[#4FA4A1]"}`}>
+                {t.note}
+              </span>
             </div>
           ))}
         </div>
       </Section>
 
-      {/* How it works */}
-      <Section title="How it works">
-        <div className="flex flex-col gap-5 mt-1">
-          {STEPS.map((s) => (
-            <Step key={s.n} {...s} />
-          ))}
+      {/* Monthly vs annual rule */}
+      <Section title="Monthly vs annual">
+        <div className="rounded-2xl bg-[#FAEFD1] border border-[#B74217]/15 p-6 flex flex-col gap-3 text-sm text-[#444]">
+          <p>
+            <strong className="text-[#1a1a1a]">On a monthly plan:</strong> the 25% and 50% discounts apply to your
+            monthly billing — one claim per billing cycle, and they don't stack.
+          </p>
+          <p>
+            <strong className="text-[#1a1a1a]">On an annual plan:</strong> you get one reward claim per account, for
+            life — annual plans don't get the rolling 25%/50% discounts against a single yearly bill.
+          </p>
+          <p>
+            <strong className="text-[#1a1a1a]">The 50-point free year</strong> applies to both — a full year added on us.
+          </p>
         </div>
       </Section>
 
-      {/* How to redeem — the previously-missing bit */}
+      {/* How to redeem */}
       <Section title="How to redeem your Treat">
         <p>
           Here's exactly what happens when you claim — you'll find it all under{" "}
@@ -111,8 +144,8 @@ export default function Treats() {
           ))}
         </div>
         <div className="rounded-xl bg-[#FAEFD1] border border-[#B74217]/15 p-4 mt-2 text-sm text-[#585858]">
-          Your promo code is unique to you. Percentage discounts apply to your next monthly bill; annual members get
-          one reward claim per account. If anything doesn't come through, email{" "}
+          Your promo code is unique to you and is applied to your next billing cycle through Apple's offer system.
+          If anything doesn't come through, email{" "}
           <a href="mailto:info@barkfind.com" className="text-[#B74217] font-semibold hover:underline">info@barkfind.com</a>.
         </div>
       </Section>
@@ -131,7 +164,7 @@ export default function Treats() {
 
       {/* CTA */}
       <Section title="Start earning Treats">
-        <p>BarkFind is launching on iPhone soon. Join early access to be first in — and to lock in founding-member pricing — then start earning Treats from your very first review.</p>
+        <p>BarkFind is launching on iPhone soon. Join early access to be first in — and to lock in founding-member pricing — then start earning points from your very first review.</p>
         <a
           href="/#download"
           className="inline-flex items-center justify-center mt-1 px-7 py-3.5 rounded-full bg-[#B74217] text-white font-bold text-sm hover:opacity-90 transition-opacity shadow-sm shadow-[#B74217]/25 self-start"

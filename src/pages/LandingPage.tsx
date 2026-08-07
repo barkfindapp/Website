@@ -588,7 +588,7 @@ const FEATURES = [
   },
   {
     title: "Earn Rewards for Reviewing",
-    description: "Leave reviews and unlock exclusive discounts. 10 reviews gets you 25% off, 20 reviews 50% off, and 50 reviews earns you a full year free.",
+    description: "Leave reviews to earn points — one per review, two with a photo and a few words. Points unlock treats: 25% off at 10, 50% off at 20, and a full year free at 50.",
     icon: (
       <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth={1.75} viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5.5A2.5 2.5 0 109.5 8H12zm-7 4h14M5 12a2 2 0 110-4h14a2 2 0 110 4M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7" />
@@ -658,7 +658,7 @@ function PawMark({ className = "", color = "currentColor" }: { className?: strin
 
 const REWARDS = [
   {
-    reviews: 10,
+    points: 10,
     reward: "25% off",
     detail: "off a monthly bill",
     icon: (
@@ -668,7 +668,7 @@ const REWARDS = [
     ),
   },
   {
-    reviews: 20,
+    points: 20,
     reward: "50% off",
     detail: "off a monthly bill",
     icon: (
@@ -678,9 +678,9 @@ const REWARDS = [
     ),
   },
   {
-    reviews: 50,
+    points: 50,
     reward: "1 Year Free",
-    detail: "on us",
+    detail: "lifetime · one-time",
     highlight: true,
     icon: (
       <div className="w-9 h-9 rounded-full bg-[#B74217] flex items-center justify-center flex-shrink-0">
@@ -711,10 +711,10 @@ function Rewards() {
               <span className="text-[#4FA4A1]">Earn real rewards.</span>
             </h2>
             <p className="text-lg text-[#585858] mb-8 leading-relaxed max-w-lg mx-auto lg:mx-0">
-              Every review you leave helps the BarkFind community find great spots. And the more you contribute, the more you save — all the way up to a full year free.
+              Every review earns points — one per review, or two when you add a description and a photo. The more points you earn, the more you save, all the way up to a full year free.
             </p>
             <p className="text-sm text-[#585858] bg-stone-50 rounded-xl px-4 py-3 inline-block border border-stone-100">
-              Once you hit a milestone, tap <strong className="text-[#1a1a1a]">Redeem</strong> in the app for your promo code. Percentage discounts apply to monthly billing; annual members get one reward claim per account. Fifty reviews earns a free year on either plan.
+              Hit a points tier, tap <strong className="text-[#1a1a1a]">Redeem</strong> in the app, and your promo code applies to your next bill. Percentage discounts apply to monthly billing; annual members get one reward claim per account. Fifty points earns a free year on either plan.
             </p>
             <p className="mt-4">
               <a href="/treats" className="inline-flex items-center gap-1.5 text-sm font-bold text-[#B74217] hover:underline">
@@ -736,7 +736,7 @@ function Rewards() {
                   <span className="text-white font-bold text-base">Upcoming Treats</span>
                 </div>
                 <div className="flex items-center justify-between text-white/70 text-xs mb-2">
-                  <span>0 reviews</span>
+                  <span>0 points</span>
                   <span>10 to go</span>
                 </div>
                 <div className="h-2 bg-white/20 rounded-full overflow-hidden">
@@ -747,14 +747,14 @@ function Rewards() {
               <div className="divide-y divide-stone-100">
                 {REWARDS.map((r) => (
                   <div
-                    key={r.reviews}
+                    key={r.points}
                     className={`flex items-center justify-between px-6 py-4 ${r.highlight ? "bg-[#FAEFD1]/40" : "bg-white"}`}
                   >
                     <div className="flex items-center gap-3">
                       {r.icon}
                       <div>
                         <p className="text-sm font-semibold text-[#1a1a1a]">
-                          {r.reviews} Reviews
+                          {r.points} points
                           <span className="mx-2 text-[#4FA4A1]">→</span>
                           <span className={r.highlight ? "text-[#B74217]" : "text-[#1a1a1a]"}>{r.reward}</span>
                         </p>
@@ -769,7 +769,7 @@ function Rewards() {
               </div>
             </div>
 
-            <p className="text-center text-xs text-[#585858]">Percentage discounts apply to monthly billing · Annual: one reward claim per account · 50 reviews = a free year on either plan</p>
+            <p className="text-center text-xs text-[#585858]">Percentage discounts apply to monthly billing · Annual: one reward claim per account · 50 points = a free year on either plan</p>
           </div>
         </div>
       </div>
@@ -855,7 +855,7 @@ const PLANS = [
     saving: null,
     features: [
       ...SHARED_FEATURES.map((text) => ({ text, strong: false })),
-      { text: "Review rewards: rolling discounts (25% at 10 reviews, 50% at 20)", strong: true },
+      { text: "Review rewards: rolling discounts (25% at 10 points, 50% at 20)", strong: true },
       { text: "Includes occasional sponsored places", strong: true },
     ],
   },
@@ -1065,7 +1065,7 @@ const FAQ_ITEMS = [
   { q: "Is BarkFind available on Android?", a: "BarkFind is on iOS first. Android is on the roadmap and coming soon — join the list on our homepage to be the first to know when it lands." },
   { q: "How are locations verified?", a: "Locations are verified through a combination of community reports, business owner claims, and our moderation team. A verified badge means the dog-friendly status has been confirmed." },
   { q: "What is a Dog Profile?", a: "A Dog Profile lets you add details about your dog — breed, size, temperament — so BarkFind can personalise recommendations based on what suits your dog specifically." },
-  { q: "How do the review rewards work?", a: "Leave reviews to unlock Treats. On a monthly plan, 10 reviews earns 25% off and 20 reviews 50% off your monthly bill. Annual members get one reward claim per account. Hit 50 reviews and both plans get a full year free. Tap Redeem in the app for your promo code." },
+  { q: "How do the review rewards work?", a: "Every review earns points — one per review, or two with a photo and a written description. On a monthly plan, 10 points earns 25% off and 20 points 50% off your monthly bill (the % tiers run on a rolling 90 days). Annual members get one reward claim per account. Hit 50 points and both plans get a full year free. Tap Redeem in the app for your promo code." },
   { q: "Can I list my business on BarkFind?", a: "Yes! Business owners can claim their listing for free. Premium business features (sponsored placement, analytics) are coming soon." },
   { q: "Is my data safe?", a: "Absolutely. We never sell your data. All personal information is stored securely and you can delete your account at any time." },
 ];
