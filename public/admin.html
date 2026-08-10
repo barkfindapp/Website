@@ -5,13 +5,29 @@
 <title>BarkFind Admin Console</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.0/dist/chart.umd.js" integrity="sha384-iU8HYtnGQ8Cy4zl7gbNMOhsDTTKX02BTXptVP/vqAWIaTfM7isw76iyZCsjL2eVi" crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/npm/gridjs@5.0.2/dist/gridjs.umd.js" integrity="sha384-/XXDzxe4FsGiAe50i/u9pY/Vy/uX654MHB1xoc1BJNnH1WXHhqHga9g3q5tF4gj7" crossorigin="anonymous"></script>
+<script>
+// Global Chart.js styling — applied once, upgrades every chart in the console.
+(function(){ if(!window.Chart) return; var C=window.Chart;
+  C.defaults.font.family="'Nunito',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif";
+  C.defaults.font.weight=700; C.defaults.font.size=12; C.defaults.color='#6E6A66';
+  C.defaults.elements.bar.borderRadius=7; C.defaults.elements.bar.borderSkipped=false; C.defaults.elements.bar.maxBarThickness=54;
+  C.defaults.elements.line.tension=0.38; C.defaults.elements.line.borderWidth=2.5;
+  C.defaults.elements.point.radius=0; C.defaults.elements.point.hoverRadius=5; C.defaults.elements.point.hitRadius=12;
+  C.defaults.plugins.legend.labels.usePointStyle=true; C.defaults.plugins.legend.labels.boxWidth=8; C.defaults.plugins.legend.labels.boxHeight=8; C.defaults.plugins.legend.labels.padding=16;
+  C.defaults.plugins.tooltip.backgroundColor='#212121'; C.defaults.plugins.tooltip.padding=10; C.defaults.plugins.tooltip.cornerRadius=8; C.defaults.plugins.tooltip.titleFont={weight:'800'}; C.defaults.plugins.tooltip.displayColors=false;
+  if(C.defaults.scale&&C.defaults.scale.grid){ C.defaults.scale.grid.color='rgba(33,33,33,.05)'; C.defaults.scale.grid.drawTicks=false; }
+  C.defaults.scale.border={display:false};
+})();
+</script>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/gridjs@5.0.2/dist/theme/mermaid.min.css" integrity="sha384-jZvDSsmGB9oGGT/4l9bHXGoAv1OxvG/cFmSo0dZaSqmBgvQTKDBFAMftlXTmMbNW" crossorigin="anonymous">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:ital,wght@0,400;0,600;0,700;0,800;0,900;1,600&display=swap">
 <style>
 :root { color-scheme: light; --rust:#B74217; --rust-d:#96360F; --rust2:#D2691E; --teal:#4FA4A1; --nature:#96BD99; --ink:#212121; --mut:#6E6A66; --line:#ECE4DB; --bg:#FAF6F1; --card:#ffffff; --cream:#F4F1EA; --good:#2E7D4F; --bad:#C0392B; --warn:#B9821F; }
 * { box-sizing:border-box; }
 body { margin:0; background:var(--bg); color:var(--ink); font-family:'Nunito',-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; font-size:14px; -webkit-font-smoothing:antialiased; }
 .wrap { max-width:1120px; margin:0 auto; padding:22px; }
-header { display:flex; align-items:center; gap:16px; background:var(--rust); border-radius:18px; padding:16px 22px; box-shadow:0 8px 26px rgba(183,66,23,.20); }
+header { display:flex; align-items:center; gap:16px; background:linear-gradient(135deg,#C0562C 0%,var(--rust) 52%,var(--rust-d) 100%); border-radius:18px; padding:16px 22px; box-shadow:0 10px 30px rgba(183,66,23,.22); }
 header .brand-logo { height:38px; width:auto; display:block; }
 header .divider { width:1px; height:28px; background:rgba(255,255,255,.30); }
 header .brand-sub { color:#fff; font-weight:800; font-size:15px; letter-spacing:.2px; opacity:.96; }
@@ -28,8 +44,9 @@ nav button { border:none; background:transparent; color:var(--mut); padding:9px 
 nav button:hover { color:var(--ink); }
 nav button.active { background:#fff; color:var(--rust); box-shadow:0 2px 7px rgba(60,40,20,.10); }
 .tiles { display:grid; grid-template-columns:repeat(auto-fit,minmax(158px,1fr)); gap:13px; margin-bottom:18px; }
-.tile { background:var(--card); border:1px solid var(--line); border-radius:15px; padding:16px 18px; box-shadow:0 1px 2px rgba(0,0,0,.03); position:relative; overflow:hidden; }
-.tile::before { content:''; position:absolute; left:0; top:0; bottom:0; width:4px; background:var(--rust); opacity:.85; }
+.tile { background:var(--card); border:1px solid var(--line); border-radius:15px; padding:16px 18px 16px 20px; box-shadow:0 1px 2px rgba(0,0,0,.03); position:relative; overflow:hidden; transition:box-shadow .15s, transform .15s; }
+.tile:hover { box-shadow:0 6px 20px rgba(60,40,20,.09); transform:translateY(-1px); }
+.tile::before { content:''; position:absolute; left:0; top:0; bottom:0; width:4px; background:linear-gradient(180deg,#C0562C,var(--rust)); }
 .tile .lbl { color:var(--mut); font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:.04em; }
 .tile .val { font-size:26px; font-weight:800; margin-top:6px; color:var(--ink); }
 .tile .note { color:var(--mut); font-size:11px; margin-top:3px; }
@@ -110,18 +127,24 @@ a.evidence { color:var(--rust); font-size:12px; word-break:break-all; }
 </head>
 <body>
 
-<div id="loginGate" style="position:fixed;inset:0;background:#FAF6F1;display:flex;align-items:center;justify-content:center;z-index:100;font-family:'Nunito',-apple-system,sans-serif">
-  <div style="background:#fff;border:1px solid #ECE4DB;border-radius:16px;padding:26px;width:min(380px,92vw);box-shadow:0 12px 34px rgba(0,0,0,.10)">
-    <div style="width:34px;height:34px;border-radius:9px;background:#B74217;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:18px;margin-bottom:10px">B</div>
-    <h2 style="margin:2px 0;font-size:19px;color:#212121">BarkFind Admin</h2>
-    <p style="color:#6E6A66;font-size:13px;margin:2px 0 16px">Sign in with your admin account.</p>
-    <input id="lgEmail" placeholder="Email" autocomplete="username" style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #ECE4DB;border-radius:10px;margin-bottom:8px;font-size:14px;font-family:inherit" />
-    <input id="lgPass" type="password" placeholder="Password" autocomplete="current-password" style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #ECE4DB;border-radius:10px;margin-bottom:12px;font-size:14px;font-family:inherit" />
-    <button onclick="adminLogin()" style="width:100%;background:#B74217;color:#fff;border:none;padding:11px;border-radius:10px;font-weight:800;cursor:pointer;font-size:14px;font-family:inherit">Sign in</button>
-    <button onclick="adminMagic()" style="width:100%;background:transparent;color:#B74217;border:none;padding:9px;margin-top:6px;cursor:pointer;font-weight:700;font-size:13px;font-family:inherit">Email me a magic link instead</button>
-    <div id="loginMsg" style="color:#C0392B;font-size:12px;margin-top:10px;min-height:16px"></div>
+<div id="loginGate" style="position:fixed;inset:0;background:radial-gradient(1100px 560px at 50% -12%, #FBEEE6 0%, #FAF6F1 58%);display:flex;align-items:center;justify-content:center;z-index:100;padding:20px;font-family:'Nunito',-apple-system,BlinkMacSystemFont,sans-serif">
+  <div style="background:#fff;border:1px solid #EFE7DE;border-radius:22px;width:min(392px,94vw);box-shadow:0 24px 60px rgba(150,54,15,.16),0 2px 8px rgba(0,0,0,.04);overflow:hidden">
+    <div style="background:linear-gradient(135deg,#C0562C 0%,#B74217 52%,#96360F 100%);padding:28px 26px 24px;text-align:center">
+      <img id="lgLogo" alt="BarkFind" style="height:42px;width:auto;display:inline-block;filter:drop-shadow(0 2px 6px rgba(0,0,0,.18))" />
+      <div style="color:rgba(255,255,255,.94);font-weight:800;font-size:11px;letter-spacing:.16em;text-transform:uppercase;margin-top:12px">Admin Console</div>
+    </div>
+    <div style="padding:24px 26px 26px">
+      <h2 style="margin:0 0 3px;font-size:19px;color:#212121;font-weight:900">Welcome back</h2>
+      <p style="color:#6E6A66;font-size:13px;margin:0 0 18px">Sign in with your admin account.</p>
+      <input id="lgEmail" placeholder="Email" autocomplete="username" style="width:100%;box-sizing:border-box;padding:11px 13px;border:1px solid #ECE4DB;border-radius:11px;margin-bottom:9px;font-size:14px;font-family:inherit;background:#FCFAF7" />
+      <input id="lgPass" type="password" placeholder="Password" autocomplete="current-password" style="width:100%;box-sizing:border-box;padding:11px 13px;border:1px solid #ECE4DB;border-radius:11px;margin-bottom:14px;font-size:14px;font-family:inherit;background:#FCFAF7" />
+      <button onclick="adminLogin()" style="width:100%;background:linear-gradient(180deg,#C0562C,#B74217);color:#fff;border:none;padding:12px;border-radius:11px;font-weight:800;cursor:pointer;font-size:14px;font-family:inherit;box-shadow:0 6px 16px rgba(183,66,23,.28)">Sign in</button>
+      <button onclick="adminMagic()" style="width:100%;background:transparent;color:#B74217;border:none;padding:10px;margin-top:8px;cursor:pointer;font-weight:800;font-size:13px;font-family:inherit">Email me a magic link instead</button>
+      <div id="loginMsg" style="color:#C0392B;font-size:12px;margin-top:10px;min-height:16px"></div>
+    </div>
   </div>
 </div>
+<script>document.addEventListener('DOMContentLoaded',function(){var h=document.querySelector('header .brand-logo');var l=document.getElementById('lgLogo');if(h&&l&&h.src)l.src=h.src;});</script>
 
 <div class="wrap">
   <header>
@@ -421,7 +444,7 @@ async function loadOverview(){
     const ai=document.getElementById('aiUsage'); if(ai) ai.innerHTML='AI calls (Mylo): <b>'+(m.ai_calls||0)+'</b>';
     const cats = await runSQL(`SELECT category, count(*) AS n FROM locations WHERE flagged=false GROUP BY category ORDER BY n DESC`);
     const ctx=document.getElementById('catChart'); if(window._catChart) window._catChart.destroy();
-    window._catChart=new Chart(ctx,{type:'bar',data:{labels:cats.map(c=>c.category),datasets:[{label:'Locations',data:cats.map(c=>Number(c.n)),backgroundColor:'#be6a3d'}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{precision:0}}}}});
+    window._catChart=new Chart(ctx,{type:'bar',data:{labels:cats.map(c=>c.category),datasets:[{label:'Locations',data:cats.map(c=>Number(c.n)),backgroundColor:'#C0562C'}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{precision:0}}}}});
     loadOverviewReports();
   }catch(e){ showGlobalErr(e); document.getElementById('ovTiles').innerHTML=''; }
 }
@@ -988,7 +1011,7 @@ async function loadCosts(){
     const a=days.map(d=>Number(rows.find(r=>r.day===d&&r.provider==='anthropic')?.cost||0));
     const ctx=document.getElementById('costChart'); if(window._costChart) window._costChart.destroy();
     window._costChart=new Chart(ctx,{type:'bar',data:{labels:days,datasets:[
-        {label:'Google Places',data:g,backgroundColor:'#be6a3d'},
+        {label:'Google Places',data:g,backgroundColor:'#C0562C'},
         {label:'AI (Claude)',data:a,backgroundColor:'#4FA4A1'}]},
       options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom'}},scales:{x:{stacked:true},y:{stacked:true,beginAtZero:true,ticks:{callback:v=>'$'+v}}}}});
 
@@ -1127,7 +1150,7 @@ async function loadOps(){
     const wk=await runSQL(`WITH weeks AS (SELECT generate_series(date_trunc('week', now()) - interval '11 weeks', date_trunc('week', now()), interval '1 week') AS wk)
       SELECT to_char(w.wk,'YYYY-MM-DD') AS wk, (SELECT count(*) FROM locations l WHERE date_trunc('week', l.created_at)=w.wk) AS n FROM weeks w ORDER BY w.wk -- ${Date.now()}`);
     const ctx=document.getElementById('ingChart'); if(window._ingChart) window._ingChart.destroy();
-    window._ingChart=new Chart(ctx,{type:'bar',data:{labels:wk.map(x=>x.wk.slice(5)),datasets:[{label:'Locations added',data:wk.map(x=>Number(x.n)),backgroundColor:'#be6a3d'}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{precision:0}}}}});
+    window._ingChart=new Chart(ctx,{type:'bar',data:{labels:wk.map(x=>x.wk.slice(5)),datasets:[{label:'Locations added',data:wk.map(x=>Number(x.n)),backgroundColor:'#C0562C'}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{precision:0}}}}});
   }catch(e){ showGlobalErr(e); }
   try{
     const a=await runSQL(`SELECT action, entity, detail, created_at FROM admin_audit ORDER BY created_at DESC LIMIT 100 -- ${Date.now()}`);
