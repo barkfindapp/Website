@@ -1,0 +1,1273 @@
+<!DOCTYPE html><html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BarkFind Admin Console</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.0/dist/chart.umd.js" integrity="sha384-iU8HYtnGQ8Cy4zl7gbNMOhsDTTKX02BTXptVP/vqAWIaTfM7isw76iyZCsjL2eVi" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/gridjs@5.0.2/dist/gridjs.umd.js" integrity="sha384-/XXDzxe4FsGiAe50i/u9pY/Vy/uX654MHB1xoc1BJNnH1WXHhqHga9g3q5tF4gj7" crossorigin="anonymous"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/gridjs@5.0.2/dist/theme/mermaid.min.css" integrity="sha384-jZvDSsmGB9oGGT/4l9bHXGoAv1OxvG/cFmSo0dZaSqmBgvQTKDBFAMftlXTmMbNW" crossorigin="anonymous">
+<style>
+:root { color-scheme: light; --rust:#B74217; --rust-d:#96360F; --rust2:#D2691E; --teal:#4FA4A1; --nature:#96BD99; --ink:#212121; --mut:#6E6A66; --line:#ECE4DB; --bg:#FAF6F1; --card:#ffffff; --cream:#F4F1EA; --good:#2E7D4F; --bad:#C0392B; --warn:#B9821F; }
+* { box-sizing:border-box; }
+body { margin:0; background:var(--bg); color:var(--ink); font-family:'Nunito',-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; font-size:14px; -webkit-font-smoothing:antialiased; }
+.wrap { max-width:1120px; margin:0 auto; padding:22px; }
+header { display:flex; align-items:center; gap:16px; background:var(--rust); border-radius:18px; padding:16px 22px; box-shadow:0 8px 26px rgba(183,66,23,.20); }
+header .brand-logo { height:38px; width:auto; display:block; }
+header .divider { width:1px; height:28px; background:rgba(255,255,255,.30); }
+header .brand-sub { color:#fff; font-weight:800; font-size:15px; letter-spacing:.2px; opacity:.96; }
+header .usage { margin-left:auto; font-size:11px; color:rgba(255,255,255,.85); text-align:right; line-height:1.6; }
+header .usage b { color:#fff; }
+header .usage #aiUsage { color:rgba(255,255,255,.82); font-size:11px; }
+.refresh-btn { border:1px solid rgba(255,255,255,.42); background:rgba(255,255,255,.14); color:#fff; padding:7px 14px; border-radius:10px; cursor:pointer; font-weight:800; font-size:12px; font-family:inherit; transition:background .15s; }
+.refresh-btn:hover { background:rgba(255,255,255,.26); }
+.refresh-btn:active { transform:translateY(1px); }
+.sub { color:var(--mut); font-size:12px; margin:14px 2px 18px; display:flex; align-items:center; gap:7px; }
+.live-dot { width:8px; height:8px; border-radius:50%; background:var(--nature); display:inline-block; box-shadow:0 0 0 3px rgba(150,189,153,.30); }
+nav { display:flex; gap:5px; flex-wrap:wrap; margin-bottom:20px; background:var(--cream); padding:6px; border-radius:14px; }
+nav button { border:none; background:transparent; color:var(--mut); padding:9px 16px; border-radius:10px; cursor:pointer; font-size:13px; font-weight:800; font-family:inherit; transition:all .15s; }
+nav button:hover { color:var(--ink); }
+nav button.active { background:#fff; color:var(--rust); box-shadow:0 2px 7px rgba(60,40,20,.10); }
+.tiles { display:grid; grid-template-columns:repeat(auto-fit,minmax(158px,1fr)); gap:13px; margin-bottom:18px; }
+.tile { background:var(--card); border:1px solid var(--line); border-radius:15px; padding:16px 18px; box-shadow:0 1px 2px rgba(0,0,0,.03); position:relative; overflow:hidden; }
+.tile::before { content:''; position:absolute; left:0; top:0; bottom:0; width:4px; background:var(--rust); opacity:.85; }
+.tile .lbl { color:var(--mut); font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:.04em; }
+.tile .val { font-size:26px; font-weight:800; margin-top:6px; color:var(--ink); }
+.tile .note { color:var(--mut); font-size:11px; margin-top:3px; }
+.panel { background:var(--card); border:1px solid var(--line); border-radius:16px; padding:18px; margin-bottom:18px; box-shadow:0 1px 3px rgba(0,0,0,.03); }
+.panel h2 { font-size:15px; margin:0 0 14px; font-weight:800; }
+.chartbox { position:relative; height:240px; }
+.section { display:none; } .section.active { display:block; }
+.card { border:1px solid var(--line); border-radius:14px; padding:15px; margin-bottom:11px; background:var(--card); transition:box-shadow .15s; }
+.card:hover { box-shadow:0 3px 14px rgba(60,40,20,.07); }
+.card .top { display:flex; justify-content:space-between; align-items:flex-start; gap:10px; }
+.card .name { font-weight:800; }
+.paws { color:var(--rust); font-weight:700; }
+.muted { color:var(--mut); font-size:12px; }
+.btn { border:none; border-radius:9px; padding:7px 14px; cursor:pointer; font-weight:800; font-size:12px; font-family:inherit; transition:transform .1s, filter .15s; }
+.btn:hover { filter:brightness(1.06); } .btn:active { transform:translateY(1px); }
+.btn.approve { background:var(--good); color:#fff; } .btn.reject { background:var(--bad); color:#fff; }
+.btn.ghost { background:var(--cream); color:var(--ink); } .btn.on { background:var(--rust); color:#fff; }
+.row-actions { display:flex; gap:8px; margin-top:10px; flex-wrap:wrap; }
+.empty { color:var(--mut); padding:24px; text-align:center; }
+.err { background:#fdecea; color:#9b2c1f; border:1px solid #f3c2bb; padding:10px 12px; border-radius:8px; margin-bottom:12px; font-size:13px; white-space:pre-wrap; }
+.badge { display:inline-block; font-size:11px; padding:2px 7px; border-radius:20px; background:#f3ede8; color:var(--mut); margin-left:6px; }
+.loading { color:var(--mut); padding:18px; }
+.toolbar { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:12px; }
+.toolbar select, .toolbar input { padding:6px 10px; border:1px solid var(--line); border-radius:8px; font-size:13px; background:var(--card); }
+.chip { border:1px solid var(--line); background:var(--card); padding:5px 11px; border-radius:20px; cursor:pointer; font-size:12px; font-weight:600; }
+.chip.active { background:var(--rust); color:#fff; border-color:var(--rust); }
+table.mini { width:100%; border-collapse:collapse; }
+table.mini td, table.mini th { text-align:left; padding:7px 8px; border-bottom:1px solid var(--line); vertical-align:top; }
+table.mini th { color:var(--mut); font-weight:600; font-size:12px; }
+.gridjs-wrapper { box-shadow:none; }
+.pill { font-size:11px; padding:2px 8px; border-radius:20px; }
+.pill.open{background:#fdecea;color:#9b2c1f;} .pill.in_progress{background:#fff4e0;color:#8a5a00;} .pill.resolved{background:#e7f3ec;color:#2e7d4f;}
+.pill.pending{background:#fff4e0;color:#8a5a00;} .pill.verified{background:#e7f3ec;color:#2e7d4f;} .pill.rejected{background:#fdecea;color:#9b2c1f;}
+.reason { background:#fbf3ee; border-left:3px solid var(--rust); padding:6px 10px; border-radius:4px; margin-top:8px; font-size:13px; }
+.modal-bg { position:fixed; inset:0; background:rgba(0,0,0,.35); display:none; align-items:center; justify-content:center; z-index:50; }
+.modal { background:var(--card); border-radius:14px; padding:20px; width:min(420px,92vw); }
+.modal h3 { margin:0 0 12px; font-size:16px; }
+.modal textarea { width:100%; min-height:70px; border:1px solid var(--line); border-radius:8px; padding:8px; font-family:inherit; font-size:13px; }
+.modal .chips { display:flex; gap:6px; flex-wrap:wrap; margin:10px 0; }
+.modal .actions { display:flex; gap:8px; justify-content:flex-end; margin-top:12px; }
+a.evidence { color:var(--rust); font-size:12px; word-break:break-all; }
+.slabel { font-size:11px; text-transform:uppercase; letter-spacing:.04em; color:var(--mut); font-weight:700; margin:12px 0 6px; }
+.sliders { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:6px 18px; }
+.slrow { display:flex; align-items:center; gap:8px; font-size:12px; }
+.slrow span.k { flex:0 0 108px; color:var(--mut); }
+.slbar { flex:1; height:7px; background:#efe7e1; border-radius:6px; overflow:hidden; }
+.slbar i { display:block; height:100%; background:var(--rust2); }
+.slrow b { flex:0 0 32px; text-align:right; }
+.amenities { display:flex; flex-wrap:wrap; gap:6px; }
+.am { font-size:11.5px; background:#eef5ef; color:#2e7d4f; border:1px solid #d6e8db; padding:3px 9px; border-radius:20px; }
+.photos { display:flex; flex-wrap:wrap; gap:8px; }
+.photo { position:relative; display:block; width:94px; height:94px; border-radius:8px; overflow:hidden; border:1px solid var(--line); background:#f3ede8; text-decoration:none; }
+.photo img { width:100%; height:100%; object-fit:cover; display:block; }
+.photo .pfallback { display:none; position:absolute; inset:0; align-items:center; justify-content:center; text-align:center; font-size:11px; color:var(--rust); padding:4px; font-weight:600; }
+.photo.noimg .pfallback { display:flex; }
+.flag-chip { font-size:11px; background:#fdecea; color:#9b2c1f; border-radius:20px; padding:2px 8px; margin-left:4px; display:inline-block; }
+.aibox { background:#fbf3ee; border-left:3px solid var(--rust); padding:8px 10px; border-radius:4px; margin-top:10px; font-size:13px; }
+.thread { margin:11px 0 0; display:flex; flex-direction:column; gap:8px; }
+.reply { background:var(--cream); border-radius:10px; padding:9px 12px; font-size:13px; }
+.reply-meta { font-size:11px; color:var(--mut); margin-bottom:3px; display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+.reply-box { width:100%; min-height:64px; margin-top:11px; border:1px solid var(--line); border-radius:10px; padding:9px 11px; font-family:inherit; font-size:13px; resize:vertical; background:#fff; }
+.reply-box:focus { outline:none; border-color:var(--rust); }
+.btn.danger { background:transparent; color:var(--bad); border:1px solid var(--line); }
+.btn.danger.armed { background:var(--bad); color:#fff; border-color:var(--bad); }
+.tb-sep { width:1px; height:20px; background:var(--line); margin:0 3px; }
+.period-lbl { font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:.04em; color:var(--mut); align-self:center; }
+.btn.ai { background:#e3f0ef; color:#2F6F6D; border:1px solid #cfe6e4; }
+.btn.ai:disabled { opacity:.6; cursor:default; }
+.assessbox { background:#f4f1fb; border-left:3px solid #7a5bb5; padding:9px 11px; border-radius:6px; margin-top:9px; font-size:13px; white-space:pre-wrap; }
+.mini-select { padding:5px 9px; border:1px solid var(--line); border-radius:8px; font-size:12px; font-family:inherit; background:#fff; cursor:pointer; }
+.note-in { flex:1; padding:7px 10px; border:1px solid var(--line); border-radius:9px; font-size:13px; font-family:inherit; }
+.note-in:focus { outline:none; border-color:var(--rust); }
+.cs-row { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-top:10px; }
+.pill.prio-low{background:#eef2f4;color:#5a6b72;} .pill.prio-normal{background:#eef5ef;color:#3d6b4a;} .pill.prio-high{background:#fff4e0;color:#8a5a00;} .pill.prio-urgent{background:#fdecea;color:#9b2c1f;}
+.undo-toast { position:fixed; bottom:22px; left:50%; transform:translateX(-50%); background:var(--ink); color:#fff; padding:11px 16px; border-radius:12px; display:none; align-items:center; gap:16px; z-index:60; box-shadow:0 10px 30px rgba(0,0,0,.28); font-size:13px; font-weight:700; }
+.undo-toast button { border:none; background:#fff; color:var(--rust); padding:6px 14px; border-radius:8px; font-weight:800; font-size:12px; cursor:pointer; font-family:inherit; }
+</style>
+</head>
+<body>
+
+<div id="loginGate" style="position:fixed;inset:0;background:#FAF6F1;display:flex;align-items:center;justify-content:center;z-index:100;font-family:'Nunito',-apple-system,sans-serif">
+  <div style="background:#fff;border:1px solid #ECE4DB;border-radius:16px;padding:26px;width:min(380px,92vw);box-shadow:0 12px 34px rgba(0,0,0,.10)">
+    <div style="width:34px;height:34px;border-radius:9px;background:#B74217;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:18px;margin-bottom:10px">B</div>
+    <h2 style="margin:2px 0;font-size:19px;color:#212121">BarkFind Admin</h2>
+    <p style="color:#6E6A66;font-size:13px;margin:2px 0 16px">Sign in with your admin account.</p>
+    <input id="lgEmail" placeholder="Email" autocomplete="username" style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #ECE4DB;border-radius:10px;margin-bottom:8px;font-size:14px;font-family:inherit" />
+    <input id="lgPass" type="password" placeholder="Password" autocomplete="current-password" style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #ECE4DB;border-radius:10px;margin-bottom:12px;font-size:14px;font-family:inherit" />
+    <button onclick="adminLogin()" style="width:100%;background:#B74217;color:#fff;border:none;padding:11px;border-radius:10px;font-weight:800;cursor:pointer;font-size:14px;font-family:inherit">Sign in</button>
+    <button onclick="adminMagic()" style="width:100%;background:transparent;color:#B74217;border:none;padding:9px;margin-top:6px;cursor:pointer;font-weight:700;font-size:13px;font-family:inherit">Email me a magic link instead</button>
+    <div id="loginMsg" style="color:#C0392B;font-size:12px;margin-top:10px;min-height:16px"></div>
+  </div>
+</div>
+
+<div class="wrap">
+  <header>
+    <img class="brand-logo" src="data:image/png;base64,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" alt="BarkFind" />
+    <span class="divider"></span>
+    <span class="brand-sub">Admin Console</span>
+    <div class="usage">
+      <button class="refresh-btn" onclick="refreshActive()">↻ Refresh</button>
+      <div style="margin-top:8px"><b id="qcount">0</b> Supabase queries</div>
+      <div id="aiUsage">AI calls (Mylo): —</div>
+    </div>
+  </header>
+  <p class="sub"><span class="live-dot"></span> Live data from Supabase · BarkFind Production (kwwnwniyijeuorpbyvmn)</p>
+
+  <nav>
+    <button data-tab="overview" class="active">Overview</button>
+    <button data-tab="analytics">Analytics</button>
+    <button data-tab="locations">Locations</button>
+    <button data-tab="users">Users</button>
+    <button data-tab="moderation">Moderation</button>
+    <button data-tab="safety">Safety</button>
+    <button data-tab="claims">Claims</button>
+    <button data-tab="support">Support</button>
+    <button data-tab="rewards">Rewards</button>
+    <button data-tab="comms">Comms</button>
+    <button data-tab="revenue">Revenue</button>
+    <button data-tab="costs">Costs</button>
+    <button data-tab="ops">Ops</button>
+  </nav>
+
+  <div id="globalErr"></div>
+
+  <section id="overview" class="section active">
+    <div id="ovTiles" class="tiles"><div class="loading">Loading metrics…</div></div>
+    <div class="panel"><h2>Locations by category</h2><div class="chartbox"><canvas id="catChart"></canvas></div></div>
+    <div class="panel"><h2>Geographic coverage</h2><div id="geoNote" class="muted" style="margin-bottom:10px"></div><div class="chartbox"><canvas id="geoChart"></canvas></div></div>
+    <div class="panel"><h2>Amenities by type</h2><div class="chartbox" style="height:320px"><canvas id="amenChart"></canvas></div></div>
+    <div class="panel"><h2>Data quality — live places</h2><div id="dqTiles" class="tiles"><div class="loading">Loading…</div></div></div>
+    <div class="panel"><h2>New per week — last 12 weeks</h2><div class="chartbox"><canvas id="engChart"></canvas></div></div>
+    <div class="panel"><h2>Review ratings &amp; approval</h2><div id="ratingBox"><div class="loading">Loading…</div></div></div>
+  </section>
+
+  <section id="analytics" class="section">
+    <div id="anTiles" class="tiles"><div class="loading">Loading…</div></div>
+    <div class="panel"><h2>Daily active users — last 30 days</h2><div class="chartbox"><canvas id="dauChart"></canvas></div></div>
+    <div class="panel"><h2>Top searches</h2><div id="topSearches"><div class="loading">Loading…</div></div></div>
+    <div class="panel"><h2>Content gaps — searches with no matching place</h2><div id="gapSearches"><div class="loading">Loading…</div></div></div>
+    <div class="panel"><h2>Devices</h2><div id="deviceBreak"><div class="loading">Loading…</div></div></div>
+  </section>
+
+  <section id="locations" class="section">
+    <div class="panel"><h2>All locations</h2>
+      <div class="toolbar">
+        <select id="catFilter" onchange="applyLocFilters()"><option value="">All categories</option></select>
+        <span class="chip active" data-status="" onclick="setLocStatus(this,'')">All</span>
+        <span class="chip" data-status="unverified" onclick="setLocStatus(this,'unverified')">Unverified</span>
+        <span class="chip" data-status="sponsored" onclick="setLocStatus(this,'sponsored')">Sponsored</span>
+        <span class="chip" data-status="flagged" onclick="setLocStatus(this,'flagged')">Flagged</span>
+        <button class="btn on" onclick="addLocation()" style="margin-left:auto">+ Add location</button>
+        <span id="locCount" class="muted"></span>
+      </div>
+      <div id="locGrid"><div class="loading">Loading locations…</div></div>
+    </div>
+    <div class="panel"><h2>Possible duplicates</h2><div id="dupList"><div class="loading">Loading…</div></div></div>
+  </section>
+
+  <section id="users" class="section">
+    <div class="panel"><h2>Customers</h2>
+      <div class="toolbar">
+        <input id="userSearch" placeholder="Search name or email…" oninput="renderUsers()" style="min-width:220px" />
+        <span class="chip active" data-us="" onclick="setUserSeg(this,'')">All</span>
+        <span class="chip" data-us="subscribed" onclick="setUserSeg(this,'subscribed')">Subscribed</span>
+        <span class="chip" data-us="trial" onclick="setUserSeg(this,'trial')">Trial</span>
+        <span class="chip" data-us="free" onclick="setUserSeg(this,'free')">Free</span>
+        <span class="chip" data-us="banned" onclick="setUserSeg(this,'banned')">Banned</span>
+        <span id="userCount" class="muted"></span>
+      </div>
+      <div id="userGrid"><div class="loading">Loading customers…</div></div>
+    </div>
+  </section>
+
+  <section id="moderation" class="section">
+    <div class="toolbar" style="margin-bottom:14px">
+      <span class="period-lbl">Submitted</span>
+      <span class="chip active" data-mp="all" onclick="setModPeriod(this,'all')">All time</span>
+      <span class="chip" data-mp="today" onclick="setModPeriod(this,'today')">Today</span>
+      <span class="chip" data-mp="7d" onclick="setModPeriod(this,'7d')">7 days</span>
+      <span class="chip" data-mp="30d" onclick="setModPeriod(this,'30d')">30 days</span>
+    </div>
+    <div class="panel"><h2>Pending reviews</h2><div id="pendingReviews"><div class="loading">Loading…</div></div></div>
+    <div class="panel"><h2>User reports</h2><div id="reportsList"><div class="loading">Loading…</div></div></div>
+    <div class="panel"><h2>Flagged &amp; excluded locations</h2><div id="flaggedLocs"><div class="loading">Loading…</div></div></div>
+  </section>
+
+  <section id="safety" class="section">
+    <div class="panel"><h2>⚠️ CSAE / harm escalations</h2><div id="csaeList"><div class="loading">Loading…</div></div></div>
+    <div class="panel"><h2>User reports</h2><div id="userReportsList"><div class="loading">Loading…</div></div></div>
+    <div class="panel"><h2>Privacy / GDPR requests</h2><div id="privacyList"><div class="loading">Loading…</div></div></div>
+  </section>
+
+  <section id="claims" class="section">
+    <div class="panel"><h2>Business claims</h2><div id="claimsList"><div class="loading">Loading…</div></div></div>
+  </section>
+
+  <section id="support" class="section">
+    <div id="supportSla" class="tiles"><div class="loading">Loading…</div></div>
+    <div class="panel"><h2>Support tickets</h2>
+      <div class="toolbar">
+        <span class="chip active" data-ts="" onclick="setTicketFilter(this,'')">All</span>
+        <span class="chip" data-ts="open" onclick="setTicketFilter(this,'open')">Open</span>
+        <span class="chip" data-ts="in_progress" onclick="setTicketFilter(this,'in_progress')">In progress</span>
+        <span class="chip" data-ts="resolved" onclick="setTicketFilter(this,'resolved')">Resolved</span>
+        <span class="tb-sep"></span>
+        <span class="period-lbl">Period</span>
+        <span class="chip active" data-tp="all" onclick="setTicketPeriod(this,'all')">All time</span>
+        <span class="chip" data-tp="today" onclick="setTicketPeriod(this,'today')">Today</span>
+        <span class="chip" data-tp="7d" onclick="setTicketPeriod(this,'7d')">7 days</span>
+        <span class="chip" data-tp="30d" onclick="setTicketPeriod(this,'30d')">30 days</span>
+        <span id="ticketCount" class="muted"></span>
+      </div>
+      <div id="ticketList"><div class="loading">Loading…</div></div>
+    </div>
+  </section>
+
+  <section id="revenue" class="section">
+    <div id="revTiles" class="tiles"><div class="loading">Loading…</div></div>
+    <div class="panel"><h2>New subscriptions per month</h2><div class="chartbox"><canvas id="subChart"></canvas></div></div>
+    <div class="panel"><h2>Subscriptions (synced table)</h2><div id="subTable"><div class="loading">Loading…</div></div></div>
+    <div class="panel"><h2>RevenueCat (live API)</h2><div id="rcPanel"><div class="loading">Loading…</div></div></div>
+  </section>
+
+  <section id="costs" class="section">
+    <div id="costTiles" class="tiles"><div class="loading">Loading…</div></div>
+    <div class="panel"><h2>Daily API spend — last 30 days (Google Places + AI, stacked)</h2><div class="chartbox"><canvas id="costChart"></canvas></div></div>
+    <div class="panel"><h2>Breakdown by operation</h2><div id="costBreakdown"><div class="loading">Loading…</div></div></div>
+    <div class="panel" id="costNote"></div>
+  </section>
+
+  <section id="rewards" class="section">
+    <div id="rewardTiles" class="tiles"><div class="loading">Loading…</div></div>
+    <div class="panel"><h2>Promo codes</h2><div id="promoList"><div class="loading">Loading…</div></div></div>
+    <div class="panel"><h2>Treat claims by tier</h2><div id="treatList"><div class="loading">Loading…</div></div></div>
+  </section>
+
+  <section id="comms" class="section">
+    <div class="panel"><h2>Send an announcement</h2>
+      <div style="display:flex;flex-direction:column;gap:8px;max-width:560px">
+        <input id="cTitle" class="note-in" placeholder="Title (e.g. New dog-friendly spots near you!)" />
+        <textarea id="cMsg" class="reply-box" placeholder="Message…" style="margin-top:0"></textarea>
+        <input id="cUrl" class="note-in" placeholder="Optional action URL (deep link)" />
+        <div class="toolbar" style="margin:0">
+          <span class="period-lbl">Send to</span>
+          <select id="cSeg" class="mini-select"><option value="all">All users</option><option value="subscribed">Subscribed</option><option value="trial">Trial</option><option value="free">Free</option></select>
+          <button class="btn on" onclick="sendAnnouncement()">Send</button>
+          <span id="cResult" class="muted"></span>
+        </div>
+      </div>
+    </div>
+    <div class="panel"><h2>Recent announcements</h2><div id="commsList"><div class="loading">Loading…</div></div></div>
+  </section>
+
+  <section id="ops" class="section">
+    <div id="opsTiles" class="tiles"><div class="loading">Loading…</div></div>
+    <div class="panel"><h2>Ingestion — locations added per week (12 wks)</h2><div class="chartbox"><canvas id="ingChart"></canvas></div></div>
+    <div class="panel"><h2>Admin activity log</h2><div id="auditList"><div class="loading">Loading…</div></div></div>
+  </section>
+</div>
+
+<div class="modal-bg" id="modalBg"><div class="modal">
+  <h3 id="modalTitle">Reason</h3>
+  <div class="chips" id="modalChips"></div>
+  <textarea id="modalText" placeholder="Add a reason…"></textarea>
+  <div class="actions"><button class="btn ghost" onclick="closeModal()">Cancel</button><button class="btn approve" id="modalOk">Confirm</button></div>
+</div></div>
+
+<div class="modal-bg" id="detailBg"><div class="modal" style="width:min(640px,94vw); max-height:86vh; overflow:auto;">
+  <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:6px;">
+    <h3 id="detailTitle" style="margin:0">Location detail</h3>
+    <button class="btn ghost" onclick="closeDetail()">✕</button>
+  </div>
+  <div id="detailBody"><div class="loading">Loading…</div></div>
+</div></div>
+
+<div class="undo-toast" id="undoToast"><span id="undoMsg"></span><button onclick="doUndo()">Undo</button></div>
+
+<script>
+const PROJECT = 'kwwnwniyijeuorpbyvmn';
+const SQL_TOOL = 'mcp__7812ae9c-8fca-4317-888e-02decc791b8e__execute_sql';
+window._locMap = {}; window._allLocs = []; window._locStatus = ''; window._tickets = []; window._ticketFilter = ''; window._queryCount = 0;
+
+function extractRows(s){
+  if (Array.isArray(s)) return s;
+  if (s && typeof s === 'object' && Array.isArray(s.result)) return s.result;
+  if (typeof s !== 'string') return [];
+  try { const v = JSON.parse(s); if (Array.isArray(v)) return v; if (v && Array.isArray(v.result)) return v.result; if (v && typeof v.result==='string') return extractRows(v.result); } catch(e){}
+  const a = s.indexOf('['), b = s.lastIndexOf(']');
+  if (a>=0 && b>a){ try { return JSON.parse(s.slice(a,b+1)); } catch(e){} }
+  return [];
+}
+async function _rawSQL(query, silent){
+  if (!window.cowork || !window.cowork.callMcpTool) throw new Error('Open this console inside Cowork (no Supabase connection here).');
+  if(!silent){ window._queryCount++; const qc=document.getElementById('qcount'); if(qc) qc.textContent=window._queryCount; }
+  const r = await window.cowork.callMcpTool(SQL_TOOL, { project_id: PROJECT, query });
+  if (r && r.isError) throw new Error('SQL error: ' + (r.content && r.content[0] && r.content[0].text || JSON.stringify(r)));
+  let payload = r && r.structuredContent;
+  if (payload === undefined || payload === null) payload = (r && r.content && r.content[0] && r.content[0].text) || '';
+  return extractRows(payload);
+}
+// runSQL = raw query + automatic audit of any mutation (UPDATE/INSERT/DELETE) to admin_audit.
+async function runSQL(query){
+  const rows = await _rawSQL(query);
+  try{
+    const q=String(query).replace(/--[^\n]*/g,'').trim();
+    const m=q.match(/^(update|insert\s+into|delete\s+from)\s+([a-z0-9_."]+)/i);
+    if(m){ const action=m[1].split(/\s+/)[0].toUpperCase(); const tbl=m[2].replace(/["]/g,'').replace(/^public\./,'');
+      if(tbl!=='admin_audit'){ _rawSQL("INSERT INTO admin_audit (action, entity, detail) VALUES ('"+action+"','"+tbl.replace(/'/g,'')+"',$aud$"+q.slice(0,240).replace(/\$/g,'')+"$aud$)", true).catch(function(){}); } }
+  }catch(_e){}
+  return rows;
+}
+function esc(v){ return (v===null||v===undefined)?'':String(v).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function showGlobalErr(e){ const el=document.getElementById('globalErr'); el.innerHTML='<div class="err">'+esc(e.message||e)+'</div>'; setTimeout(()=>{el.innerHTML='';},6000); }
+function periodWhere(period, col){
+  if(period==='today') return `${col} >= date_trunc('day', now())`;
+  if(period==='7d') return `${col} >= now() - interval '7 days'`;
+  if(period==='30d') return `${col} >= now() - interval '30 days'`;
+  if(period==='90d') return `${col} >= now() - interval '90 days'`;
+  return 'true';
+}
+const sqlLit = s => String(s).replace(/'/g,"''");
+// Undo window: hold a destructive action for 6s; run it only if not undone. A second
+// destructive action flushes the pending one immediately so nothing is lost.
+let _undoTimer=null, _undoSql=null, _undoRefresh=null, _undoHideEl=null;
+function _flushUndo(){ if(_undoTimer){ clearTimeout(_undoTimer); _undoTimer=null; } const s=_undoSql; _undoSql=null; if(s){ runSQL(s).catch(function(e){ showGlobalErr(e); }); } document.getElementById('undoToast').style.display='none'; }
+function deferAction(message, sql, refresh, hideEl){
+  if(_undoTimer) _flushUndo();
+  _undoSql=sql; _undoRefresh=refresh; _undoHideEl=hideEl||null;
+  if(_undoHideEl) _undoHideEl.style.display='none';
+  const toast=document.getElementById('undoToast'); document.getElementById('undoMsg').textContent=message; toast.style.display='flex';
+  _undoTimer=setTimeout(async function(){ toast.style.display='none'; const s=_undoSql; _undoSql=null; _undoTimer=null; try{ if(s) await runSQL(s); }catch(e){ showGlobalErr(e); } if(_undoRefresh) _undoRefresh(); }, 6000);
+}
+function doUndo(){ if(_undoTimer){ clearTimeout(_undoTimer); _undoTimer=null; } _undoSql=null; document.getElementById('undoToast').style.display='none'; if(_undoHideEl){ _undoHideEl.style.display=''; _undoHideEl=null; } if(_undoRefresh){ _undoRefresh(); } }
+async function askAI(prompt, data){
+  if(!(window.cowork && typeof window.cowork.askClaude==='function')) throw new Error('AI drafting isn’t available in this view (open the console inside Cowork).');
+  const r = await window.cowork.askClaude(prompt, data||[]);
+  if(typeof r==='string') return r;
+  if(r && typeof r==='object') return r.text||r.output||r.content||r.reply||JSON.stringify(r);
+  return String(r??'');
+}
+
+/* Reason modal */
+function openModal(title, presets, onConfirm){
+  document.getElementById('modalTitle').textContent=title;
+  document.getElementById('modalText').value='';
+  const chips=document.getElementById('modalChips');
+  chips.innerHTML=(presets||[]).map(p=>`<span class="chip" onclick="document.getElementById('modalText').value='${esc(p)}'">${esc(p)}</span>`).join('');
+  document.getElementById('modalBg').style.display='flex';
+  const ok=document.getElementById('modalOk'); const fresh=ok.cloneNode(true); ok.parentNode.replaceChild(fresh,ok);
+  fresh.addEventListener('click', ()=>{ const v=document.getElementById('modalText').value.trim(); closeModal(); onConfirm(v); });
+}
+function closeModal(){ document.getElementById('modalBg').style.display='none'; }
+
+/* Overview */
+async function loadOverview(){
+  try{
+    const rows = await runSQL(`SELECT
+      (SELECT count(*) FROM locations) AS total_locations,
+      (SELECT count(*) FROM locations WHERE google_verified) AS google_verified,
+      (SELECT count(*) FROM locations WHERE barkfind_verified) AS barkfind_verified,
+      (SELECT count(*) FROM locations WHERE flagged) AS flagged,
+      (SELECT count(*) FROM locations WHERE flagged AND flag_reason LIKE 'Auto-excluded%') AS auto_excluded,
+      (SELECT count(*) FROM locations WHERE flagged=false AND array_length(amenities,1) > 0) AS with_amenities,
+      (SELECT count(*) FROM locations WHERE flagged=false) AS visible_locations,
+      (SELECT round(avg(barkfind_rating)::numeric,2) FROM locations WHERE barkfind_rating>0) AS avg_barkfind,
+      (SELECT count(*) FROM reviews WHERE status='pending') AS pending_reviews,
+      (SELECT count(*) FROM location_reports WHERE status='open') AS open_reports,
+      (SELECT count(*) FROM business_claims WHERE status='pending') AS pending_claims,
+      (SELECT count(*) FROM support_tickets WHERE status='open') AS open_tickets,
+      (SELECT count(*) FROM subscriptions WHERE status='active') AS active_subs,
+      (SELECT coalesce(sum(count),0) FROM mylo_usage) AS ai_calls,
+      (SELECT count(*) FROM moderation_log) AS decisions,
+      (SELECT round(100.0*avg(case when agreed then 1 else 0 end),0) FROM moderation_log) AS ai_agreement -- ${Date.now()}`);
+    const m = rows[0]||{};
+    const amenPct = (m.visible_locations>0) ? Math.round(100*(m.with_amenities||0)/m.visible_locations) : 0;
+    const tile=(l,v,n)=>`<div class="tile"><div class="lbl">${l}</div><div class="val">${v??'—'}</div>${n?`<div class="note">${n}</div>`:''}</div>`;
+    document.getElementById('ovTiles').innerHTML =
+      tile('Total locations',m.total_locations,(m.visible_locations||0)+' live · '+(m.flagged||0)+' hidden')
+      + tile('Verified',((m.google_verified||0)+(m.barkfind_verified||0)),(m.google_verified||0)+' Google · '+(m.barkfind_verified||0)+' BarkFind')
+      + tile('Amenities',(m.with_amenities||0),amenPct+'% of live have amenities')
+      + tile('Avg BarkFind',m.avg_barkfind,'')
+      + tile('Pending reviews',m.pending_reviews,'')
+      + tile('Open reports',m.open_reports,'user-submitted')
+      + tile('Pending claims',m.pending_claims,'')
+      + tile('Open tickets',m.open_tickets,'support')
+      + tile('Active subs',m.active_subs,'')
+      + tile('AI calls (Mylo)',m.ai_calls,'Anthropic, all-time')
+      + tile('AI agreement', m.ai_agreement!=null?m.ai_agreement+'%':'—', (m.decisions||0)+' decisions logged');
+    const ai=document.getElementById('aiUsage'); if(ai) ai.innerHTML='AI calls (Mylo): <b>'+(m.ai_calls||0)+'</b>';
+    const cats = await runSQL(`SELECT category, count(*) AS n FROM locations WHERE flagged=false GROUP BY category ORDER BY n DESC`);
+    const ctx=document.getElementById('catChart'); if(window._catChart) window._catChart.destroy();
+    window._catChart=new Chart(ctx,{type:'bar',data:{labels:cats.map(c=>c.category),datasets:[{label:'Locations',data:cats.map(c=>Number(c.n)),backgroundColor:'#be6a3d'}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{precision:0}}}}});
+    loadOverviewReports();
+  }catch(e){ showGlobalErr(e); document.getElementById('ovTiles').innerHTML=''; }
+}
+async function loadOverviewReports(){
+  /* Geographic coverage — by UK postcode area */
+  try{
+    const geo = await runSQL(`SELECT coalesce(substring(upper(address) from '([A-Z]{1,2})[0-9]'),'?') AS area, count(*) AS n FROM locations WHERE flagged=false GROUP BY 1 ORDER BY n DESC -- ${Date.now()}`);
+    const areas=geo.filter(g=>g.area && g.area!=='?');
+    const gn=document.getElementById('geoNote'); if(gn) gn.textContent=areas.length+' UK postcode areas covered';
+    const top=geo.slice(0,15);
+    const gctx=document.getElementById('geoChart'); if(window._geoChart) window._geoChart.destroy();
+    window._geoChart=new Chart(gctx,{type:'bar',data:{labels:top.map(g=>g.area),datasets:[{label:'Locations',data:top.map(g=>Number(g.n)),backgroundColor:'#4FA4A1'}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{precision:0}}}}});
+  }catch(e){ showGlobalErr(e); }
+  /* Amenities by type */
+  try{
+    const am = await runSQL(`SELECT amenity, count(*) AS n FROM (SELECT unnest(amenities) AS amenity FROM locations WHERE flagged=false AND amenities IS NOT NULL) x GROUP BY 1 ORDER BY n DESC -- ${Date.now()}`);
+    const top=am.slice(0,15);
+    const actx=document.getElementById('amenChart'); if(window._amenChart) window._amenChart.destroy();
+    window._amenChart=new Chart(actx,{type:'bar',data:{labels:top.map(a=>prettyKey(a.amenity)),datasets:[{label:'Places',data:top.map(a=>Number(a.n)),backgroundColor:'#96BD99'}]},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{beginAtZero:true,ticks:{precision:0}}}}});
+  }catch(e){ showGlobalErr(e); }
+  /* Data quality */
+  try{
+    const dq = (await runSQL(`SELECT count(*) AS live,
+      count(*) filter (where image_url is not null and image_url<>'') AS with_photo,
+      count(*) filter (where description is not null and description<>'') AS with_summary,
+      count(*) filter (where review_count>0) AS with_review,
+      count(*) filter (where (extra_data->>'google_last_synced') is not null and (extra_data->>'google_last_synced')::timestamptz < now()-interval '30 days') AS stale_google
+      FROM locations WHERE flagged=false -- ${Date.now()}`))[0]||{};
+    const live=Number(dq.live)||0; const pct=n=>live?Math.round(100*(Number(n)||0)/live)+'%':'—';
+    const tile=(l,v,n)=>`<div class="tile"><div class="lbl">${l}</div><div class="val">${v}</div>${n?`<div class="note">${n}</div>`:''}</div>`;
+    const dqel=document.getElementById('dqTiles'); if(dqel) dqel.innerHTML =
+        tile('Photo coverage', pct(dq.with_photo), (dq.with_photo||0)+' of '+live+' live')
+      + tile('Summary coverage', pct(dq.with_summary), (dq.with_summary||0)+' of '+live)
+      + tile('Have reviews', pct(dq.with_review), (dq.with_review||0)+' of '+live)
+      + tile('Stale Google data', (dq.stale_google||0), '>30 days old');
+  }catch(e){ showGlobalErr(e); }
+  /* Engagement — new per week */
+  try{
+    const wk = await runSQL(`WITH weeks AS (SELECT generate_series(date_trunc('week', now()) - interval '11 weeks', date_trunc('week', now()), interval '1 week') AS wk)
+      SELECT to_char(w.wk,'YYYY-MM-DD') AS wk,
+        (SELECT count(*) FROM locations l WHERE date_trunc('week', l.created_at)=w.wk) AS locs,
+        (SELECT count(*) FROM reviews r WHERE date_trunc('week', r.created_at)=w.wk) AS revs
+      FROM weeks w ORDER BY w.wk -- ${Date.now()}`);
+    const ectx=document.getElementById('engChart'); if(window._engChart) window._engChart.destroy();
+    window._engChart=new Chart(ectx,{type:'line',data:{labels:wk.map(w=>w.wk.slice(5)),datasets:[
+        {label:'New locations',data:wk.map(w=>Number(w.locs)),borderColor:'#B74217',backgroundColor:'#B74217',tension:.3},
+        {label:'New reviews',data:wk.map(w=>Number(w.revs)),borderColor:'#4FA4A1',backgroundColor:'#4FA4A1',tension:.3}]},
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom'}},scales:{y:{beginAtZero:true,ticks:{precision:0}}}}});
+  }catch(e){ showGlobalErr(e); }
+  /* Review ratings + approval rate */
+  try{
+    const rd = await runSQL(`SELECT paw_rating AS r, count(*) AS n FROM reviews WHERE status='approved' AND paw_rating IS NOT NULL GROUP BY 1 ORDER BY 1 -- ${Date.now()}`);
+    const ap = (await runSQL(`SELECT count(*) filter (where status='approved') AS approved, count(*) filter (where status='rejected') AS rejected FROM reviews WHERE status IN ('approved','rejected') -- ${Date.now()}`))[0]||{};
+    const tot=(Number(ap.approved)||0)+(Number(ap.rejected)||0);
+    const apRate = tot?Math.round(100*(Number(ap.approved)||0)/tot)+'%':'—';
+    const maxN=Math.max(1,...rd.map(x=>Number(x.n)));
+    const bars=[5,4,3,2,1].map(star=>{ const row=rd.find(x=>Number(x.r)===star); const n=row?Number(row.n):0; const w=Math.round(100*n/maxN); return `<div class="slrow"><span class="k">${star}★</span><span class="slbar"><i style="width:${w}%"></i></span><b>${n}</b></div>`; }).join('');
+    const rb=document.getElementById('ratingBox'); if(rb) rb.innerHTML='<div class="sliders" style="grid-template-columns:1fr">'+bars+'</div><p class="muted" style="margin-top:12px">Approval rate: <b>'+apRate+'</b> ('+(ap.approved||0)+' approved · '+(ap.rejected||0)+' rejected)</p>';
+  }catch(e){ showGlobalErr(e); }
+}
+
+/* Locations */
+function locBtns(id){
+  const m=window._locMap[id]||{};
+  return `<button class="btn ghost" onclick="investigateLoc('${id}')">View</button>
+  <button class="btn ghost" onclick="editLocation('${id}')">Edit</button>
+  <button class="btn ${m.is_verified?'on':'ghost'}" onclick="toggleLoc('${id}','is_verified')">${m.is_verified?'Verified':'Verify'}</button>
+  <button class="btn ${m.is_sponsored?'on':'ghost'}" onclick="toggleLoc('${id}','is_sponsored')">${m.is_sponsored?'Sponsored':'Sponsor'}</button>
+  <button class="btn ${m.flagged?'reject':'ghost'}" onclick="flagToggle('${id}')">${m.flagged?'Flagged':'Flag'}</button>`;
+}
+function locActions(id){ return `<span id="act-${id}">${locBtns(id)}</span>`; }
+async function loadLocations(){
+  try{
+    const rows = await runSQL(`SELECT id, name, category, barkfind_rating, google_rating, review_count, is_verified, is_sponsored, flagged, coalesce(left(address,45),'') AS address FROM locations ORDER BY barkfind_rating DESC NULLS LAST -- ${Date.now()}`);
+    window._allLocs=rows; window._locMap={}; rows.forEach(r=>window._locMap[r.id]=r);
+    const sel=document.getElementById('catFilter');
+    const cats=[...new Set(rows.map(r=>r.category))].sort();
+    sel.innerHTML='<option value="">All categories</option>'+cats.map(c=>`<option value="${esc(c)}">${esc(c)}</option>`).join('');
+    applyLocFilters();
+    loadDuplicates();
+  }catch(e){ showGlobalErr(e); }
+}
+function setLocStatus(el,st){ document.querySelectorAll('#locations .chip').forEach(c=>c.classList.remove('active')); el.classList.add('active'); window._locStatus=st; applyLocFilters(); }
+function applyLocFilters(){
+  const cat=document.getElementById('catFilter').value; const st=window._locStatus;
+  let rows=window._allLocs.filter(r=>(!cat||r.category===cat));
+  if(st==='unverified') rows=rows.filter(r=>!r.is_verified);
+  if(st==='sponsored') rows=rows.filter(r=>r.is_sponsored);
+  if(st==='flagged') rows=rows.filter(r=>r.flagged);
+  document.getElementById('locCount').textContent=rows.length+' shown';
+  const el=document.getElementById('locGrid'); el.innerHTML='';
+  if(!rows.length){ el.innerHTML='<div class="empty">No matching locations.</div>'; return; }
+  new gridjs.Grid({
+    columns:[
+      {id:'id',name:'id',hidden:true},
+      {name:'Name'},{name:'Category'},
+      {name:'BarkFind',formatter:c=>c==null?'—':Number(c).toFixed(1)},
+      {name:'Google',formatter:c=>c==null?'—':Number(c).toFixed(1)},
+      {name:'Reviews'},{name:'Address'},
+      {name:'Actions',sort:false,formatter:(cell,row)=>gridjs.html(locActions(row.cells[0].data))}
+    ],
+    data:rows.map(r=>[r.id,r.name,r.category,r.barkfind_rating,r.google_rating,r.review_count,r.address,'']),
+    search:true, sort:true, pagination:{limit:15}, className:{table:'mini'}
+  }).render(el);
+}
+async function toggleLoc(id, field){
+  const m=window._locMap[id]; if(!m) return;
+  m[field]=!m[field]; const el=document.getElementById('act-'+id); if(el) el.innerHTML=locBtns(id);
+  try{ await runSQL(`UPDATE locations SET ${field}=${m[field]} WHERE id='${id}' -- ${Date.now()}`); }
+  catch(e){ m[field]=!m[field]; const e2=document.getElementById('act-'+id); if(e2) e2.innerHTML=locBtns(id); showGlobalErr(e); }
+}
+function flagToggle(id){
+  const m=window._locMap[id]; if(!m) return;
+  if(m.flagged){ // unflag
+    m.flagged=false; const el=document.getElementById('act-'+id); if(el) el.innerHTML=locBtns(id);
+    runSQL(`UPDATE locations SET flagged=false, flag_reason=NULL, flagged_at=NULL WHERE id='${id}' -- ${Date.now()}`).catch(e=>showGlobalErr(e));
+  } else {
+    openModal('Flag "'+(m.name||'location')+'"', ['Permanently closed','Not actually dog-friendly','Wrong information','Duplicate listing','Inappropriate content'], async(reason)=>{
+      m.flagged=true; const el=document.getElementById('act-'+id); if(el) el.innerHTML=locBtns(id);
+      try{ await runSQL(`UPDATE locations SET flagged=true, flag_reason=${reason?`'${reason.replace(/'/g,"''")}'`:'NULL'}, flagged_at=now() WHERE id='${id}' -- ${Date.now()}`); }
+      catch(e){ m.flagged=false; if(el) el.innerHTML=locBtns(id); showGlobalErr(e); }
+    });
+  }
+}
+
+/* Users / Customers — 360 view */
+function ageFromDob(dob){ if(!dob) return null; const d=new Date(dob); if(isNaN(d)) return null; const now=new Date(); let y=now.getFullYear()-d.getFullYear(); const m=now.getMonth()-d.getMonth(); if(m<0||(m===0&&now.getDate()<d.getDate())) y--; return y>=0?y:null; }
+function userPlan(u){ return u.sub_status==='active'?(u.plan||'paid'):(u.sub_status==='trial'?'trial':'free'); }
+async function loadUsers(){
+  try{
+    window._users = await runSQL(`SELECT p.user_id AS uid, coalesce(p.full_name,'—') AS name, u.email, p.created_at, coalesce(p.review_count,0) AS reviews, p.verified_reviewer, p.is_banned, s.plan, s.status AS sub_status,
+      (SELECT count(*) FROM dog_profiles d WHERE d.user_id=p.user_id) AS dogs,
+      (SELECT count(*) FROM favorites f WHERE f.user_id=p.user_id) AS saves
+      FROM profiles p LEFT JOIN auth.users u ON u.id=p.user_id LEFT JOIN subscriptions s ON s.user_id=p.user_id ORDER BY p.created_at DESC -- ${Date.now()}`);
+    renderUsers();
+  }catch(e){ showGlobalErr(e); }
+}
+function setUserSeg(el,seg){ document.querySelectorAll('#users .chip[data-us]').forEach(c=>c.classList.remove('active')); el.classList.add('active'); window._userSeg=seg; renderUsers(); }
+function renderUsers(){
+  const seg=window._userSeg||''; const si=document.getElementById('userSearch'); const q=((si&&si.value)||'').trim().toLowerCase();
+  let rows=(window._users||[]).filter(u=>{
+    if(seg==='subscribed'&&u.sub_status!=='active') return false;
+    if(seg==='trial'&&u.sub_status!=='trial') return false;
+    if(seg==='free'&&(u.sub_status==='active'||u.sub_status==='trial')) return false;
+    if(seg==='banned'&&!u.is_banned) return false;
+    if(q&&!(String(u.name||'').toLowerCase().includes(q)||String(u.email||'').toLowerCase().includes(q))) return false;
+    return true;
+  });
+  const cnt=document.getElementById('userCount'); if(cnt) cnt.textContent=rows.length+' shown';
+  const el=document.getElementById('userGrid'); el.innerHTML='';
+  if(!rows.length){ el.innerHTML='<div class="empty">No matching customers.</div>'; return; }
+  new gridjs.Grid({
+    columns:[
+      {id:'uid',name:'uid',hidden:true},
+      {name:'Name'},{name:'Email'},{name:'Plan'},
+      {name:'Dogs'},{name:'Saves'},{name:'Reviews'},{name:'Joined'},
+      {name:'',sort:false,formatter:(c,row)=>gridjs.html('<button class="btn ghost" onclick="userDetail(\''+row.cells[0].data+'\')">View</button>')}
+    ],
+    data:rows.map(u=>[u.uid, (u.is_banned?'⛔ ':'')+(u.name||'—')+(u.verified_reviewer?' ✓':''), u.email||'—', userPlan(u), u.dogs, u.saves, u.reviews, (u.created_at||'').slice(0,10), '']),
+    search:false, sort:true, pagination:{limit:15}, className:{table:'mini'}
+  }).render(el);
+}
+async function userDetail(uid){
+  document.getElementById('detailBg').style.display='flex';
+  const body=document.getElementById('detailBody'); body.innerHTML='<div class="loading">Loading customer…</div>';
+  document.getElementById('detailTitle').textContent='Customer';
+  try{
+    const p=(await runSQL(`SELECT p.full_name, p.phone_number, p.location, p.created_at, p.review_count, p.verified_reviewer, p.is_banned, u.email,
+      s.plan, s.status AS sub_status, s.trial_end,
+      (SELECT count(*) FROM favorites f WHERE f.user_id=p.user_id) AS saves,
+      (SELECT count(*) FROM session_analytics sa WHERE sa.user_id=p.user_id) AS sessions,
+      (SELECT coalesce(sum(search_count),0) FROM session_analytics sa WHERE sa.user_id=p.user_id) AS searches,
+      (SELECT max(started_at) FROM session_analytics sa WHERE sa.user_id=p.user_id) AS last_active
+      FROM profiles p LEFT JOIN auth.users u ON u.id=p.user_id LEFT JOIN subscriptions s ON s.user_id=p.user_id WHERE p.user_id='${uid}' -- ${Date.now()}`))[0]||{};
+    const dogs=await runSQL(`SELECT name, breed, dob, temperament FROM dog_profiles WHERE user_id='${uid}' ORDER BY created_at -- ${Date.now()}`);
+    const favs=await runSQL(`SELECT l.name, f.created_at FROM favorites f LEFT JOIN locations l ON l.id=f.location_id WHERE f.user_id='${uid}' ORDER BY f.created_at DESC LIMIT 24 -- ${Date.now()}`);
+    const revs=await runSQL(`SELECT r.paw_rating, r.status, r.created_at, l.name AS loc FROM reviews r LEFT JOIN locations l ON l.id=r.location_id WHERE r.user_id='${uid}' ORDER BY r.created_at DESC -- ${Date.now()}`);
+    const tix=p.email?await runSQL(`SELECT subject, status, created_at FROM support_tickets WHERE lower(email)=lower('${sqlLit(p.email)}') ORDER BY created_at DESC -- ${Date.now()}`):[];
+    const notifs=await runSQL(`SELECT title, created_at, is_read FROM notifications WHERE user_id='${uid}' ORDER BY created_at DESC LIMIT 30 -- ${Date.now()}`);
+    const timeline=[]
+      .concat(tix.map(x=>({ts:x.created_at, t:'🎫 Ticket: '+(x.subject||'')+' ('+x.status+')'})))
+      .concat(revs.map(x=>({ts:x.created_at, t:'⭐ Reviewed '+(x.loc||'a place')+' — '+('🐾'.repeat(x.paw_rating||0))+' ('+x.status+')'})))
+      .concat(favs.map(x=>({ts:x.created_at, t:'❤️ Saved '+(x.name||'a place')})))
+      .concat(notifs.map(x=>({ts:x.created_at, t:'🔔 '+(x.title||'notification')+(x.is_read?'':' · unread')})))
+      .filter(e=>e.ts).sort((a,b)=>String(b.ts).localeCompare(String(a.ts))).slice(0,25);
+    document.getElementById('detailTitle').textContent=(p.full_name||'Customer')+(p.is_banned?' ⛔':'');
+    const plan = p.sub_status==='active'?(p.plan||'paid'):(p.sub_status==='trial'?'trial':'free');
+    body.innerHTML =
+      '<table class="mini">'
+      +'<tr><th>Email</th><td>'+esc(p.email||'—')+'</td></tr>'
+      +'<tr><th>Phone</th><td>'+esc(p.phone_number||'—')+'</td></tr>'
+      +'<tr><th>Location</th><td>'+esc(p.location||'—')+'</td></tr>'
+      +'<tr><th>Plan</th><td>'+esc(plan)+(p.sub_status?' ('+esc(p.sub_status)+')':'')+(p.trial_end?' · trial ends '+esc(String(p.trial_end).slice(0,10)):'')+'</td></tr>'
+      +'<tr><th>Joined</th><td>'+esc(String(p.created_at||'').slice(0,10))+'</td></tr>'
+      +'<tr><th>Activity</th><td>'+(p.last_active?'last active '+esc(String(p.last_active).slice(0,10)):'—')+' · '+(p.sessions||0)+' sessions · '+(p.searches||0)+' searches</td></tr>'
+      +'<tr><th>Reviewer</th><td>'+(p.verified_reviewer?'verified ✓ · ':'')+(p.review_count||0)+' reviews · '+(p.saves||0)+' saved</td></tr>'
+      +'<tr><th>Account</th><td>'+(p.is_banned?'<span style="color:#C0392B">BANNED</span>':'<span style="color:#2E7D4F">active</span>')+'</td></tr>'
+      +'</table>'
+      +'<div class="slabel">Timeline</div>'
+      +(timeline.length?timeline.map(e=>'<div class="muted">'+esc(String(e.ts).slice(0,10))+' · '+esc(e.t)+'</div>').join(''):'<div class="muted">No activity yet.</div>')
+      +'<div class="slabel">Dogs ('+dogs.length+')</div>'
+      +(dogs.length?dogs.map(d=>{const a=ageFromDob(d.dob);return '<span class="am" style="margin:0 5px 5px 0;display:inline-block">🐕 '+esc(d.name||'Dog')+(d.breed?' · '+esc(d.breed):'')+(a!=null?' · '+a+'y':'')+'</span>';}).join(''):'<div class="muted">No dog profiles.</div>')
+      +'<div class="slabel">Support tickets ('+tix.length+')</div>'
+      +(tix.length?tix.map(t=>'<div class="muted">'+esc(String(t.created_at).slice(0,10))+' · '+esc(t.status)+' · '+esc(t.subject||'')+'</div>').join(''):'<div class="muted">None.</div>')
+      +'<div class="slabel">Reviews ('+revs.length+')</div>'
+      +(revs.length?revs.map(r=>'<div class="muted">'+('🐾'.repeat(r.paw_rating||0))+' · '+esc(r.status)+' · '+esc(r.loc||'')+'</div>').join(''):'<div class="muted">None.</div>')
+      +'<div class="slabel">Saved places ('+favs.length+')</div>'
+      +(favs.length?'<div>'+favs.map(f=>'<span class="am" style="margin:0 5px 5px 0;display:inline-block">'+esc(f.name||'—')+'</span>').join('')+'</div>':'<div class="muted">None.</div>')
+      +'<div class="row-actions" style="margin-top:14px">'
+      +(p.is_banned?'<button class="btn approve" onclick="banUser(\''+uid+'\',false)">Unban</button>':'<button class="btn reject" onclick="banUser(\''+uid+'\',true)">Ban user</button>')
+      +'<button class="btn ghost" onclick="closeDetail()">Close</button></div>';
+  }catch(e){ body.innerHTML='<div class="err">'+esc(e.message||e)+'</div>'; }
+}
+async function banUser(uid, ban){ try{ await runSQL(`UPDATE profiles SET is_banned=${ban?'true':'false'} WHERE user_id='${uid}' -- ${Date.now()}`); closeDetail(); await loadUsers(); }catch(e){ showGlobalErr(e); } }
+
+/* Moderation: reviews + reports + flagged */
+function sliderAvg(j){ try{ const o=typeof j==='string'?JSON.parse(j):j; const v=Object.values(o||{}).map(Number).filter(n=>!isNaN(n)); return v.length?(v.reduce((a,b)=>a+b,0)/v.length).toFixed(1):'—'; }catch(e){ return '—'; } }
+const SLIDER_LABELS={ 'welcomeness':'Welcomeness','value-for-money':'Value for money','hygiene-standards':'Hygiene','noise-level':'Noise level','space-flow':'Space & flow','security':'Security' };
+function prettyKey(k){ return SLIDER_LABELS[k] || String(k).replace(/[-_]/g,' ').replace(/\b\w/g,c=>c.toUpperCase()); }
+function parseJ(j){ try{ return typeof j==='string'?JSON.parse(j):(j||{}); }catch(e){ return {}; } }
+function toArr(a){ if(Array.isArray(a)) return a; if(typeof a==='string'){ try{ const v=JSON.parse(a); if(Array.isArray(v)) return v; }catch(e){} const s=a.replace(/^[{\[]/,'').replace(/[}\]]$/,''); return s?s.split(',').map(x=>x.replace(/^["']|["']$/g,'').trim()).filter(Boolean):[]; } return []; }
+function renderSliders(j){ const o=parseJ(j); const keys=Object.keys(o); if(!keys.length) return '<div class="muted">No detailed ratings submitted.</div>'; return '<div class="sliders">'+keys.map(k=>{ const v=Number(o[k])||0; const pct=Math.max(0,Math.min(100,v/5*100)); return `<div class="slrow"><span class="k">${esc(prettyKey(k))}</span><span class="slbar"><i style="width:${pct}%"></i></span><b>${esc(v)}/5</b></div>`; }).join('')+'</div>'; }
+function renderAmenities(a){ const arr=toArr(a); if(!arr.length) return '<div class="muted">None ticked.</div>'; return '<div class="amenities">'+arr.map(x=>`<span class="am">✓ ${esc(prettyKey(x))}</span>`).join('')+'</div>'; }
+function renderPhotos(imgs){ const arr=toArr(imgs); if(!arr.length) return '<div class="muted">No photos uploaded.</div>'; return '<div class="photos">'+arr.map((u,i)=>`<a class="photo" href="${esc(u)}" target="_blank" rel="noopener noreferrer" title="Open full photo ${i+1}"><img src="${esc(u)}" alt="review photo ${i+1}" onerror="this.closest('.photo').classList.add('noimg'); this.remove();"><span class="pfallback">📷 Photo ${i+1} ↗</span></a>`).join('')+'</div>'; }
+function setModPeriod(el,p){ document.querySelectorAll('#moderation .chip[data-mp]').forEach(c=>c.classList.remove('active')); el.classList.add('active'); window._modPeriod=p; loadModeration(); }
+async function loadModeration(){
+  try{
+    const rows = await runSQL(`SELECT r.id, r.paw_rating, r.subjective_ratings, r.amenities, r.images, r.review_text, r.created_at, r.ai_status, r.ai_reason, r.ai_confidence, r.ai_flags, l.name AS location_name
+      FROM reviews r LEFT JOIN locations l ON l.id=r.location_id WHERE r.status='pending' AND ${periodWhere(window._modPeriod||'all','r.created_at')} ORDER BY r.created_at -- ${Date.now()}`);
+    const el=document.getElementById('pendingReviews');
+    const aiOk=rows.filter(r=>r.ai_status==='approve').length;
+    const bulkBar='<div class="cs-row" style="margin:0 0 10px"><button class="btn approve" '+(aiOk?'':'disabled')+' onclick="bulkApproveAI()">✓ Approve all AI-approved ('+aiOk+')</button><span class="muted">reviews the AI already cleared</span></div>';
+    el.innerHTML = rows.length ? (bulkBar + rows.map(r=>{
+      const flags = toArr(r.ai_flags);
+      const conf = (r.ai_confidence!=null && r.ai_confidence!=='') ? Math.round(Number(r.ai_confidence)*100)+'% conf' : '';
+      return `<div class="card" id="rev-${r.id}">
+      <div class="top"><div><span class="name">${esc(r.location_name||'Unknown')}</span>
+        <span class="badge"><span class="paws">${'🐾'.repeat(r.paw_rating||0)}</span> ${r.paw_rating||'—'}/5</span>
+        ${r.ai_status?`<span class="badge">AI: ${esc(r.ai_status)}${conf?' · '+conf:''}</span>`:''}</div>
+        <div class="muted">${esc((r.created_at||'').slice(0,10))}</div></div>
+      <p style="margin:8px 0 0">${esc(r.review_text||'(no written review)')}</p>
+      <div class="slabel">Detailed slider ratings</div>${renderSliders(r.subjective_ratings)}
+      <div class="slabel">Amenities the reviewer ticked</div>${renderAmenities(r.amenities)}
+      <div class="slabel">Uploaded photos</div>${renderPhotos(r.images)}
+      ${(r.ai_reason||flags.length)?`<div class="aibox">🤖 ${esc(r.ai_reason||'AI assessment')}${flags.length?' '+flags.map(f=>`<span class="flag-chip">${esc(prettyKey(f))}</span>`).join(''):''}</div>`:''}
+      <div class="row-actions"><button class="btn approve" onclick="moderate('${r.id}','approve')">Approve</button><button class="btn reject" onclick="moderate('${r.id}','reject')">Reject</button></div></div>`;
+    }).join('')) : '<div class="empty">🎉 No reviews waiting.</div>';
+
+    const reps = await runSQL(`SELECT lr.id, lr.reason, lr.details, lr.created_at, l.id AS location_id, l.name AS location_name
+      FROM location_reports lr LEFT JOIN locations l ON l.id=lr.location_id WHERE lr.status='open' AND ${periodWhere(window._modPeriod||'all','lr.created_at')} ORDER BY lr.created_at DESC -- ${Date.now()}`);
+    const rel=document.getElementById('reportsList');
+    rel.innerHTML = reps.length ? reps.map(r=>`<div class="card"><div class="top"><div>
+        <span class="name">${esc(r.location_name||'Unknown')}</span> <span class="badge">${esc(r.reason)}</span>
+        <div class="muted">${esc((r.created_at||'').slice(0,10))}</div></div></div>
+        ${r.details?`<div class="reason">${esc(r.details)}</div>`:''}
+        <div class="row-actions">
+          <button class="btn reject" onclick="reportAction('${r.id}','${r.location_id}','flag','${esc(r.reason).replace(/'/g,"\\'")}')">Flag location</button>
+          <button class="btn ghost" onclick="reportAction('${r.id}','${r.location_id}','dismiss','')">Dismiss</button></div></div>`).join('')
+      : '<div class="empty">No open reports.</div>';
+
+    const fl = await runSQL(`SELECT id, name, category, coalesce(left(address,50),'') AS address, flag_reason, flagged_at FROM locations WHERE flagged=true ORDER BY flagged_at DESC NULLS LAST -- ${Date.now()}`);
+    const isAuto = l => String(l.flag_reason||'').startsWith('Auto-excluded');
+    const userFl = fl.filter(l=>!isAuto(l));
+    const autoFl = fl.filter(isAuto);
+    const fel=document.getElementById('flaggedLocs');
+    const userCard = l=>`<div class="card"><div class="top"><div>
+        <span class="name">${esc(l.name)}</span> <span class="badge">${esc(l.category)}</span>
+        <div class="muted">${esc(l.address)}${l.flagged_at?' · flagged '+esc((l.flagged_at||'').slice(0,10)):''}</div></div>
+        <div style="display:flex;gap:6px"><button class="btn ghost" onclick="investigateLoc('${l.id}')">Investigate</button><button class="btn ghost" onclick="unflag('${l.id}')">Unflag</button></div></div>
+        <div class="reason">${l.flag_reason?'⚑ '+esc(l.flag_reason):'No reason recorded'}</div></div>`;
+    const autoTable = autoFl.length
+      ? '<table class="mini"><tr><th>Name</th><th>Category</th><th>Area</th><th></th></tr>'
+        + autoFl.map(l=>`<tr><td>${esc(l.name)}</td><td>${esc(l.category)}</td><td>${esc(l.address)}</td><td style="white-space:nowrap"><button class="btn ghost" onclick="investigateLoc('${l.id}')">Investigate</button> <button class="btn ghost" onclick="unflag('${l.id}')">Restore</button></td></tr>`).join('')
+        + '</table>'
+      : '<div class="empty">None.</div>';
+    fel.innerHTML =
+      '<div class="slabel">User-reported / manual flags ('+userFl.length+')</div>'
+      + (userFl.length ? userFl.map(userCard).join('') : '<div class="empty">No user-reported or manual flags.</div>')
+      + '<div class="slabel">Auto-excluded — Google reports dogs not allowed ('+autoFl.length+')</div>'
+      + '<p class="muted" style="margin:0 0 8px">Hidden from the app automatically. "Restore" only if you have evidence the place actually welcomes dogs.</p>'
+      + autoTable;
+  }catch(e){ showGlobalErr(e); }
+}
+async function moderate(id, action){
+  const card=document.getElementById('rev-'+id); if(card) card.style.opacity='0.5';
+  const final = action==='approve' ? 'approved' : 'rejected';
+  const aiequiv = action==='approve' ? 'approve' : 'reject';
+  const setApproved = action==='approve' ? ', approved_at=now()' : '';
+  try{
+    await runSQL(`UPDATE reviews SET status='${final}'${setApproved}, moderated_at=now(), moderation_source='admin' WHERE id='${id}';
+      INSERT INTO moderation_log (review_id, ai_status, ai_confidence, ai_flags, final_status, agreed, source)
+      SELECT id, ai_status, ai_confidence, ai_flags, '${final}', (ai_status='${aiequiv}'), 'admin' FROM reviews WHERE id='${id}' -- ${Date.now()}`);
+    await loadModeration(); await loadOverview();
+  }catch(e){ showGlobalErr(e); if(card) card.style.opacity='1'; }
+}
+async function bulkApproveAI(){
+  const sql=`WITH upd AS (UPDATE reviews SET status='approved', approved_at=now(), moderated_at=now(), moderation_source='admin-bulk' WHERE status='pending' AND ai_status='approve' RETURNING id, ai_status, ai_confidence, ai_flags)
+    INSERT INTO moderation_log (review_id, ai_status, ai_confidence, ai_flags, final_status, agreed, source)
+    SELECT id, ai_status, ai_confidence, ai_flags, 'approved', true, 'admin-bulk' FROM upd -- ${Date.now()}`;
+  deferAction('Bulk-approving AI-cleared reviews', sql, ()=>{ loadModeration(); loadOverview(); });
+}
+async function reportAction(reportId, locId, action, reason){
+  try{
+    if(action==='flag') await runSQL(`UPDATE locations SET flagged=true, flag_reason='${(reason||'User report').replace(/'/g,"''")}', flagged_at=now() WHERE id='${locId}'; UPDATE location_reports SET status='actioned' WHERE id='${reportId}' -- ${Date.now()}`);
+    else await runSQL(`UPDATE location_reports SET status='dismissed' WHERE id='${reportId}' -- ${Date.now()}`);
+    await loadModeration(); await loadOverview();
+  }catch(e){ showGlobalErr(e); }
+}
+async function unflag(id){ try{ await runSQL(`UPDATE locations SET flagged=false, flag_reason=NULL, flagged_at=NULL WHERE id='${id}' -- ${Date.now()}`); await loadModeration(); await loadOverview(); }catch(e){ showGlobalErr(e); } }
+
+/* Investigate: full evidence view for any location (why it was flagged/excluded) */
+async function investigateLoc(id){
+  document.getElementById('detailBg').style.display='flex';
+  const body=document.getElementById('detailBody'); body.innerHTML='<div class="loading">Loading evidence…</div>';
+  document.getElementById('detailTitle').textContent='Location detail';
+  try{
+    const rows=await runSQL(`SELECT l.name, l.category, coalesce(l.address,'') AS address, l.place_id, l.google_rating, l.barkfind_rating, l.review_count, l.flagged, l.flag_reason, l.flagged_at, l.google_verified, l.barkfind_verified, l.amenities, l.description,
+      l.extra_data->>'allows_dogs' AS allows_dogs, l.extra_data->>'google_primary_type' AS primary_type, l.google_reviews,
+      rs.raw_score AS dog_score, rs.signal_data->>'confidence' AS conf, rs.signal_data->>'summary' AS summary, rs.signal_data->'caveats' AS caveats
+      FROM locations l LEFT JOIN rating_signals rs ON rs.location_id=l.id AND rs.source_type='google_sentiment'
+      WHERE l.id='${id}' -- ${Date.now()}`);
+    const d=rows[0]||{};
+    document.getElementById('detailTitle').textContent=d.name||'Location detail';
+    const pid=String(d.place_id||'').replace(/^places\//,'');
+    const maps= pid ? 'https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(d.name||'')+'&query_place_id='+encodeURIComponent(pid) : null;
+    const reviews=toArr(d.google_reviews); const caveats=toArr(d.caveats); const amen=toArr(d.amenities);
+    const adColor = d.allows_dogs==='false'?'#C0392B':(d.allows_dogs==='true'?'#2E7D4F':'#6E6A66');
+    body.innerHTML=
+      '<div class="muted" style="margin:2px 0 10px">'+esc(d.category||'')+' · '+esc(d.address||'')+(maps?' · <a class="evidence" href="'+maps+'" target="_blank" rel="noopener noreferrer">Open in Google Maps ↗</a>':'')+'</div>'
+      +'<table class="mini">'
+      +'<tr><th>Google rating</th><td>'+(d.google_rating==null?'—':d.google_rating)+' ('+(d.review_count||0)+' reviews)</td></tr>'
+      +'<tr><th>BarkFind rating</th><td>'+(d.barkfind_rating==null?'—':d.barkfind_rating)+'</td></tr>'
+      +'<tr><th>Google allows dogs</th><td><b style="color:'+adColor+'">'+(d.allows_dogs==null?'unknown':esc(d.allows_dogs))+'</b></td></tr>'
+      +'<tr><th>Google type</th><td>'+esc(d.primary_type||'—')+'</td></tr>'
+      +'<tr><th>Verification</th><td>'+(d.barkfind_verified?'BarkFind-verified':(d.google_verified?'Google-verified':'not verified'))+'</td></tr>'
+      +'<tr><th>Status</th><td>'+(d.flagged?('<span style="color:#C0392B">flagged / hidden</span>'+(d.flag_reason?' — '+esc(d.flag_reason):'')+(d.flagged_at?' · '+esc(String(d.flagged_at).slice(0,10)):'')):'<span style="color:#2E7D4F">live in app</span>')+'</td></tr>'
+      +'</table>'
+      +'<div class="slabel">AI dog-friendliness read</div>'
+      +(d.dog_score!=null?'<p style="margin:4px 0"><b>'+d.dog_score+'/5</b>'+(d.conf?' · confidence '+Math.round(Number(d.conf)*100)+'%':'')+'</p>':'<div class="muted">Not scored yet.</div>')
+      +(d.summary?'<div class="aibox">'+esc(d.summary)+'</div>':'')
+      +(caveats.length?'<div class="slabel">Caveats</div><ul style="margin:4px 0 0;padding-left:18px">'+caveats.map(c=>'<li>'+esc(c)+'</li>').join('')+'</ul>':'')
+      +'<div class="slabel">Detected amenities</div>'+(amen.length?renderAmenities(amen):'<div class="muted">None detected.</div>')
+      +'<div class="slabel">Google reviews ('+reviews.length+')</div>'
+      +(reviews.length?reviews.map(r=>'<div class="card" style="margin:6px 0"><div class="muted">'+esc(r.author||'Google user')+' · '+(r.rating==null?'?':r.rating)+'★ · '+esc(r.relative_time||'')+(r.dog_relevant?' · 🐾 dog-relevant':'')+'</div><p style="margin:6px 0 0">'+esc(r.text||'')+'</p></div>').join(''):'<div class="muted">No cached Google reviews for this place.</div>')
+      +'<div class="row-actions" style="margin-top:14px">'
+      +(d.flagged?'<button class="btn approve" onclick="restoreFromDetail(\''+id+'\')">Restore to app</button>':'<button class="btn reject" onclick="flagFromDetail(\''+id+'\',\''+esc(d.name||'').replace(/\x27/g,"\\\x27")+'\')">Flag / exclude</button>')
+      +'<button class="btn ghost" onclick="closeDetail()">Close</button></div>';
+  }catch(e){ body.innerHTML='<div class="err">'+esc(e.message||e)+'</div>'; }
+}
+function closeDetail(){ document.getElementById('detailBg').style.display='none'; }
+async function restoreFromDetail(id){ closeDetail(); await unflag(id); }
+function flagFromDetail(id,name){ closeDetail(); if(window._locMap[id]){ flagToggle(id); } else { openModal('Flag "'+name+'"', ['Permanently closed','Not actually dog-friendly','Wrong information','Duplicate listing','Inappropriate content'], async(reason)=>{ try{ await runSQL(`UPDATE locations SET flagged=true, flag_reason=${reason?`'${reason.replace(/'/g,"''")}'`:'NULL'}, flagged_at=now() WHERE id='${id}' -- ${Date.now()}`); await loadModeration(); await loadOverview(); }catch(e){ showGlobalErr(e); } }); } }
+
+/* Claims */
+async function loadClaims(){
+  try{
+    const rows = await runSQL(`SELECT bc.id, bc.status, bc.evidence_url, bc.created_at, l.name AS location_name, coalesce(left(l.address,55),'') AS location_address, p.full_name AS claimant, u.email AS claimant_email
+      FROM business_claims bc LEFT JOIN locations l ON l.id=bc.location_id LEFT JOIN profiles p ON p.id=bc.user_id LEFT JOIN auth.users u ON u.id=p.user_id ORDER BY bc.created_at DESC -- ${Date.now()}`);
+    window._claims=rows;
+    const el=document.getElementById('claimsList');
+    if(!rows.length){ el.innerHTML='<div class="empty">No business claims.</div>'; return; }
+    el.innerHTML = rows.map(c=>`<div class="card"><div class="top"><div>
+        <span class="name">${esc(c.location_name||'Unknown')}</span> <span class="pill ${esc(c.status)}">${esc(c.status)}</span>
+        <div class="muted">${esc(c.location_address)}</div>
+        <div class="muted">Claimant: ${esc(c.claimant||'—')}${c.claimant_email?' · '+esc(c.claimant_email):''} · ${esc((c.created_at||'').slice(0,10))}</div>
+        ${c.evidence_url?`<div>Evidence: <a class="evidence" href="${esc(c.evidence_url)}" target="_blank" rel="noopener noreferrer">${esc(c.evidence_url)}</a></div>`:'<div class="muted">No evidence provided</div>'}</div>
+      ${c.status==='pending'?`<div class="row-actions"><button class="btn ai" onclick="assessClaim('${c.id}')">✨ AI assessment</button><button class="btn approve" onclick="claim('${c.id}','verified')">Approve</button><button class="btn reject" onclick="claim('${c.id}','rejected')">Reject</button></div>`:''}
+    </div><div id="assess-${c.id}"></div></div>`).join('');
+  }catch(e){ showGlobalErr(e); }
+}
+async function claim(id, status){ try{
+  if(status==='verified'){
+    await runSQL(`UPDATE business_claims SET status='verified' WHERE id='${id}';
+      UPDATE locations SET barkfind_verified=true WHERE id=(SELECT location_id FROM business_claims WHERE id='${id}') -- ${Date.now()}`);
+  } else {
+    await runSQL(`UPDATE business_claims SET status='${status}' WHERE id='${id}' -- ${Date.now()}`);
+  }
+  await loadClaims(); await loadOverview();
+}catch(e){ showGlobalErr(e); } }
+async function assessClaim(id){
+  const c=(window._claims||[]).find(x=>x.id===id); if(!c) return;
+  const box=document.getElementById('assess-'+id); if(box) box.innerHTML='<div class="muted" style="margin-top:8px">✨ Assessing claim…</div>';
+  try{
+    const prompt='You are a BarkFind moderation assistant reviewing a business claim: an owner claiming a dog-friendly place to receive a verified badge in the app. From the evidence, assess how legitimate/plausible the claim looks and flag anything suspicious. Then give a clear recommendation on its own line — exactly one of: RECOMMEND: APPROVE / RECOMMEND: REJECT / RECOMMEND: NEEDS MORE EVIDENCE — with one short reason. Then draft a short reply to the claimant. Be concise, British English, never invent facts.';
+    const out=await askAI(prompt, [{ location:c.location_name, address:c.location_address, claimant:c.claimant, email:c.claimant_email, evidence_url:c.evidence_url||'none provided', current_status:c.status }]);
+    if(box) box.innerHTML='<div class="assessbox">✨ '+esc(out)+'</div>';
+  }catch(e){ if(box) box.innerHTML=''; showGlobalErr(e); }
+}
+
+/* Support — reply thread (Resend) + delete + date filter */
+async function loadSupport(){
+  try{
+    const where = periodWhere(window._ticketPeriod||'all','created_at');
+    window._tickets = await runSQL(`SELECT id, full_name, email, subject, category, status, message, priority, tags, created_at, updated_at FROM support_tickets WHERE ${where} ORDER BY (case coalesce(priority,'normal') when 'urgent' then 0 when 'high' then 1 when 'normal' then 2 else 3 end), created_at DESC -- ${Date.now()}`);
+    window._ticketResponses = {}; window._ticketNotes = {};
+    if(!window._macros){ try{ window._macros = await runSQL(`SELECT id, title, body FROM support_macros ORDER BY title -- ${Date.now()}`); }catch(_e){ window._macros=[]; } }
+    const ids = window._tickets.map(t=>t.id);
+    if(ids.length){
+      const inList = ids.map(i=>`'${i}'`).join(',');
+      const resp = await runSQL(`SELECT id, ticket_id, body, status, error, created_at FROM support_responses WHERE ticket_id IN (${inList}) ORDER BY created_at -- ${Date.now()}`);
+      resp.forEach(r=>{ (window._ticketResponses[r.ticket_id] ||= []).push(r); });
+      const notes = await runSQL(`SELECT id, ticket_id, body, created_at FROM support_notes WHERE ticket_id IN (${inList}) ORDER BY created_at -- ${Date.now()}`);
+      notes.forEach(n=>{ (window._ticketNotes[n.ticket_id] ||= []).push(n); });
+    }
+    renderTickets();
+    try{
+      const sla=(await runSQL(`SELECT
+        round((avg(extract(epoch from (fr.first_reply - t.created_at))/3600) FILTER (WHERE fr.first_reply IS NOT NULL))::numeric,1) AS avg_first_h,
+        count(*) FILTER (WHERE t.status IN ('open','in_progress')) AS open_now,
+        count(*) FILTER (WHERE t.status IN ('open','in_progress') AND t.created_at < now()-interval '24 hours') AS ageing,
+        count(*) FILTER (WHERE fr.first_reply IS NULL AND t.status<>'resolved') AS awaiting
+        FROM support_tickets t LEFT JOIN (SELECT ticket_id, min(created_at) first_reply FROM support_responses GROUP BY ticket_id) fr ON fr.ticket_id=t.id -- ${Date.now()}`))[0]||{};
+      const tile=(l,v,n)=>`<div class="tile"><div class="lbl">${l}</div><div class="val">${v}</div>${n?`<div class="note">${n}</div>`:''}</div>`;
+      const el=document.getElementById('supportSla'); if(el) el.innerHTML =
+        tile('Open tickets', sla.open_now||0, 'unresolved')
+        + tile('Awaiting first reply', sla.awaiting||0, '')
+        + tile('Ageing &gt;24h', sla.ageing||0, 'open & old')
+        + tile('Avg first response', sla.avg_first_h!=null?sla.avg_first_h+'h':'—', 'time to first reply');
+    }catch(_e){}
+  }catch(e){ showGlobalErr(e); }
+}
+function setTicketFilter(el,f){ document.querySelectorAll('#support .chip[data-ts]').forEach(c=>c.classList.remove('active')); el.classList.add('active'); window._ticketFilter=f; renderTickets(); }
+function setTicketPeriod(el,p){ document.querySelectorAll('#support .chip[data-tp]').forEach(c=>c.classList.remove('active')); el.classList.add('active'); window._ticketPeriod=p; loadSupport(); }
+function renderTickets(){
+  const f=window._ticketFilter; let rows=window._tickets.filter(t=>!f||t.status===f);
+  const el=document.getElementById('ticketList');
+  const cnt=document.getElementById('ticketCount'); if(cnt) cnt.textContent=rows.length+' shown';
+  if(!rows.length){ el.innerHTML='<div class="empty">No tickets in this view.</div>'; return; }
+  const macroOpts='<option value="">Insert canned reply…</option>'+(window._macros||[]).map(m=>`<option value="${m.id}">${esc(m.title)}</option>`).join('');
+  el.innerHTML=rows.map(t=>{
+    const prio=t.priority||'normal';
+    const prioSel='<select onchange="setPriority(\''+t.id+'\',this.value)" class="mini-select">'+['low','normal','high','urgent'].map(p=>'<option value="'+p+'"'+(p===prio?' selected':'')+'>'+p.charAt(0).toUpperCase()+p.slice(1)+'</option>').join('')+'</select>';
+    const tags=(t.tags||[]);
+    const thread=(window._ticketResponses&&window._ticketResponses[t.id])||[];
+    const threadHtml = thread.length ? '<div class="thread">'+thread.map(r=>{
+      const pill = r.status==='sent'?'verified':r.status==='failed'?'rejected':'pending';
+      return `<div class="reply"><div class="reply-meta">Your reply · ${esc((r.created_at||'').slice(0,16).replace('T',' '))} <span class="pill ${pill}">${esc(r.status)}</span>${r.status==='failed'&&r.error?`<span class="muted">${esc(String(r.error).slice(0,90))}</span>`:''}</div><div>${esc(r.body)}</div></div>`;
+    }).join('')+'</div>' : '';
+    const notes=(window._ticketNotes&&window._ticketNotes[t.id])||[];
+    const notesHtml='<div class="slabel">Internal notes ('+notes.length+')</div>'+(notes.length?notes.map(n=>'<div class="reply" style="background:#fff7ed"><div class="reply-meta">'+esc((n.created_at||'').slice(0,16).replace('T',' '))+'</div><div>'+esc(n.body)+'</div></div>').join(''):'<div class="muted">None.</div>')+'<div style="display:flex;gap:6px;margin-top:6px"><input id="note-'+t.id+'" placeholder="Add an internal note (not sent to the user)…" class="note-in" /><button class="btn ghost" onclick="addNote(\''+t.id+'\')">Add note</button></div>';
+    return `<div class="card" id="tk-${t.id}"><div class="top"><div>
+      <span class="name">${esc(t.subject||'(no subject)')}</span> <span class="pill ${esc(t.status)}">${esc((t.status||'').replace('_',' '))}</span> <span class="pill prio-${prio}">${prio}</span>
+      <div class="muted">${esc(t.full_name||'')} · ${esc(t.email||'')} · ${esc(t.category||'')}</div>
+      <div class="muted">opened ${esc((t.created_at||'').slice(0,10))}${t.updated_at?' · updated '+esc((t.updated_at||'').slice(0,10)):''}</div></div>
+      <button class="btn danger" data-del onclick="deleteTicket('${t.id}')" title="Delete ticket">Delete</button></div>
+    <p style="margin:8px 0 0">${esc(t.message||'')}</p>
+    <div class="cs-row"><span class="period-lbl">Priority</span>${prioSel}<span class="period-lbl" style="margin-left:8px">Tags</span><input class="note-in" style="max-width:240px" value="${esc(tags.join(', '))}" onchange="setTags('${t.id}',this.value)" placeholder="comma, separated"/></div>
+    ${notesHtml}
+    ${threadHtml}
+    <div style="margin-top:11px"><select onchange="insertMacro('${t.id}',this.value); this.value=''" class="mini-select">${macroOpts}</select></div>
+    <textarea id="reply-${t.id}" class="reply-box" placeholder="Write a reply to ${esc(t.email||'the user')}…"></textarea>
+    <div class="row-actions">
+      <button class="btn ai" onclick="draftReply('${t.id}')">✨ Draft with AI</button>
+      <button class="btn on" onclick="sendReply('${t.id}',true)">Reply &amp; resolve</button>
+      <button class="btn ghost" onclick="sendReply('${t.id}',false)">Reply only</button>
+      ${t.status!=='in_progress'?`<button class="btn ghost" onclick="ticket('${t.id}','in_progress')">In progress</button>`:''}
+      ${t.status!=='resolved'?`<button class="btn approve" onclick="ticket('${t.id}','resolved')">Resolve</button>`:`<button class="btn ghost" onclick="ticket('${t.id}','open')">Reopen</button>`}
+    </div></div>`;
+  }).join('');
+}
+async function sendReply(id, resolve){
+  const ta=document.getElementById('reply-'+id); const body=(ta&&ta.value||'').trim();
+  if(!body){ if(ta) ta.focus(); return; }
+  try{
+    let sql=`INSERT INTO support_responses (ticket_id, body, status) VALUES ('${id}', '${sqlLit(body)}', 'queued'); `;
+    sql+=`UPDATE support_tickets SET status='${resolve?'resolved':'in_progress'}', updated_at=now() WHERE id='${id}'; -- ${Date.now()}`;
+    await runSQL(sql);
+    await loadSupport(); await loadOverview();
+  }catch(e){ showGlobalErr(e); }
+}
+function deleteTicket(id, armed){
+  const card=document.getElementById('tk-'+id); const btn=card&&card.querySelector('[data-del]');
+  if(!armed){
+    if(btn){ btn.textContent='Confirm delete'; btn.classList.add('armed'); btn.setAttribute('onclick',`deleteTicket('${id}',true)`);
+      setTimeout(()=>{ if(btn){ btn.textContent='Delete'; btn.classList.remove('armed'); btn.setAttribute('onclick',`deleteTicket('${id}')`); } },3000); }
+    return;
+  }
+  deferAction('Ticket deleted', `DELETE FROM support_tickets WHERE id='${id}' -- ${Date.now()}`, ()=>{ loadSupport(); loadOverview(); }, card);
+}
+async function ticket(id, status){ try{ await runSQL(`UPDATE support_tickets SET status='${status}', updated_at=now() WHERE id='${id}' -- ${Date.now()}`); await loadSupport(); await loadOverview(); }catch(e){ showGlobalErr(e); } }
+async function setPriority(id,val){ try{ await runSQL(`UPDATE support_tickets SET priority='${sqlLit(val)}', updated_at=now() WHERE id='${id}' -- ${Date.now()}`); const t=window._tickets.find(x=>x.id===id); if(t) t.priority=val; renderTickets(); }catch(e){ showGlobalErr(e); } }
+async function setTags(id,csv){ const arr=String(csv).split(',').map(s=>s.trim()).filter(Boolean); const lit=arr.length?('ARRAY['+arr.map(a=>`'${sqlLit(a)}'`).join(',')+']::text[]'):`'{}'::text[]`; try{ await runSQL(`UPDATE support_tickets SET tags=${lit}, updated_at=now() WHERE id='${id}' -- ${Date.now()}`); const t=window._tickets.find(x=>x.id===id); if(t) t.tags=arr; }catch(e){ showGlobalErr(e); } }
+function insertMacro(id, macroId){ if(!macroId) return; const m=(window._macros||[]).find(x=>x.id===macroId); if(!m) return; const ta=document.getElementById('reply-'+id); if(ta){ ta.value=(ta.value?ta.value+'\n\n':'')+m.body; ta.focus(); } }
+async function addNote(id){ const inp=document.getElementById('note-'+id); const body=((inp&&inp.value)||'').trim(); if(!body) return; try{ await runSQL(`INSERT INTO support_notes (ticket_id, body) VALUES ('${id}','${sqlLit(body)}') -- ${Date.now()}`); await loadSupport(); }catch(e){ showGlobalErr(e); } }
+async function draftReply(id){
+  const t=window._tickets.find(x=>x.id===id); if(!t) return;
+  const ta=document.getElementById('reply-'+id);
+  const btn=document.querySelector('#tk-'+id+' .ai'); const orig=btn&&btn.textContent; if(btn){ btn.textContent='✨ Drafting…'; btn.disabled=true; }
+  try{
+    const prompt='You are a friendly BarkFind support agent. BarkFind is a UK app for finding dog-friendly places. Draft a warm, concise reply that resolves this support ticket. Use British English. Be specific and genuinely helpful; if you cannot fully resolve it, acknowledge the issue and give clear next steps. Never invent facts, features, or promises. Return ONLY the reply body — no subject line, greet by first name if given, and sign off "The BarkFind team".';
+    const draft=await askAI(prompt, [{ subject:t.subject, category:t.category, from:t.full_name, message:t.message }]);
+    if(ta){ ta.value=(draft||'').trim(); ta.focus(); }
+  }catch(e){ showGlobalErr(e); }
+  finally{ if(btn){ btn.textContent=orig||'✨ Draft with AI'; btn.disabled=false; } }
+}
+
+/* Revenue */
+async function loadRevenue(){
+  try{
+    const rows = await runSQL(`SELECT plan, status, count(*) AS n FROM subscriptions GROUP BY plan, status ORDER BY plan, status -- ${Date.now()}`);
+    let active=0,trial=0,monthlyActive=0,annualActive=0;
+    rows.forEach(r=>{const n=Number(r.n); if(r.status==='active'){active+=n; if(r.plan==='monthly')monthlyActive+=n; if(r.plan==='annual'||r.plan==='yearly')annualActive+=n;} if(r.status==='trial')trial+=n;});
+    const mrr=monthlyActive*4.99 + annualActive*(39.99/12);
+    const tile=(l,v,n)=>`<div class="tile"><div class="lbl">${l}</div><div class="val">${v}</div>${n?`<div class="note">${n}</div>`:''}</div>`;
+    document.getElementById('revTiles').innerHTML=tile('Active subscribers',active,annualActive+' annual · '+monthlyActive+' monthly')+tile('On trial',trial,'')+tile('MRR estimate','£'+mrr.toFixed(2),'monthly + annual/12')+tile('ARR estimate','£'+(mrr*12).toFixed(0),'MRR × 12');
+    try{ const sm=await runSQL(`SELECT to_char(date_trunc('month',created_at),'YYYY-MM') AS mo, count(*) AS n FROM subscriptions WHERE created_at >= now()-interval '12 months' GROUP BY 1 ORDER BY 1 -- ${Date.now()}`);
+      const sctx=document.getElementById('subChart'); if(window._subChart) window._subChart.destroy();
+      window._subChart=new Chart(sctx,{type:'bar',data:{labels:sm.map(x=>x.mo),datasets:[{label:'New subs',data:sm.map(x=>Number(x.n)),backgroundColor:'#4FA4A1'}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{precision:0}}}}});
+    }catch(_e){}
+    const tel=document.getElementById('subTable');
+    tel.innerHTML = rows.length ? '<table class="mini"><tr><th>Plan</th><th>Status</th><th>Count</th></tr>'+rows.map(r=>`<tr><td>${esc(r.plan)}</td><td>${esc(r.status)}</td><td>${esc(r.n)}</td></tr>`).join('')+'</table>' : '<div class="empty">No subscriptions yet.</div>';
+    const snap = await runSQL(`SELECT metrics, synced_at FROM revenuecat_snapshot WHERE id=1 -- ${Date.now()}`);
+    renderRC(snap[0]);
+  }catch(e){ showGlobalErr(e); }
+}
+function renderRC(row){
+  const el=document.getElementById('rcPanel');
+  if(!row||!row.metrics){ el.innerHTML='<div class="empty">No RevenueCat snapshot yet — the hourly sync will populate this.</div>'; return; }
+  const m = typeof row.metrics==='string'?JSON.parse(row.metrics):row.metrics;
+  const envs = m.by_environment||{}; const allSandbox = !envs.production && envs.sandbox;
+  const kv = o => Object.entries(o||{}).map(([k,v])=>esc(k)+': '+v).join(' · ')||'—';
+  const tile=(l,v,n)=>`<div class="tile"><div class="lbl">${l}</div><div class="val">${v}</div>${n?`<div class="note">${n}</div>`:''}</div>`;
+  el.innerHTML = `<div class="tiles">
+    ${tile('Customers', m.customers_total??'—','')}
+    ${tile('Active', m.production_active??0,'production')}
+    ${tile('Trialing', m.trialing??0,'')}
+    ${tile('Churn', m.churn_pct==null?'—':m.churn_pct+'%','of all subs')}
+    ${tile('Proceeds', '$'+((m.revenue_usd&&m.revenue_usd.proceeds)??0),'gross $'+((m.revenue_usd&&m.revenue_usd.gross)??0))}
+  </div>
+  <table class="mini">
+    <tr><th>By environment</th><td>${kv(envs)}</td></tr>
+    <tr><th>By status</th><td>${kv(m.by_status)}</td></tr>
+    <tr><th>By country</th><td>${kv(m.by_country)}</td></tr>
+  </table>
+  <p class="muted">Synced ${esc((row.synced_at||'').slice(0,19).replace('T',' '))} UTC · auto-refreshes hourly.${allSandbox?' ⚠️ All current subscriptions are SANDBOX (test) purchases — these revenue figures are not real.':''} Full cohort/LTV charts live in the <a href="https://app.revenuecat.com" target="_blank" rel="noopener noreferrer">RevenueCat dashboard</a>.</p>`;
+}
+
+/* Costs — estimated API spend metered per call in api_usage */
+async function loadCosts(){
+  try{
+    const GBP = 0.79; // editable USD→GBP approximation
+    const money = v => '$'+Number(v||0).toFixed(2)+'  ·  £'+(Number(v||0)*GBP).toFixed(2);
+    const t = (await runSQL(`SELECT
+      coalesce(sum(cost_usd) filter (where created_at >= date_trunc('day', now())),0) AS today,
+      coalesce(sum(cost_usd) filter (where created_at >= now() - interval '7 days'),0) AS d7,
+      coalesce(sum(cost_usd) filter (where created_at >= now() - interval '30 days'),0) AS d30,
+      coalesce(sum(cost_usd),0) AS all_time,
+      coalesce(sum(cost_usd) filter (where provider='google_places'),0) AS google_all,
+      coalesce(sum(cost_usd) filter (where provider='anthropic'),0) AS ai_all,
+      count(*) AS calls FROM api_usage -- ${Date.now()}`))[0]||{};
+    const tile=(l,v,n)=>`<div class="tile"><div class="lbl">${l}</div><div class="val" style="font-size:17px">${v}</div>${n?`<div class="note">${n}</div>`:''}</div>`;
+    document.getElementById('costTiles').innerHTML =
+        tile('Today', money(t.today))
+      + tile('Last 7 days', money(t.d7))
+      + tile('Last 30 days', money(t.d30))
+      + tile('All-time', money(t.all_time), (t.calls||0)+' calls logged')
+      + tile('Google Places', money(t.google_all), 'all-time')
+      + tile('AI (Claude Haiku)', money(t.ai_all), 'all-time');
+
+    const rows = await runSQL(`SELECT to_char(date_trunc('day', created_at),'YYYY-MM-DD') AS day, provider, round(sum(cost_usd)::numeric,4) AS cost
+      FROM api_usage WHERE created_at >= now() - interval '30 days' GROUP BY 1,2 ORDER BY 1 -- ${Date.now()}`);
+    const days=[...new Set(rows.map(r=>r.day))].sort();
+    const g=days.map(d=>Number(rows.find(r=>r.day===d&&r.provider==='google_places')?.cost||0));
+    const a=days.map(d=>Number(rows.find(r=>r.day===d&&r.provider==='anthropic')?.cost||0));
+    const ctx=document.getElementById('costChart'); if(window._costChart) window._costChart.destroy();
+    window._costChart=new Chart(ctx,{type:'bar',data:{labels:days,datasets:[
+        {label:'Google Places',data:g,backgroundColor:'#be6a3d'},
+        {label:'AI (Claude)',data:a,backgroundColor:'#4FA4A1'}]},
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom'}},scales:{x:{stacked:true},y:{stacked:true,beginAtZero:true,ticks:{callback:v=>'$'+v}}}}});
+
+    const b = await runSQL(`SELECT provider, operation, count(*) AS calls, round(sum(cost_usd)::numeric,4) AS cost FROM api_usage GROUP BY 1,2 ORDER BY cost DESC -- ${Date.now()}`);
+    const bel=document.getElementById('costBreakdown');
+    bel.innerHTML = b.length ? '<table class="mini"><tr><th>Provider</th><th>Operation</th><th>Calls</th><th>Cost (USD)</th></tr>'+b.map(r=>`<tr><td>${esc(r.provider)}</td><td>${esc(r.operation)}</td><td>${esc(r.calls)}</td><td>$${Number(r.cost).toFixed(4)}</td></tr>`).join('')+'</table>' : '<div class="empty">No usage logged yet — costs appear here as the app is used.</div>';
+
+    document.getElementById('costNote').innerHTML='<p class="muted">Estimated from per-call counts × published unit prices (Google Places (New) SKUs; Claude Haiku 4.5 at $1/$5 per million input/output tokens). Close to, but not the exact, invoice — GBP shown at an approximate '+GBP+' rate. Authoritative figures live in <a href="https://console.cloud.google.com/billing" target="_blank" rel="noopener noreferrer">Google Cloud Billing</a> and the <a href="https://console.anthropic.com" target="_blank" rel="noopener noreferrer">Anthropic console</a>. Maps map-loads are client-side and not metered here — see Google Cloud → Maps → Metrics.</p>';
+  }catch(e){ showGlobalErr(e); }
+}
+
+/* Analytics — engagement + search */
+async function loadAnalytics(){
+  try{
+    const t=(await runSQL(`SELECT
+      count(distinct user_id) filter (where started_at >= now()-interval '1 day') AS dau,
+      count(distinct user_id) filter (where started_at >= now()-interval '7 days') AS wau,
+      count(distinct user_id) filter (where started_at >= now()-interval '30 days') AS mau,
+      count(*) AS sessions, coalesce(sum(search_count),0) AS searches
+      FROM session_analytics -- ${Date.now()}`))[0]||{};
+    const sps=(Number(t.sessions)>0)?(Number(t.searches)/Number(t.sessions)).toFixed(1):'0';
+    const tile=(l,v,n)=>`<div class="tile"><div class="lbl">${l}</div><div class="val">${v??'—'}</div>${n?`<div class="note">${n}</div>`:''}</div>`;
+    document.getElementById('anTiles').innerHTML =
+        tile('DAU',t.dau,'active today')+tile('WAU',t.wau,'last 7 days')+tile('MAU',t.mau,'last 30 days')
+      + tile('Sessions',t.sessions,'all-time')+tile('Searches',t.searches,sps+' per session')
+      + tile('Stickiness',(Number(t.mau)>0?Math.round(100*Number(t.dau)/Number(t.mau))+'%':'—'),'DAU/MAU');
+  }catch(e){ showGlobalErr(e); }
+  try{
+    const d=await runSQL(`SELECT to_char(date_trunc('day',started_at),'YYYY-MM-DD') AS day, count(distinct user_id) AS n FROM session_analytics WHERE started_at >= now()-interval '30 days' GROUP BY 1 ORDER BY 1 -- ${Date.now()}`);
+    const ctx=document.getElementById('dauChart'); if(window._dauChart) window._dauChart.destroy();
+    window._dauChart=new Chart(ctx,{type:'line',data:{labels:d.map(x=>x.day.slice(5)),datasets:[{label:'Active users',data:d.map(x=>Number(x.n)),borderColor:'#B74217',backgroundColor:'#B74217',tension:.3}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{precision:0}}}}});
+  }catch(e){ showGlobalErr(e); }
+  try{
+    const ts=await runSQL(`SELECT lower(trim(term)) AS term, count(*) AS n FROM search_logs GROUP BY 1 ORDER BY n DESC LIMIT 20 -- ${Date.now()}`);
+    document.getElementById('topSearches').innerHTML = ts.length?'<table class="mini"><tr><th>Search term</th><th>Count</th></tr>'+ts.map(r=>`<tr><td>${esc(r.term)}</td><td>${r.n}</td></tr>`).join('')+'</table>':'<div class="empty">No searches logged yet.</div>';
+  }catch(e){ showGlobalErr(e); }
+  try{
+    const gaps=await runSQL(`WITH terms AS (SELECT lower(trim(term)) AS term, count(*) AS n FROM search_logs WHERE term IS NOT NULL AND length(trim(term))>1 GROUP BY 1)
+      SELECT t.term, t.n FROM terms t WHERE NOT EXISTS (SELECT 1 FROM locations l WHERE l.flagged=false AND (l.name ILIKE '%'||t.term||'%' OR l.category ILIKE '%'||t.term||'%' OR l.address ILIKE '%'||t.term||'%')) ORDER BY t.n DESC LIMIT 20 -- ${Date.now()}`);
+    document.getElementById('gapSearches').innerHTML = gaps.length?'<p class="muted" style="margin:0 0 8px">Terms users searched that match no live place — candidates for what to add/ingest next.</p><table class="mini"><tr><th>Term</th><th>Searches</th></tr>'+gaps.map(r=>`<tr><td>${esc(r.term)}</td><td>${r.n}</td></tr>`).join('')+'</table>':'<div class="empty">No content gaps — every searched term matches a place.</div>';
+  }catch(e){ showGlobalErr(e); }
+  try{
+    const dev=await runSQL(`SELECT coalesce(device_info->>'platform', device_info->>'os', device_info->>'model', 'unknown') AS device, count(*) AS n FROM session_analytics GROUP BY 1 ORDER BY n DESC LIMIT 10 -- ${Date.now()}`);
+    document.getElementById('deviceBreak').innerHTML = dev.length?'<table class="mini"><tr><th>Device</th><th>Sessions</th></tr>'+dev.map(r=>`<tr><td>${esc(r.device)}</td><td>${r.n}</td></tr>`).join('')+'</table>':'<div class="empty">No device data.</div>';
+  }catch(e){ showGlobalErr(e); }
+}
+
+/* Safety — CSAE escalations, user reports, GDPR requests */
+async function loadSafety(){
+  try{
+    const cs=await runSQL(`SELECT r.id, r.review_text, r.created_at, r.status, r.ai_reason, l.name AS loc FROM reviews r LEFT JOIN locations l ON l.id=r.location_id WHERE r.ai_flags @> '["csae_escalate"]'::jsonb ORDER BY r.created_at DESC -- ${Date.now()}`);
+    document.getElementById('csaeList').innerHTML = cs.length? cs.map(r=>`<div class="card" id="rev-${r.id}"><div class="top"><div><span class="name" style="color:#C0392B">⚠️ Escalated review</span> <span class="pill ${esc(r.status)}">${esc(r.status)}</span><div class="muted">${esc(r.loc||'')} · ${esc((r.created_at||'').slice(0,10))}</div></div></div><p style="margin:8px 0 0">${esc(r.review_text||'')}</p>${r.ai_reason?`<div class="aibox">🤖 ${esc(r.ai_reason)}</div>`:''}<div class="row-actions"><button class="btn reject" onclick="moderate('${r.id}','reject')">Reject review</button><button class="btn approve" onclick="moderate('${r.id}','approve')">Approve</button></div></div>`).join('') : '<div class="empty">No escalations. 🎉</div>';
+  }catch(e){ showGlobalErr(e); }
+  try{
+    const ur=await runSQL(`SELECT ur.id, ur.reason, ur.status, ur.created_at, ur.reported_user_id, ru.email AS reported_email, rp.email AS reporter_email FROM user_reports ur LEFT JOIN auth.users ru ON ru.id=ur.reported_user_id LEFT JOIN auth.users rp ON rp.id=ur.reporter_id WHERE coalesce(ur.status,'open')='open' ORDER BY ur.created_at DESC -- ${Date.now()}`);
+    document.getElementById('userReportsList').innerHTML = ur.length? ur.map(r=>`<div class="card"><div class="top"><div><span class="name">${esc(r.reported_email||'user')}</span> <span class="badge">${esc(r.reason||'')}</span><div class="muted">reported by ${esc(r.reporter_email||'—')} · ${esc((r.created_at||'').slice(0,10))}</div></div></div><div class="row-actions">${r.reported_user_id?`<button class="btn ghost" onclick="userDetail('${r.reported_user_id}')">View user</button><button class="btn reject" onclick="banUser('${r.reported_user_id}',true); userReportAction('${r.id}','actioned')">Ban user</button>`:''}<button class="btn ghost" onclick="userReportAction('${r.id}','dismissed')">Dismiss</button></div></div>`).join('') : '<div class="empty">No open user reports.</div>';
+  }catch(e){ showGlobalErr(e); }
+  try{
+    const pr=await runSQL(`SELECT id, email, request_type, details, status, created_at FROM privacy_requests WHERE coalesce(status,'open') <> 'processed' ORDER BY created_at DESC -- ${Date.now()}`);
+    document.getElementById('privacyList').innerHTML = pr.length? '<p class="muted" style="margin:0 0 8px">Export/deletion requests. For deletions, run the delete-user-account function for a full auth+data wipe, then mark processed.</p>'+pr.map(r=>`<div class="card"><div class="top"><div><span class="name">${esc(r.request_type||'request')}</span> <span class="pill ${esc(r.status||'open')}">${esc(r.status||'open')}</span><div class="muted">${esc(r.email||'')} · ${esc((r.created_at||'').slice(0,10))}</div>${r.details?`<div class="muted">${esc(r.details)}</div>`:''}</div><button class="btn approve" onclick="privacyProcessed('${r.id}')">Mark processed</button></div></div>`).join('') : '<div class="empty">No open privacy requests.</div>';
+  }catch(e){ showGlobalErr(e); }
+}
+async function userReportAction(id, status){ try{ await runSQL(`UPDATE user_reports SET status='${status}', handled_at=now() WHERE id='${id}' -- ${Date.now()}`); await loadSafety(); }catch(e){ showGlobalErr(e); } }
+async function privacyProcessed(id){ try{ await runSQL(`UPDATE privacy_requests SET status='processed', processed_at=now() WHERE id='${id}' -- ${Date.now()}`); await loadSafety(); }catch(e){ showGlobalErr(e); } }
+
+/* Rewards */
+async function loadRewards(){
+  try{
+    const m=(await runSQL(`SELECT
+      (SELECT count(*) FROM promo_codes) AS codes,
+      (SELECT count(*) FROM promo_codes WHERE claimed_by IS NOT NULL) AS claimed,
+      (SELECT count(*) FROM treat_claims) AS treats,
+      (SELECT count(*) FROM profiles WHERE milestone_10_claimed) AS m10,
+      (SELECT count(*) FROM profiles WHERE milestone_20_claimed) AS m20,
+      (SELECT count(*) FROM profiles WHERE milestone_50_claimed) AS m50 -- ${Date.now()}`))[0]||{};
+    const tile=(l,v,n)=>`<div class="tile"><div class="lbl">${l}</div><div class="val">${v??'—'}</div>${n?`<div class="note">${n}</div>`:''}</div>`;
+    document.getElementById('rewardTiles').innerHTML =
+      tile('Promo codes',m.codes,(m.claimed||0)+' claimed')+tile('Treat claims',m.treats,'')
+      +tile('10-review milestone',m.m10,'')+tile('20-review',m.m20,'')+tile('50-review',m.m50,'');
+    const codes=await runSQL(`SELECT code, milestone, discount_percent, platform, claimed_by, claimed_at FROM promo_codes ORDER BY created_at DESC LIMIT 100 -- ${Date.now()}`);
+    document.getElementById('promoList').innerHTML = codes.length? '<table class="mini"><tr><th>Code</th><th>Milestone</th><th>Discount</th><th>Platform</th><th>Claimed</th></tr>'+codes.map(c=>`<tr><td>${esc(c.code)}</td><td>${esc(c.milestone||'—')}</td><td>${c.discount_percent!=null?c.discount_percent+'%':'—'}</td><td>${esc(c.platform||'—')}</td><td>${c.claimed_by?esc((c.claimed_at||'').slice(0,10)):'—'}</td></tr>`).join('')+'</table>' : '<div class="empty">No promo codes.</div>';
+    const tr=await runSQL(`SELECT tier, count(*) AS n FROM treat_claims GROUP BY tier ORDER BY n DESC -- ${Date.now()}`);
+    document.getElementById('treatList').innerHTML = tr.length? '<table class="mini"><tr><th>Tier</th><th>Claims</th></tr>'+tr.map(r=>`<tr><td>${esc(r.tier||'—')}</td><td>${r.n}</td></tr>`).join('')+'</table>' : '<div class="empty">No treat claims yet.</div>';
+  }catch(e){ showGlobalErr(e); }
+}
+
+/* Comms — announcements */
+async function loadComms(){
+  try{
+    window._announcements = await runSQL(`SELECT title, message, count(*) AS recipients, count(*) filter (where is_read) AS read, max(created_at) AS last_sent FROM notifications WHERE type='system' AND entity='none' AND coalesce(is_demo,false)=false GROUP BY title, message ORDER BY max(created_at) DESC LIMIT 50 -- ${Date.now()}`);
+    const rows=window._announcements;
+    document.getElementById('commsList').innerHTML = rows.length? rows.map((r,i)=>`<div class="card" id="ann-${i}"><div class="top"><div><span class="name">${esc(r.title||'(no title)')}</span><div class="muted">${r.recipients} recipient(s) · ${r.read||0} read · last sent ${esc((r.last_sent||'').slice(0,10))}</div></div><button class="btn danger" data-anndel onclick="deleteAnnouncement(${i})">Delete</button></div><p style="margin:6px 0 0">${esc(r.message||'')}</p></div>`).join('') : '<div class="empty">No announcements sent yet.</div>';
+  }catch(e){ showGlobalErr(e); }
+}
+async function deleteAnnouncement(idx){
+  const a=(window._announcements||[])[idx]; if(!a) return;
+  const card=document.getElementById('ann-'+idx); const btn=card&&card.querySelector('[data-anndel]');
+  if(btn && !btn.classList.contains('armed')){ btn.textContent='Confirm delete'; btn.classList.add('armed'); setTimeout(()=>{ if(btn){ btn.textContent='Delete'; btn.classList.remove('armed'); } },3000); return; }
+  deferAction('Announcement removed', `DELETE FROM notifications WHERE type='system' AND entity='none' AND coalesce(is_demo,false)=false AND title='${sqlLit(a.title||'')}' AND message='${sqlLit(a.message||'')}' -- ${Date.now()}`, ()=>loadComms(), card);
+}
+async function sendAnnouncement(){
+  const title=(document.getElementById('cTitle').value||'').trim();
+  const msg=(document.getElementById('cMsg').value||'').trim();
+  const url=(document.getElementById('cUrl').value||'').trim();
+  const seg=document.getElementById('cSeg').value; const res=document.getElementById('cResult');
+  if(!title||!msg){ if(res) res.textContent='Title and message required.'; return; }
+  if(res) res.textContent='Sending…';
+  let segJoin='', segWhere='';
+  if(seg==='subscribed'){ segJoin="JOIN subscriptions s ON s.user_id=p.user_id AND s.status='active'"; }
+  else if(seg==='trial'){ segJoin="JOIN subscriptions s ON s.user_id=p.user_id AND s.status='trial'"; }
+  else if(seg==='free'){ segWhere="WHERE NOT EXISTS (SELECT 1 FROM subscriptions s WHERE s.user_id=p.user_id AND s.status IN ('active','trial'))"; }
+  try{
+    const urlPart = url? `'${sqlLit(url)}'` : 'NULL';
+    await runSQL(`INSERT INTO notifications (user_id, type, entity, title, message, action_url, is_read, is_demo)
+      SELECT p.user_id, 'system', 'none', '${sqlLit(title)}', '${sqlLit(msg)}', ${urlPart}, false, false FROM profiles p ${segJoin} ${segWhere} -- ${Date.now()}`);
+    if(res) res.textContent='Sent ✓';
+    document.getElementById('cTitle').value=''; document.getElementById('cMsg').value=''; document.getElementById('cUrl').value='';
+    await loadComms();
+  }catch(e){ if(res) res.textContent=''; showGlobalErr(e); }
+}
+
+/* Ops — audit log + ingestion monitoring */
+async function loadOps(){
+  try{
+    const m=(await runSQL(`SELECT
+      (SELECT count(*) FROM locations WHERE flagged=false AND (image_url IS NULL OR image_url='')) AS no_photo,
+      (SELECT count(*) FROM locations WHERE flagged=false AND (description IS NULL OR description='')) AS no_summary,
+      (SELECT count(*) FROM locations WHERE (extra_data->>'google_last_synced') IS NOT NULL AND (extra_data->>'google_last_synced')::timestamptz < now()-interval '30 days') AS stale,
+      (SELECT count(*) FROM admin_audit WHERE created_at >= now()-interval '1 day') AS actions_today -- ${Date.now()}`))[0]||{};
+    const tile=(l,v,n)=>`<div class="tile"><div class="lbl">${l}</div><div class="val">${v??'—'}</div>${n?`<div class="note">${n}</div>`:''}</div>`;
+    document.getElementById('opsTiles').innerHTML =
+      tile('Photo backlog',m.no_photo,'live places w/o photo')+tile('Summary backlog',m.no_summary,'w/o AI summary')
+      +tile('Stale Google data',m.stale,'>30 days')+tile('Admin actions today',m.actions_today,'');
+  }catch(e){ showGlobalErr(e); }
+  try{
+    const wk=await runSQL(`WITH weeks AS (SELECT generate_series(date_trunc('week', now()) - interval '11 weeks', date_trunc('week', now()), interval '1 week') AS wk)
+      SELECT to_char(w.wk,'YYYY-MM-DD') AS wk, (SELECT count(*) FROM locations l WHERE date_trunc('week', l.created_at)=w.wk) AS n FROM weeks w ORDER BY w.wk -- ${Date.now()}`);
+    const ctx=document.getElementById('ingChart'); if(window._ingChart) window._ingChart.destroy();
+    window._ingChart=new Chart(ctx,{type:'bar',data:{labels:wk.map(x=>x.wk.slice(5)),datasets:[{label:'Locations added',data:wk.map(x=>Number(x.n)),backgroundColor:'#be6a3d'}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{precision:0}}}}});
+  }catch(e){ showGlobalErr(e); }
+  try{
+    const a=await runSQL(`SELECT action, entity, detail, created_at FROM admin_audit ORDER BY created_at DESC LIMIT 100 -- ${Date.now()}`);
+    document.getElementById('auditList').innerHTML = a.length? '<table class="mini"><tr><th>When</th><th>Action</th><th>Table</th><th>Detail</th></tr>'+a.map(r=>`<tr><td style="white-space:nowrap">${esc((r.created_at||'').slice(0,16).replace('T',' '))}</td><td>${esc(r.action)}</td><td>${esc(r.entity||'')}</td><td class="muted">${esc(String(r.detail||'').slice(0,70))}</td></tr>`).join('')+'</table>' : '<div class="empty">No admin actions logged yet.</div>';
+  }catch(e){ showGlobalErr(e); }
+}
+
+/* Directory editing + duplicate merge */
+async function loadDuplicates(){
+  try{
+    window._dups=await runSQL(`WITH g AS (SELECT lower(trim(name)) AS nm, array_agg(id ORDER BY created_at) AS ids, array_agg(coalesce(left(address,40),'') ORDER BY created_at) AS addrs, count(*) AS n FROM locations GROUP BY 1 HAVING count(*)>1)
+      SELECT nm, ids, addrs, n FROM g WHERE nm NOT IN (SELECT name FROM duplicate_ignores) ORDER BY n DESC LIMIT 40 -- ${Date.now()}`);
+    const d=window._dups; const el=document.getElementById('dupList');
+    if(!d.length){ el.innerHTML='<div class="empty">No duplicate groups to review.</div>'; return; }
+    el.innerHTML = d.map((g,idx)=>{ const ids=toArr(g.ids); const addrs=toArr(g.addrs); const keep=ids[0];
+      return `<div class="card"><div class="top"><div><span class="name">${esc(g.nm)}</span> <span class="badge">${g.n} copies</span></div></div>`
+      + ids.map((id,i)=>`<div class="muted">${i===0?'✅ keep':'↳ merge'} · ${esc(addrs[i]||'')} · <button class="btn ghost" onclick="investigateLoc('${id}')" style="padding:2px 8px">View</button></div>`).join('')
+      + `<div class="row-actions"><button class="btn reject" onclick="confirmMerge(${idx}, this)">Merge ${g.n-1} into first</button><button class="btn ghost" onclick="ignoreDuplicate(${idx})">Not duplicates — ignore</button></div></div>`;
+    }).join('');
+  }catch(e){ showGlobalErr(e); }
+}
+async function ignoreDuplicate(idx){ const g=(window._dups||[])[idx]; if(!g) return; try{ await runSQL(`INSERT INTO duplicate_ignores (name) VALUES ('${sqlLit(g.nm)}') ON CONFLICT (name) DO NOTHING -- ${Date.now()}`); await loadDuplicates(); }catch(e){ showGlobalErr(e); } }
+async function mergeLocations(keepId, dropIds){
+  if(!Array.isArray(dropIds)||!dropIds.length) return;
+  const inList=dropIds.map(i=>`'${i}'`).join(',');
+  try{
+    await runSQL(`UPDATE favorites SET location_id='${keepId}' WHERE location_id IN (${inList});
+      UPDATE reviews SET location_id='${keepId}' WHERE location_id IN (${inList});
+      UPDATE rating_signals SET location_id='${keepId}' WHERE location_id IN (${inList});
+      UPDATE location_reports SET location_id='${keepId}' WHERE location_id IN (${inList});
+      DELETE FROM locations WHERE id IN (${inList}) -- ${Date.now()}`);
+    await loadLocations();
+  }catch(e){ showGlobalErr(e); }
+}
+function confirmMerge(idx, btn){
+  const g=(window._dups||[])[idx]; if(!g) return; const ids=toArr(g.ids); if(ids.length<2) return; const keep=ids[0]; const drop=ids.slice(1);
+  if(btn && !btn.classList.contains('armed')){ btn.textContent='Confirm merge'; btn.classList.add('armed'); setTimeout(()=>{ if(btn){ btn.textContent='Merge '+drop.length+' into first'; btn.classList.remove('armed'); } },3000); return; }
+  const inList=drop.map(i=>`'${i}'`).join(',');
+  const sql=`UPDATE favorites SET location_id='${keep}' WHERE location_id IN (${inList}); UPDATE reviews SET location_id='${keep}' WHERE location_id IN (${inList}); UPDATE rating_signals SET location_id='${keep}' WHERE location_id IN (${inList}); UPDATE location_reports SET location_id='${keep}' WHERE location_id IN (${inList}); DELETE FROM locations WHERE id IN (${inList}) -- ${Date.now()}`;
+  deferAction('Merged '+drop.length+' place(s)', sql, ()=>loadLocations(), btn&&btn.closest('.card'));
+}
+window._editId=null;
+function locForm(d){
+  d=d||{};
+  const cats=['pub','cafe','bar','restaurant','park','beach','pet-store','vet','groomer'];
+  return '<div style="display:flex;flex-direction:column;gap:8px">'
+    +'<input id="lf-name" class="note-in" placeholder="Name" value="'+esc(d.name||'')+'" />'
+    +'<select id="lf-cat" class="mini-select">'+cats.map(c=>'<option value="'+c+'"'+(d.category===c?' selected':'')+'>'+c+'</option>').join('')+'</select>'
+    +'<input id="lf-addr" class="note-in" placeholder="Address" value="'+esc(d.address||'')+'" />'
+    +'<input id="lf-web" class="note-in" placeholder="Website" value="'+esc(d.website||'')+'" />'
+    +'<textarea id="lf-desc" class="reply-box" placeholder="Description" style="margin-top:0">'+esc(d.description||'')+'</textarea>'
+    +'<input id="lf-amen" class="note-in" placeholder="Amenities (comma separated)" value="'+esc((toArr(d.amenities)||[]).join(', '))+'" />'
+    +'<label style="font-size:13px"><input type="checkbox" id="lf-spon" '+(d.is_sponsored?'checked':'')+'/> Sponsored</label>'
+    +(d.latitude?'':'<input id="lf-lat" class="note-in" placeholder="Latitude (required for new)" /><input id="lf-lng" class="note-in" placeholder="Longitude (required for new)" />')
+    +'</div>';
+}
+async function editLocation(id){
+  window._editId=id;
+  document.getElementById('detailBg').style.display='flex';
+  document.getElementById('detailTitle').textContent='Edit location';
+  const body=document.getElementById('detailBody'); body.innerHTML='<div class="loading">Loading…</div>';
+  try{
+    const d=(await runSQL(`SELECT name, category, address, website, description, amenities, is_sponsored, latitude FROM locations WHERE id='${id}' -- ${Date.now()}`))[0]||{};
+    body.innerHTML=locForm(d)+'<div class="row-actions" style="margin-top:12px"><button class="btn on" onclick="saveLocation()">Save</button><button class="btn ghost" onclick="closeDetail()">Cancel</button></div>';
+  }catch(e){ body.innerHTML='<div class="err">'+esc(e.message||e)+'</div>'; }
+}
+function addLocation(){
+  window._editId='new';
+  document.getElementById('detailBg').style.display='flex';
+  document.getElementById('detailTitle').textContent='Add location';
+  document.getElementById('detailBody').innerHTML=locForm({})+'<div class="row-actions" style="margin-top:12px"><button class="btn on" onclick="saveLocation()">Create</button><button class="btn ghost" onclick="closeDetail()">Cancel</button></div>';
+}
+async function saveLocation(){
+  const g=id=>document.getElementById(id);
+  const name=sqlLit((g('lf-name').value||'').trim()); const cat=sqlLit(g('lf-cat').value);
+  const addr=sqlLit((g('lf-addr').value||'').trim()); const web=(g('lf-web').value||'').trim();
+  const desc=sqlLit((g('lf-desc').value||'').trim()); const spon=g('lf-spon').checked;
+  const amenArr=(g('lf-amen').value||'').split(',').map(s=>s.trim()).filter(Boolean);
+  const amenLit=amenArr.length?('ARRAY['+amenArr.map(a=>`'${sqlLit(a)}'`).join(',')+']::text[]'):`'{}'::text[]`;
+  const webLit=web?`'${sqlLit(web)}'`:'NULL';
+  if(!name){ showGlobalErr(new Error('Name required')); return; }
+  try{
+    if(window._editId==='new'){
+      const latEl=g('lf-lat'), lngEl=g('lf-lng'); const lat=parseFloat(latEl&&latEl.value); const lng=parseFloat(lngEl&&lngEl.value);
+      if(isNaN(lat)||isNaN(lng)){ showGlobalErr(new Error('Latitude & longitude required for a new place')); return; }
+      await runSQL(`INSERT INTO locations (name, category, address, website, description, amenities, is_sponsored, latitude, longitude) VALUES ('${name}','${cat}','${addr}',${webLit},'${desc}',${amenLit},${spon},${lat},${lng}) -- ${Date.now()}`);
+    } else {
+      await runSQL(`UPDATE locations SET name='${name}', category='${cat}', address='${addr}', website=${webLit}, description='${desc}', amenities=${amenLit}, is_sponsored=${spon} WHERE id='${window._editId}' -- ${Date.now()}`);
+    }
+    closeDetail(); await loadLocations();
+  }catch(e){ showGlobalErr(e); }
+}
+
+/* Tabs */
+const loaders={overview:loadOverview,analytics:loadAnalytics,locations:loadLocations,users:loadUsers,moderation:loadModeration,safety:loadSafety,claims:loadClaims,support:loadSupport,rewards:loadRewards,comms:loadComms,revenue:loadRevenue,costs:loadCosts,ops:loadOps};
+function refreshActive(){ const b=document.querySelector('nav button.active'); const tab=b&&b.dataset.tab; if(tab&&loaders[tab]){ const btn=document.querySelector('.refresh-btn'); if(btn){ btn.textContent='↻ Refreshing…'; setTimeout(()=>{ btn.textContent='↻ Refresh'; },900); } loaders[tab](); } }
+const loaded={};
+function activate(tab){
+  document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('active',b.dataset.tab===tab));
+  document.querySelectorAll('.section').forEach(s=>s.classList.toggle('active',s.id===tab));
+  if(!loaded[tab]){ loaded[tab]=true; loaders[tab](); }
+}
+document.querySelectorAll('nav button').forEach(b=>b.addEventListener('click',()=>activate(b.dataset.tab)));
+window.loadOverview=loadOverview; window.activate=activate; window.loaded=loaded;
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+(function(){
+  var SUPA_URL='https://kwwnwniyijeuorpbyvmn.supabase.co';
+  var SUPA_KEY='sb_publishable_-EWszMqW22vM4kNYHeq7xQ_JXMsX4MR';
+  var sb = window.supabase.createClient(SUPA_URL, SUPA_KEY);
+  var _token=null;
+  window.cowork = {
+    callMcpTool: async function(tool, args){
+      if(!_token) return { isError:true, content:[{text:'Not signed in'}] };
+      try{
+        var res = await fetch('/api/admin', { method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+_token}, body: JSON.stringify({ sql: (args&&args.query)||'' }) });
+        if(!res.ok){ var e=await res.json().catch(function(){return{};}); return { isError:true, content:[{text:(e&&e.error)||('HTTP '+res.status)}] }; }
+        var j=await res.json(); return { structuredContent: (j&&j.rows)||[] };
+      }catch(err){ return { isError:true, content:[{text:String(err)}] }; }
+    },
+    askClaude: async function(prompt, data){ if(!_token) throw new Error('Not signed in'); var res = await fetch('/api/admin-ai', { method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+_token}, body: JSON.stringify({ prompt: prompt, data: data }) }); var j = await res.json().catch(function(){return {};}); if(!res.ok) throw new Error(j.error||('HTTP '+res.status)); return j.text||''; }
+  };
+  async function afterAuth(session){
+    _token = session.access_token;
+    try{
+      var chk = await fetch('/api/admin', { method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+_token}, body: JSON.stringify({ sql:'select 1 as ok' }) });
+      if(chk.status===403){ document.getElementById('loginMsg').textContent='This account is not an admin.'; _token=null; try{ await sb.auth.signOut(); }catch(e){} return; }
+      if(!chk.ok){ document.getElementById('loginMsg').textContent='Sign-in error, try again.'; return; }
+    }catch(e){ document.getElementById('loginMsg').textContent='Network error.'; return; }
+    var g=document.getElementById('loginGate'); if(g) g.style.display='none';
+    if(window.activate) window.activate('overview');
+  }
+  sb.auth.getSession().then(function(r){ if(r.data && r.data.session) afterAuth(r.data.session); });
+  sb.auth.onAuthStateChange(function(_e, session){ if(session) afterAuth(session); });
+  window.adminLogin=function(){ var em=(document.getElementById('lgEmail').value||'').trim(); var pw=document.getElementById('lgPass').value||''; document.getElementById('loginMsg').textContent='Signing in...'; sb.auth.signInWithPassword({email:em,password:pw}).then(function(r){ if(r.error) document.getElementById('loginMsg').textContent=r.error.message; }); };
+  window.adminMagic=function(){ var em=(document.getElementById('lgEmail').value||'').trim(); if(!em){ document.getElementById('loginMsg').textContent='Enter your email first.'; return; } sb.auth.signInWithOtp({email:em, options:{emailRedirectTo: window.location.origin+'/admin'}}).then(function(r){ document.getElementById('loginMsg').textContent = r.error? r.error.message : 'Magic link sent - check your email.'; }); };
+})();
+</script>
+
+</body>
+</html>
