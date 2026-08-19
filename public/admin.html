@@ -1,8 +1,16 @@
 <!DOCTYPE html><html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>BarkFind Admin Console</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="BarkFind Admin">
+<meta name="theme-color" content="#B74217">
+<link rel="apple-touch-icon" href="/admin-icon-180.png">
+<link rel="icon" type="image/png" href="/admin-icon-192.png">
+<link rel="manifest" href="/admin.webmanifest">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.0/dist/chart.umd.js" integrity="sha384-iU8HYtnGQ8Cy4zl7gbNMOhsDTTKX02BTXptVP/vqAWIaTfM7isw76iyZCsjL2eVi" crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/npm/gridjs@5.0.2/dist/gridjs.umd.js" integrity="sha384-/XXDzxe4FsGiAe50i/u9pY/Vy/uX654MHB1xoc1BJNnH1WXHhqHga9g3q5tF4gj7" crossorigin="anonymous"></script>
 <script>
@@ -123,6 +131,37 @@ a.evidence { color:var(--rust); font-size:12px; word-break:break-all; }
 .pill.prio-low{background:#eef2f4;color:#5a6b72;} .pill.prio-normal{background:#eef5ef;color:#3d6b4a;} .pill.prio-high{background:#fff4e0;color:#8a5a00;} .pill.prio-urgent{background:#fdecea;color:#9b2c1f;}
 .undo-toast { position:fixed; bottom:22px; left:50%; transform:translateX(-50%); background:var(--ink); color:#fff; padding:11px 16px; border-radius:12px; display:none; align-items:center; gap:16px; z-index:60; box-shadow:0 10px 30px rgba(0,0,0,.28); font-size:13px; font-weight:700; }
 .undo-toast button { border:none; background:#fff; color:var(--rust); padding:6px 14px; border-radius:8px; font-weight:800; font-size:12px; cursor:pointer; font-family:inherit; }
+/* ---- Mobile & saved-to-home-screen (standalone) ---- */
+@supports (padding: max(0px)) {
+  body { padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right); }
+}
+@media (max-width: 640px) {
+  body { overflow-x: hidden; }
+  .wrap { padding: 12px 12px calc(18px + env(safe-area-inset-bottom)); }
+  header { flex-wrap: wrap; gap: 10px 12px; padding: 13px 15px; border-radius: 14px; }
+  header .brand-logo { height: 30px; }
+  header .brand-sub { font-size: 14px; }
+  header .usage { margin-left: auto; font-size: 10px; }
+  .refresh-btn { padding: 6px 11px; }
+  /* Tabs: one swipeable strip instead of many wrapped rows */
+  nav { flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; gap: 4px; border-radius: 12px; }
+  nav::-webkit-scrollbar { display: none; }
+  nav button { flex: 0 0 auto; padding: 8px 14px; font-size: 12.5px; }
+  .tiles { grid-template-columns: repeat(auto-fit, minmax(132px, 1fr)); gap: 9px; }
+  .tile { padding: 14px 14px 14px 17px; border-radius: 13px; }
+  .tile .val { font-size: 22px; }
+  .panel { padding: 14px; border-radius: 14px; }
+  .panel h2 { font-size: 14px; }
+  .chartbox { height: 208px; }
+  /* Wide tables scroll inside their panel rather than pushing the page sideways */
+  .gridjs-wrapper { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .panel table.mini { display: block; overflow-x: auto; white-space: nowrap; -webkit-overflow-scrolling: touch; }
+  .toolbar { gap: 6px; }
+  .toolbar select, .toolbar input { font-size: 16px; } /* 16px stops iOS zoom-on-focus */
+  .reply-box, .note-in, .modal textarea { font-size: 16px; }
+  .modal { width: min(460px, 94vw); }
+  .card .top { flex-wrap: wrap; }
+}
 </style>
 </head>
 <body>

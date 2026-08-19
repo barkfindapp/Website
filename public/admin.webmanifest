@@ -1,0 +1,15 @@
+{
+  "name": "BarkFind Admin",
+  "short_name": "BF Admin",
+  "start_url": "/admin",
+  "scope": "/admin",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#FAF6F1",
+  "theme_color": "#B74217",
+  "icons": [
+    { "src": "/admin-icon-180.png", "sizes": "180x180", "type": "image/png", "purpose": "any" },
+    { "src": "/admin-icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/admin-icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}
