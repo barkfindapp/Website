@@ -975,7 +975,7 @@ async function assessClaim(id){
   const box=document.getElementById('assess-'+id); if(box) box.innerHTML='<div class="muted" style="margin-top:8px">✨ Assessing claim…</div>';
   try{
     const prompt='You are a BarkFind moderation assistant reviewing a business claim: an owner claiming a dog-friendly place to receive a verified badge in the app. From the evidence, assess how legitimate/plausible the claim looks and flag anything suspicious. Then give a clear recommendation on its own line — exactly one of: RECOMMEND: APPROVE / RECOMMEND: REJECT / RECOMMEND: NEEDS MORE EVIDENCE — with one short reason. Then draft a short reply to the claimant. Be concise, British English, never invent facts.';
-    const out=await askAI(prompt, [{ location:c.location_name, address:c.location_address, claimant:c.claimant, email:c.claimant_email, evidence_url:c.evidence_url||'none provided', current_status:c.status }]);
+    const out=await askAI(prompt, [{ location:c.location_name, address:c.location_address, claimant:(c.claim_name||c.claimant||'—'), email:(c.claim_email||c.claimant_email||'—'), message:(c.claim_message||'none provided'), account:((c.claimant||'—')+' / '+(c.claimant_email||'—')), evidence_url:c.evidence_url||'none provided', current_status:c.status }]);
     if(box) box.innerHTML='<div class="assessbox">✨ '+esc(out)+'</div>';
   }catch(e){ if(box) box.innerHTML=''; showGlobalErr(e); }
 }
