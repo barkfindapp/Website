@@ -213,6 +213,7 @@ a.evidence { color:var(--rust); font-size:12px; word-break:break-all; }
     <button data-tab="revenue">Revenue</button>
     <button data-tab="costs">Costs</button>
     <button data-tab="ops">Ops</button>
+    <button data-tab="access">Access</button>
   </nav>
 
   <div id="globalErr"></div>
@@ -358,6 +359,28 @@ a.evidence { color:var(--rust); font-size:12px; word-break:break-all; }
     <div id="opsTiles" class="tiles"><div class="loading">Loading…</div></div>
     <div class="panel"><h2>Ingestion — locations added per week (12 wks)</h2><div class="chartbox"><canvas id="ingChart"></canvas></div></div>
     <div class="panel"><h2>Admin activity log</h2><div id="auditList"><div class="loading">Loading…</div></div></div>
+  </section>
+
+  <section id="access" class="section">
+    <div class="panel">
+      <h2>Who can administer BarkFind</h2>
+      <p class="muted" style="margin:0 0 10px">Roles are additive — a person can hold more than one. <b>user</b> is the default and is never stored, so it isn't shown or assignable here. The only assignable roles are <b>admin</b> and <b>moderator</b>.</p>
+      <p class="muted" style="margin:0 0 6px"><b style="color:var(--ink)">Admin</b> can do everything in this console: approve reviews and claims, edit and delete locations, manage support, ban users, and change roles.</p>
+      <p class="muted" style="margin:0"><b style="color:var(--ink)">Moderator</b> can see all profiles, see every review (including unapproved ones), and read and update user reports. Moderators cannot ban users, change roles, or delete locations.</p>
+    </div>
+    <div class="panel">
+      <h2>Add a role</h2>
+      <p class="muted" style="margin:0 0 10px">The person must already have a BarkFind account. If there's no account for that email, you'll be told — they need to sign up first.</p>
+      <div class="toolbar">
+        <input id="accEmail" type="email" autocomplete="off" placeholder="email@example.com" style="flex:1;min-width:190px">
+        <select id="accRole"><option value="moderator">Moderator</option><option value="admin">Admin</option></select>
+        <button class="btn on" onclick="accessAdd()">Add role</button>
+      </div>
+    </div>
+    <div class="panel">
+      <h2>People with a role</h2>
+      <div id="accessList"><div class="loading">Loading…</div></div>
+    </div>
   </section>
 </div>
 
@@ -1304,8 +1327,95 @@ async function saveLocation(){
   }catch(e){ showGlobalErr(e); }
 }
 
+/* ---- Access tab: role management via the admin-manage-roles edge function ----
+   All writes go through the edge function (which enforces the guard rails server-side);
+   the browser never touches user_roles/profiles/admin_audit directly. */
+const ROLES_FN='https://kwwnwniyijeuorpbyvmn.supabase.co/functions/v1/admin-manage-roles';
+const ACCESS_KEY='sb_publishable_-EWszMqW22vM4kNYHeq7xQ_JXMsX4MR';
+// Read the current access token from the session the main sb client persists (kept fresh by its auto-refresh).
+function accessToken(){
+  try{ for(let i=0;i<localStorage.length;i++){ const k=localStorage.key(i); if(k && /^sb-.*-auth-token$/.test(k)){ const v=JSON.parse(localStorage.getItem(k)||'null'); if(v){ if(v.access_token) return v.access_token; if(v.currentSession && v.currentSession.access_token) return v.currentSession.access_token; } } } }catch(_e){}
+  return null;
+}
+async function callRoles(body){
+  const tok=accessToken();
+  if(!tok) throw new Error('Not signed in — reload the page and sign in again.');
+  const res=await fetch(ROLES_FN,{ method:'POST', headers:{ 'Content-Type':'application/json', 'apikey':ACCESS_KEY, 'Authorization':'Bearer '+tok }, body:JSON.stringify(body) });
+  let j=null; try{ j=await res.json(); }catch(_e){}
+  if(!j) throw new Error('The role service did not respond ('+res.status+').');
+  return j;
+}
+async function loadAccess(){
+  const box=document.getElementById('accessList');
+  if(box) box.innerHTML='<div class="loading">Loading…</div>';
+  try{
+    const j=await callRoles({ action:'list' });
+    if(j.error){ showGlobalErr(new Error(j.error)); if(box) box.innerHTML='<div class="err">'+esc(j.error)+'</div>'; return; }
+    window._accessData=j;
+    renderAccess();
+  }catch(e){ showGlobalErr(e); if(box) box.innerHTML='<div class="err">'+esc(e.message||e)+'</div>'; }
+}
+function renderAccess(){
+  const d=window._accessData; const el=document.getElementById('accessList');
+  if(!d || !el) return;
+  const people=d.people||[]; const adminCount=Number(d.admin_count||0);
+  if(!people.length){ el.innerHTML='<div class="empty">No one holds a role yet.</div>'; return; }
+  el.innerHTML='<p class="muted" style="margin:0 0 10px">'+adminCount+' admin'+(adminCount===1?'':'s')+' · '+people.length+' with a role</p>'+people.map(function(p){
+    const roles=p.roles||[]; const isAdmin=roles.indexOf('admin')>=0, isMod=roles.indexOf('moderator')>=0;
+    const labels=roles.length? roles.map(function(r){ return '<span class="pill '+(r==='admin'?'verified':'pending')+'">'+esc(r)+'</span>'; }).join(' ') : '<span class="badge">user</span>';
+    const youTag=p.is_you? ' <span class="badge">you</span>' : '';
+    const modBtn=isMod
+      ? '<button class="btn ghost" onclick="accessRevoke(\'moderator\',\''+p.user_id+'\')">Revoke moderator</button>'
+      : '<button class="btn ghost" onclick="accessGrantUser(\'moderator\',\''+p.user_id+'\',false)">Make moderator</button>';
+    let adminCtl;
+    if(isAdmin){
+      const lockLast=adminCount<=1, lockYou=!!p.is_you;
+      if(lockLast || lockYou){
+        const why=lockLast? 'last admin' : 'that\'s you';
+        adminCtl='<button class="btn danger" disabled style="opacity:.45;cursor:not-allowed">Revoke admin</button> <span class="muted">'+why+'</span>';
+      } else {
+        adminCtl='<button class="btn danger" onclick="accessRevoke(\'admin\',\''+p.user_id+'\')">Revoke admin</button>';
+      }
+    } else {
+      adminCtl='<button class="btn ghost" onclick="accessGrantUser(\'admin\',\''+p.user_id+'\',true)">Make admin</button>';
+    }
+    return '<div class="card"><div class="top"><div>'
+      +'<span class="name">'+esc(p.name||'—')+'</span>'+youTag+' '+labels
+      +'<div class="muted">'+esc(p.email||'')+'</div></div>'
+      +'<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">'+modBtn+' '+adminCtl+'</div>'
+      +'</div></div>';
+  }).join('');
+}
+function _accessResult(j){
+  // Surface the function's own words: {ok}, {already,message}, or {error}.
+  if(j.error){ showGlobalErr(new Error(j.error)); return false; }
+  if(j.already){ showGlobalErr(new Error(j.message||'Nothing to change — they already had that.')); }
+  return true;
+}
+async function accessGrantUser(role, userId, confirmFirst){
+  if(confirmFirst && !confirm('Grant ADMIN? Admin is total access — approving content, editing and deleting locations, banning users, and changing roles. Continue?')) return;
+  try{ const j=await callRoles({ action:'grant', role:role, target_user_id:userId }); if(!_accessResult(j)) return; await loadAccess(); }
+  catch(e){ showGlobalErr(e); }
+}
+async function accessRevoke(role, userId){
+  try{ const j=await callRoles({ action:'revoke', role:role, target_user_id:userId }); if(!_accessResult(j)) return; await loadAccess(); }
+  catch(e){ showGlobalErr(e); }
+}
+async function accessAdd(){
+  const emIn=document.getElementById('accEmail'); const email=((emIn&&emIn.value)||'').trim();
+  const role=(document.getElementById('accRole')||{}).value||'moderator';
+  if(!email){ showGlobalErr(new Error('Enter an email address.')); return; }
+  if(role==='admin' && !confirm('Grant ADMIN to '+email+'? Admin is total access to everything in this console. Continue?')) return;
+  try{
+    const j=await callRoles({ action:'grant', role:role, target_email:email });
+    if(!_accessResult(j)) return;   // shows "No account found for …" etc. verbatim
+    if(emIn) emIn.value='';
+    await loadAccess();
+  }catch(e){ showGlobalErr(e); }
+}
+
 /* Tabs */
-const loaders={overview:loadOverview,analytics:loadAnalytics,locations:loadLocations,users:loadUsers,moderation:loadModeration,safety:loadSafety,claims:loadClaims,support:loadSupport,rewards:loadRewards,comms:loadComms,revenue:loadRevenue,costs:loadCosts,ops:loadOps};
+const loaders={overview:loadOverview,analytics:loadAnalytics,locations:loadLocations,users:loadUsers,moderation:loadModeration,safety:loadSafety,claims:loadClaims,support:loadSupport,rewards:loadRewards,comms:loadComms,revenue:loadRevenue,costs:loadCosts,ops:loadOps,access:loadAccess};
 function refreshActive(){ const b=document.querySelector('nav button.active'); const tab=b&&b.dataset.tab; if(tab&&loaders[tab]){ const btn=document.querySelector('.refresh-btn'); if(btn){ btn.textContent='↻ Refreshing…'; setTimeout(()=>{ btn.textContent='↻ Refresh'; },900); } loaders[tab](); } }
 const loaded={};
 function activate(tab){
