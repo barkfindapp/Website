@@ -276,7 +276,15 @@ a.evidence { color:var(--rust); font-size:12px; word-break:break-all; }
     </div>
     <div class="panel"><h2>Pending reviews</h2><div id="pendingReviews"><div class="loading">Loading…</div></div></div>
     <div class="panel"><h2>User reports</h2><div id="reportsList"><div class="loading">Loading…</div></div></div>
-    <div class="panel"><h2>Flagged &amp; excluded locations</h2><div id="flaggedLocs"><div class="loading">Loading…</div></div></div>
+    <div class="panel"><h2>Flagged &amp; excluded locations</h2>
+      <div class="toolbar">
+        <input id="flagSearch" placeholder="Search name, address or reason…" oninput="renderFlagged()" style="flex:1;min-width:150px">
+        <select id="flagType" onchange="renderFlagged()"><option value="all">All types</option><option value="manual">User-reported / manual</option><option value="auto">Auto-excluded</option></select>
+        <select id="flagCat" onchange="renderFlagged()"><option value="">All categories</option></select>
+        <select id="flagSort" onchange="renderFlagged()"><option value="new">Newest flagged</option><option value="old">Oldest flagged</option><option value="name">Name A–Z</option></select>
+        <span class="badge" id="flagCount"></span>
+      </div>
+      <div id="flaggedList"><div class="loading">Loading…</div></div></div>
   </section>
 
   <section id="safety" class="section">
@@ -745,28 +753,40 @@ async function loadModeration(){
           <button class="btn ghost" onclick="reportAction('${r.id}','${r.location_id}','dismiss','')">Dismiss</button></div></div>`).join('')
       : '<div class="empty">No open reports.</div>';
 
-    const fl = await runSQL(`SELECT id, name, category, coalesce(left(address,50),'') AS address, flag_reason, flagged_at FROM locations WHERE flagged=true ORDER BY flagged_at DESC NULLS LAST -- ${Date.now()}`);
-    const isAuto = l => String(l.flag_reason||'').startsWith('Auto-excluded');
-    const userFl = fl.filter(l=>!isAuto(l));
-    const autoFl = fl.filter(isAuto);
-    const fel=document.getElementById('flaggedLocs');
-    const userCard = l=>`<div class="card"><div class="top"><div>
-        <span class="name">${esc(l.name)}</span> <span class="badge">${esc(l.category)}</span>
-        <div class="muted">${esc(l.address)}${l.flagged_at?' · flagged '+esc((l.flagged_at||'').slice(0,10)):''}</div></div>
-        <div style="display:flex;gap:6px"><button class="btn ghost" onclick="investigateLoc('${l.id}')">Investigate</button><button class="btn ghost" onclick="unflag('${l.id}')">Unflag</button></div></div>
-        <div class="reason">${l.flag_reason?'⚑ '+esc(l.flag_reason):'No reason recorded'}</div></div>`;
-    const autoTable = autoFl.length
-      ? '<table class="mini"><tr><th>Name</th><th>Category</th><th>Area</th><th></th></tr>'
-        + autoFl.map(l=>`<tr><td>${esc(l.name)}</td><td>${esc(l.category)}</td><td>${esc(l.address)}</td><td style="white-space:nowrap"><button class="btn ghost" onclick="investigateLoc('${l.id}')">Investigate</button> <button class="btn ghost" onclick="unflag('${l.id}')">Restore</button></td></tr>`).join('')
-        + '</table>'
-      : '<div class="empty">None.</div>';
-    fel.innerHTML =
-      '<div class="slabel">User-reported / manual flags ('+userFl.length+')</div>'
-      + (userFl.length ? userFl.map(userCard).join('') : '<div class="empty">No user-reported or manual flags.</div>')
-      + '<div class="slabel">Auto-excluded — Google reports dogs not allowed ('+autoFl.length+')</div>'
-      + '<p class="muted" style="margin:0 0 8px">Hidden from the app automatically. "Restore" only if you have evidence the place actually welcomes dogs.</p>'
-      + autoTable;
+    const fl = await runSQL(`SELECT id, name, category, coalesce(left(address,60),'') AS address, flag_reason, flagged_at FROM locations WHERE flagged=true ORDER BY flagged_at DESC NULLS LAST -- ${Date.now()}`);
+    window._flaggedAll = fl;
+    const catSel=document.getElementById('flagCat');
+    if(catSel){ const cur=catSel.value; const cats=[...new Set(fl.map(l=>l.category).filter(Boolean))].sort(); catSel.innerHTML='<option value="">All categories</option>'+cats.map(c=>'<option value="'+esc(c)+'">'+esc(c)+'</option>').join(''); catSel.value=cur; }
+    renderFlagged();
   }catch(e){ showGlobalErr(e); }
+}
+// Flagged & excluded: client-side search / type / category / sort over the loaded set.
+function renderFlagged(){
+  const all = window._flaggedAll||[];
+  const gv = id => (document.getElementById(id)||{}).value;
+  const q=(gv('flagSearch')||'').trim().toLowerCase(), type=gv('flagType')||'all', cat=gv('flagCat')||'', sort=gv('flagSort')||'new';
+  const isAuto = l => String(l.flag_reason||'').startsWith('Auto-excluded');
+  let rows = all.filter(l=>{
+    if(type==='manual' && isAuto(l)) return false;
+    if(type==='auto' && !isAuto(l)) return false;
+    if(cat && l.category!==cat) return false;
+    if(q && !(((l.name||'')+' '+(l.address||'')+' '+(l.flag_reason||'')).toLowerCase().includes(q))) return false;
+    return true;
+  });
+  rows.sort((a,b)=>{ if(sort==='name') return String(a.name||'').localeCompare(String(b.name||'')); const ta=a.flagged_at?Date.parse(a.flagged_at):0, tb=b.flagged_at?Date.parse(b.flagged_at):0; return sort==='old'?ta-tb:tb-ta; });
+  const cnt=document.getElementById('flagCount'); if(cnt) cnt.textContent = rows.length + (rows.length!==all.length ? (' of '+all.length) : (all.length===1?' location':' locations'));
+  const el=document.getElementById('flaggedList'); if(!el) return;
+  if(!all.length){ el.innerHTML='<div class="empty">No flagged or excluded locations.</div>'; return; }
+  if(!rows.length){ el.innerHTML='<div class="empty">No matches for these filters.</div>'; return; }
+  el.innerHTML = rows.map(l=>{
+    const auto=isAuto(l);
+    const tb = auto?'<span class="pill rejected">Auto-excluded</span>':'<span class="pill pending">Manual / report</span>';
+    return '<div class="card"><div class="top"><div>'
+      +'<span class="name">'+esc(l.name)+'</span> <span class="badge">'+esc(l.category||'')+'</span> '+tb
+      +'<div class="muted">'+esc(l.address||'')+(l.flagged_at?' · flagged '+esc(String(l.flagged_at).slice(0,10)):'')+'</div></div>'
+      +'<div style="display:flex;gap:6px"><button class="btn ghost" onclick="investigateLoc(\''+l.id+'\')">Investigate</button><button class="btn ghost" onclick="unflag(\''+l.id+'\')">'+(auto?'Restore':'Unflag')+'</button></div></div>'
+      +'<div class="reason">'+(l.flag_reason?'⚑ '+esc(l.flag_reason):'No reason recorded')+'</div></div>';
+  }).join('');
 }
 async function moderate(id, action){
   const card=document.getElementById('rev-'+id); if(card) card.style.opacity='0.5';
