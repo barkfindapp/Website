@@ -729,7 +729,42 @@ async function userDetail(uid){
       +'<button class="btn ghost" onclick="closeDetail()">Close</button></div>';
   }catch(e){ body.innerHTML='<div class="err">'+esc(e.message||e)+'</div>'; }
 }
-async function banUser(uid, ban){ try{ await runSQL(`UPDATE profiles SET is_banned=${ban?'true':'false'} WHERE user_id='${uid}' -- ${Date.now()}`); closeDetail(); await loadUsers(); }catch(e){ showGlobalErr(e); } }
+const BAN_FN='https://kwwnwniyijeuorpbyvmn.supabase.co/functions/v1/admin-ban-user';
+// Ban/unban goes through the admin-ban-user edge function, which enforces the guard rails
+// server-side (no self-ban, no banning an admin/moderator, admin-only) and writes an attributed
+// audit row. Reuses accessToken() + the same apikey/Authorization headers as the Access tab. No SQL.
+async function callBan(body){
+  const tok=accessToken();
+  if(!tok) throw new Error('Not signed in — reload the page and sign in again.');
+  const res=await fetch(BAN_FN,{ method:'POST', headers:{ 'Content-Type':'application/json', 'apikey':ACCESS_KEY, 'Authorization':'Bearer '+tok }, body:JSON.stringify(body) });
+  let j=null; try{ j=await res.json(); }catch(_e){}
+  if(!j) throw new Error('The ban service did not respond ('+res.status+').');
+  return j;
+}
+async function banUser(uid, ban, onDone){
+  if(ban){
+    const u=(window._users||[]).find(function(x){ return x.uid===uid; });
+    openModal('Ban '+((u&&u.name)||'this user')+'?', [], function(reason){ _doBan(uid,'ban',reason,onDone); });
+  } else {
+    _doBan(uid,'unban','',onDone);
+  }
+}
+// onDone runs ONLY after the function accepted the ban/unban (ok or already) — never on a refusal —
+// so callers can chain follow-up work (e.g. actioning the report that prompted the ban) safely.
+async function _doBan(uid, action, reason, onDone){
+  const btns=document.querySelectorAll('#detailBody .row-actions button');
+  btns.forEach(function(b){ b.disabled=true; });
+  let j=null;
+  try{
+    const body={ action:action, target_user_id:uid };
+    if(reason){ body.reason=String(reason).slice(0,500); }
+    j=await callBan(body);
+  }catch(e){ btns.forEach(function(b){ b.disabled=false; }); showGlobalErr(e); return; }
+  if(j.error){ btns.forEach(function(b){ b.disabled=false; }); showGlobalErr(new Error(j.error)); return; }   // refusal: leave panel open, no reload
+  if(j.already){ showGlobalErr(new Error(j.message||'No change — the account was already in that state.')); }
+  if(typeof onDone==='function'){ try{ await onDone(); }catch(e){ showGlobalErr(e); } }
+  closeDetail(); await loadUsers();
+}
 
 /* Moderation: reviews + reports + flagged */
 function sliderAvg(j){ try{ const o=typeof j==='string'?JSON.parse(j):j; const v=Object.values(o||{}).map(Number).filter(n=>!isNaN(n)); return v.length?(v.reduce((a,b)=>a+b,0)/v.length).toFixed(1):'—'; }catch(e){ return '—'; } }
@@ -1150,7 +1185,7 @@ async function loadSafety(){
   }catch(e){ showGlobalErr(e); }
   try{
     const ur=await runSQL(`SELECT ur.id, ur.reason, ur.status, ur.created_at, ur.reported_user_id, ru.email AS reported_email, rp.email AS reporter_email FROM user_reports ur LEFT JOIN auth.users ru ON ru.id=ur.reported_user_id LEFT JOIN auth.users rp ON rp.id=ur.reporter_id WHERE coalesce(ur.status,'open')='open' ORDER BY ur.created_at DESC -- ${Date.now()}`);
-    document.getElementById('userReportsList').innerHTML = ur.length? ur.map(r=>`<div class="card"><div class="top"><div><span class="name">${esc(r.reported_email||'user')}</span> <span class="badge">${esc(r.reason||'')}</span><div class="muted">reported by ${esc(r.reporter_email||'—')} · ${esc((r.created_at||'').slice(0,10))}</div></div></div><div class="row-actions">${r.reported_user_id?`<button class="btn ghost" onclick="userDetail('${r.reported_user_id}')">View user</button><button class="btn reject" onclick="banUser('${r.reported_user_id}',true); userReportAction('${r.id}','actioned')">Ban user</button>`:''}<button class="btn ghost" onclick="userReportAction('${r.id}','dismissed')">Dismiss</button></div></div>`).join('') : '<div class="empty">No open user reports.</div>';
+    document.getElementById('userReportsList').innerHTML = ur.length? ur.map(r=>`<div class="card"><div class="top"><div><span class="name">${esc(r.reported_email||'user')}</span> <span class="badge">${esc(r.reason||'')}</span><div class="muted">reported by ${esc(r.reporter_email||'—')} · ${esc((r.created_at||'').slice(0,10))}</div></div></div><div class="row-actions">${r.reported_user_id?`<button class="btn ghost" onclick="userDetail('${r.reported_user_id}')">View user</button><button class="btn reject" onclick="banUser('${r.reported_user_id}',true,function(){return userReportAction('${r.id}','actioned');})">Ban user</button>`:''}<button class="btn ghost" onclick="userReportAction('${r.id}','dismissed')">Dismiss</button></div></div>`).join('') : '<div class="empty">No open user reports.</div>';
   }catch(e){ showGlobalErr(e); }
   try{
     const pr=await runSQL(`SELECT id, email, request_type, details, status, created_at FROM privacy_requests WHERE coalesce(status,'open') <> 'processed' ORDER BY created_at DESC -- ${Date.now()}`);
