@@ -192,6 +192,7 @@ a.evidence { color:var(--rust); font-size:12px; word-break:break-all; }
     <span class="brand-sub">Admin Console</span>
     <div class="usage">
       <button class="refresh-btn" onclick="refreshActive()">↻ Refresh</button>
+      <button class="refresh-btn" onclick="openSetPw()" style="margin-left:6px">Set password</button>
       <div style="margin-top:8px"><b id="qcount">0</b> Supabase queries</div>
       <div id="aiUsage">AI calls (Mylo): —</div>
     </div>
@@ -1328,6 +1329,32 @@ window.loadOverview=loadOverview; window.activate=activate; window.loaded=loaded
   sb.auth.onAuthStateChange(function(_e, session){ if(session) afterAuth(session); });
   window.adminLogin=function(){ var em=(document.getElementById('lgEmail').value||'').trim(); var pw=document.getElementById('lgPass').value||''; document.getElementById('loginMsg').textContent='Signing in...'; sb.auth.signInWithPassword({email:em,password:pw}).then(function(r){ if(r.error) document.getElementById('loginMsg').textContent=r.error.message; }); };
   window.adminMagic=function(){ var em=(document.getElementById('lgEmail').value||'').trim(); if(!em){ document.getElementById('loginMsg').textContent='Enter your email first.'; return; } sb.auth.signInWithOtp({email:em, options:{emailRedirectTo: window.location.origin+'/admin'}}).then(function(r){ document.getElementById('loginMsg').textContent = r.error? r.error.message : 'Magic link sent - check your email.'; }); };
+  // Set/change password so future sign-ins can use email + password (must be signed in first).
+  window.openSetPw=function(){
+    var ex=document.getElementById('setPwBg'); if(ex){ ex.style.display='flex'; var i=document.getElementById('setPwInput'); if(i){ i.value=''; i.focus(); } return; }
+    var bg=document.createElement('div'); bg.id='setPwBg'; bg.className='modal-bg'; bg.style.display='flex';
+    bg.innerHTML='<div class="modal"><h3>Set a password</h3>'+
+      '<p class="muted" style="margin:0 0 10px">Choose a password for email + password sign-in. Next time you can skip the magic link.</p>'+
+      '<input id="setPwInput" type="password" autocomplete="new-password" placeholder="New password (min 6 characters)" style="width:100%;box-sizing:border-box;padding:11px 13px;border:1px solid var(--line);border-radius:10px;font-size:16px;font-family:inherit;background:#FCFAF7" />'+
+      '<div id="setPwMsg" style="font-size:12px;margin-top:8px;min-height:15px"></div>'+
+      '<div class="actions"><button class="btn ghost" onclick="document.getElementById(\'setPwBg\').style.display=\'none\'">Cancel</button>'+
+      '<button class="btn on" onclick="saveAdminPw()">Save password</button></div></div>';
+    document.body.appendChild(bg);
+    bg.addEventListener('click',function(e){ if(e.target===bg) bg.style.display='none'; });
+    var i2=document.getElementById('setPwInput'); if(i2){ i2.focus(); i2.addEventListener('keydown',function(e){ if(e.key==='Enter') window.saveAdminPw(); }); }
+  };
+  window.saveAdminPw=async function(){
+    var el=document.getElementById('setPwInput'); var msg=document.getElementById('setPwMsg');
+    var pw=(el&&el.value)||''; if(pw.length<6){ msg.style.color='var(--bad)'; msg.textContent='Password must be at least 6 characters.'; return; }
+    msg.style.color='var(--mut)'; msg.textContent='Saving…';
+    try{
+      var r=await sb.auth.updateUser({ password: pw });
+      if(r.error){ msg.style.color='var(--bad)'; msg.textContent=r.error.message; return; }
+      msg.style.color='var(--good)'; msg.textContent='Done. You can now sign in with your email + this password.';
+      if(el) el.value='';
+      setTimeout(function(){ var b=document.getElementById('setPwBg'); if(b) b.style.display='none'; },1900);
+    }catch(e){ msg.style.color='var(--bad)'; msg.textContent=String(e&&e.message||e); }
+  };
 })();
 </script>
 
