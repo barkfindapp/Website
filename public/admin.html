@@ -919,18 +919,46 @@ function flagFromDetail(id,name){ closeDetail(); if(window._locMap[id]){ flagTog
 /* Claims */
 async function loadClaims(){
   try{
-    const rows = await runSQL(`SELECT bc.id, bc.status, bc.evidence_url, bc.created_at, l.name AS location_name, coalesce(left(l.address,55),'') AS location_address, p.full_name AS claimant, u.email AS claimant_email
+    // claim_* = what the claimant typed on the form (added by migration 2026-08-20). The original
+    // `claimant`/`claimant_email` aliases (the signed-in ACCOUNT) are kept unchanged so assessClaim()
+    // still reads exactly what it always did; the card below shows the real claim fields.
+    const rows = await runSQL(`SELECT bc.id, bc.status, bc.evidence_url, bc.created_at,
+        bc.claimant_name AS claim_name, bc.claimant_email AS claim_email, bc.claimant_phone AS claim_phone, bc.message AS claim_message,
+        l.name AS location_name, coalesce(left(l.address,55),'') AS location_address,
+        p.full_name AS claimant, u.email AS claimant_email
       FROM business_claims bc LEFT JOIN locations l ON l.id=bc.location_id LEFT JOIN profiles p ON p.id=bc.user_id LEFT JOIN auth.users u ON u.id=p.user_id ORDER BY bc.created_at DESC -- ${Date.now()}`);
     window._claims=rows;
     const el=document.getElementById('claimsList');
     if(!rows.length){ el.innerHTML='<div class="empty">No business claims.</div>'; return; }
-    el.innerHTML = rows.map(c=>`<div class="card"><div class="top"><div>
+    el.innerHTML = rows.map(c=>{
+      const claimantName = esc(c.claim_name || c.claimant || '—');
+      const claimantEmail = esc(c.claim_email || c.claimant_email || '—');
+      const emailDiffers = c.claim_email && c.claimant_email && String(c.claim_email).trim().toLowerCase() !== String(c.claimant_email).trim().toLowerCase();
+      const phoneLine = c.claim_phone ? `<div><b>Phone:</b> ${esc(c.claim_phone)}</div>` : '';
+      const acct = `<div class="muted" style="font-size:11px;margin-top:3px">Account: ${esc(c.claimant||'—')} · ${esc(c.claimant_email||'—')} · submitted ${esc((c.created_at||'').slice(0,10))}</div>`;
+      let msgHtml;
+      if(c.claim_message){
+        const full = esc(c.claim_message);
+        const long = c.claim_message.length > 160 || String(c.claim_message).indexOf('\n') >= 0;
+        const preview = esc(String(c.claim_message).replace(/\s+/g,' ').trim().slice(0,110));
+        msgHtml = long
+          ? `<details style="margin-top:6px"><summary style="cursor:pointer"><b>Message:</b> ${preview}…</summary><div style="white-space:pre-wrap;margin-top:6px">${full}</div></details>`
+          : `<div style="white-space:pre-wrap;margin-top:6px"><b>Message:</b> ${full}</div>`;
+      } else {
+        msgHtml = `<div class="muted" style="margin-top:6px">No message provided.</div>`;
+      }
+      return `<div class="card"><div class="top"><div>
         <span class="name">${esc(c.location_name||'Unknown')}</span> <span class="pill ${esc(c.status)}">${esc(c.status)}</span>
         <div class="muted">${esc(c.location_address)}</div>
-        <div class="muted">Claimant: ${esc(c.claimant||'—')}${c.claimant_email?' · '+esc(c.claimant_email):''} · ${esc((c.created_at||'').slice(0,10))}</div>
-        ${c.evidence_url?`<div>Evidence: <a class="evidence" href="${esc(c.evidence_url)}" target="_blank" rel="noopener noreferrer">${esc(c.evidence_url)}</a></div>`:'<div class="muted">No evidence provided</div>'}</div>
+        <div style="margin-top:6px"><b>Claimant:</b> ${claimantName}</div>
+        <div><b>Email:</b> ${claimantEmail}${emailDiffers?` <span class="muted" style="font-size:11px">— different from account email</span>`:''}</div>
+        ${phoneLine}
+        ${acct}
+        ${msgHtml}
+        ${c.evidence_url?`<div style="margin-top:4px">Evidence: <a class="evidence" href="${esc(c.evidence_url)}" target="_blank" rel="noopener noreferrer">${esc(c.evidence_url)}</a></div>`:'<div class="muted">No evidence provided</div>'}</div>
       ${c.status==='pending'?`<div class="row-actions"><button class="btn ai" onclick="assessClaim('${c.id}')">✨ AI assessment</button><button class="btn approve" onclick="claim('${c.id}','verified')">Approve</button><button class="btn reject" onclick="claim('${c.id}','rejected')">Reject</button></div>`:''}
-    </div><div id="assess-${c.id}"></div></div>`).join('');
+    </div><div id="assess-${c.id}"></div></div>`;
+    }).join('');
   }catch(e){ showGlobalErr(e); }
 }
 async function claim(id, status){ try{
