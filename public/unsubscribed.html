@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="robots" content="noindex, nofollow" />
+    <link rel="icon" type="image/png" href="/barkfind-paw-logo.png" />
+    <title>Unsubscribed | BarkFind</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=Nunito:wght@400;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --terracotta: #b74217;
+        --teal: #4fa4a1;
+        --ink: #2f291e;
+        --cream: #f5f1e9;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+      }
+      body {
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        background: var(--cream);
+        color: var(--ink);
+        font-family: "Nunito", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+        line-height: 1.6;
+      }
+      .top {
+        padding: 28px 24px 0;
+        text-align: center;
+      }
+      .top img {
+        height: 30px;
+        width: auto;
+      }
+      main {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 40px 24px;
+      }
+      .card {
+        width: 100%;
+        max-width: 460px;
+        background: #ffffff;
+        border: 1px solid rgba(47, 41, 30, 0.08);
+        border-radius: 20px;
+        padding: 40px 36px;
+        text-align: center;
+        box-shadow: 0 20px 50px rgba(47, 41, 30, 0.06);
+      }
+      .mark {
+        width: 44px;
+        height: 44px;
+        border-radius: 999px;
+        background: rgba(79, 164, 161, 0.12);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 18px;
+      }
+      .mark svg {
+        width: 24px;
+        height: 24px;
+        stroke: var(--teal);
+      }
+      h1 {
+        font-family: "DM Serif Display", Georgia, "Times New Roman", serif;
+        font-weight: 400;
+        font-size: 30px;
+        line-height: 1.15;
+        margin: 0 0 14px;
+        color: var(--ink);
+      }
+      p {
+        margin: 0;
+        font-size: 16px;
+        color: #4a4437;
+      }
+      a {
+        color: var(--terracotta);
+        font-weight: 700;
+        text-decoration: none;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+      .home {
+        margin-top: 26px;
+      }
+      .home a {
+        font-size: 14px;
+        color: var(--teal);
+      }
+      footer {
+        text-align: center;
+        padding: 24px;
+        font-size: 13px;
+        color: rgba(47, 41, 30, 0.55);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="top">
+      <a href="/"><img src="/barkfind-logo-rust.png" alt="BarkFind" /></a>
+    </div>
+
+    <main>
+      <div class="card">
+        <span class="mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M20 6 9 17l-5-5" />
+          </svg>
+        </span>
+
+        <h1 id="heading">You're unsubscribed</h1>
+
+        <div id="default-body">
+          <p>
+            <span id="lead">You will not receive any more early access emails from BarkFind.</span>
+            This won't affect emails about your account or subscription, if you have one.
+          </p>
+          <p style="margin-top: 14px">
+            If that was a mistake, email <a href="mailto:info@barkfind.com">info@barkfind.com</a>.
+          </p>
+        </div>
+
+        <div id="error-body" hidden>
+          <p>
+            We couldn't find an email address in that link. Email
+            <a href="mailto:info@barkfind.com">info@barkfind.com</a> and we'll take care of it.
+          </p>
+        </div>
+
+        <p class="home"><a href="/">Back to barkfind.com</a></p>
+      </div>
+    </main>
+
+    <footer>&copy; BarkFind</footer>
+
+    <script>
+      (function () {
+        var params = new URLSearchParams(window.location.search);
+
+        if (params.get("error") === "missing_email") {
+          document.getElementById("heading").textContent = "Something went wrong";
+          document.getElementById("default-body").hidden = true;
+          document.getElementById("error-body").hidden = false;
+          return;
+        }
+
+        var email = params.get("email");
+        // Only insert an address that looks like one. textContent keeps it inert.
+        if (email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+          document.getElementById("lead").textContent =
+            email + " will not receive any more early access emails from BarkFind.";
+        }
+      })();
+    </script>
+  </body>
+</html>

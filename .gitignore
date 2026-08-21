@@ -25,5 +25,13 @@ npm-debug.log*
 # Temp capture artifacts
 public/screen-*-raw.png
 
+# Raw media drop-offs (multi-MB screenshots, 150MB screen recording, mockup
+# templates) must NOT be committed. Only the web-ready, resized images ship.
+public/media/*
+!public/media/step-*.png
+!public/media/hero-*.png
+!public/media/showcase-*.png
+!public/media/mylo-*.png
+
 # TypeScript build cache
 *.tsbuildinfo

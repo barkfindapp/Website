@@ -14,30 +14,36 @@ function PawMark({ className = "", color = "currentColor" }: { className?: strin
 }
 
 const EARN = [
-  { pts: "1 point", body: "An approved review — your paw rating and a quick verdict on the place." },
-  { pts: "2 points", body: "A review with a written description and at least one photo. Same trip out — double the points.", highlight: true },
+  { pts: "1 point", body: "An approved review: your paw rating and a quick verdict on the place." },
+  { pts: "2 points", body: "Write a bit about your visit (40 characters or more) and the same review is worth two points. Photos are welcome, but they don't change the points.", highlight: true },
 ];
 
-const TIERS = [
-  { points: 10, reward: "25% off", detail: "your next monthly bill", note: "Per rolling 90 days" },
-  { points: 20, reward: "50% off", detail: "your next monthly bill", note: "Per rolling 90 days" },
-  { points: 50, reward: "1 year free", detail: "on us — our biggest treat", note: "Lifetime · one-time", highlight: true },
+// Rewards differ by plan, because a percentage off a single yearly bill wouldn't
+// add up to much. Points and windows are the same; what they unlock differs.
+const MONTHLY_TIERS = [
+  { points: 10, reward: "25% off your next month", detail: "£4.49 instead of £5.99" },
+  { points: 20, reward: "50% off your next month", detail: "£2.99 instead of £5.99" },
+];
+const ANNUAL_TIERS = [
+  { points: 10, reward: "30 days added", detail: "on to your subscription" },
+  { points: 20, reward: "90 days added", detail: "on to your subscription" },
 ];
 
 const REDEEM_STEPS = [
-  { n: 1, title: "Open BarkFind", body: "Go to the Profile tab, then open Treats." },
-  { n: 2, title: "Find your unlocked reward", body: "Any tier you've reached (10, 20 or 50 points) will be ready to claim." },
-  { n: 3, title: "Tap Redeem", body: "You'll get a unique promo code, delivered through Apple's offer system." },
-  { n: 4, title: "It's applied to your next bill", body: "The code applies to your next billing cycle automatically. No vouchers to chase, no fuss." },
+  { n: 1, title: "Claim in the app", body: "Open the Profile tab, then Treats, and claim the reward you've reached." },
+  { n: 2, title: "Monthly discounts", body: "Apple applies the discount to your next payment. There's no code to enter and no voucher to keep." },
+  { n: 3, title: "Annual extensions", body: "Applied straight away. Your renewal date moves out, and you'll see the new date in the app." },
+  { n: 4, title: "A year free", body: "Apple moves your next payment twelve months later. Your subscription carries on as normal, nothing is cancelled." },
 ];
 
 const FAQ = [
-  { q: "How do I earn points?", a: "Every approved review earns 1 point. Add a written description and at least one photo and that review is worth 2 points — so a few words and a snap earns you double." },
-  { q: "Do my reviews need photos?", a: "No — a paw rating and a quick verdict still earns a point. But a description plus a photo earns 2 points and is far more useful to other dog owners, so it's well worth the extra moment." },
-  { q: "What counts as a review?", a: "An approved review of a dog-friendly place you've genuinely visited. Reviews found to be fake, spammy or manipulated may have their rewards withheld or revoked — see our Terms of Use." },
-  { q: "Do points expire?", a: "The 25% and 50% tiers work on a rolling 90-day window — you need 10 or 20 points earned in the last 90 days, and each is claimable once per 90-day period. The 50-point '1 year free' is a lifetime total and can be claimed once, ever." },
-  { q: "Monthly or annual — who gets what?", a: "The 25% and 50% discounts apply to monthly billing (one claim per billing cycle, no stacking). Annual subscribers instead get one reward claim per account, for life. The 50-point free year applies to both." },
-  { q: "My promo code didn't arrive — what do I do?", a: "Email info@barkfind.com with your account email and the reward you claimed, and we'll sort it out." },
+  { q: "How do I earn points?", a: "Every approved review earns 1 point. Write 40 characters or more about your visit and that review is worth 2 points instead. A sentence or two is all it takes." },
+  { q: "Do my reviews need photos?", a: "No. A description of 40 characters or more is what earns the second point. Photos are welcome and they help other dog owners, but they don't change your points." },
+  { q: "What counts towards a point?", a: "An approved review of a dog-friendly place you've genuinely visited. Reviews are moderated, so only approved ones earn points." },
+  { q: "What if my review isn't approved?", a: "Then it doesn't earn points. Reviews are moderated, and anything found to be fake, spammy or manipulated may have its rewards withheld or revoked. See our Terms of Use." },
+  { q: "Do points expire?", a: "The 10 and 20 point tiers use a rolling 90-day window: you need the points earned in the last 90 days, and each is claimable once per period. The 50-point year free is a lifetime total, claimable once, ever." },
+  { q: "I'm on the annual plan, how does a discount work for me?", a: "It doesn't. A percentage off a single yearly bill wouldn't come to much, so annual members get time added to their subscription instead: 30 days at 10 points, 90 days at 20. The year free at 50 points is the same for everyone." },
+  { q: "What if a claim doesn't arrive?", a: "Email info@barkfind.com and we'll sort it out. Nothing is lost: if a claim fails, the points stay on your account and you can claim again." },
 ];
 
 function Step({ n, title, body }: { n: number; title: string; body: string }) {
@@ -52,21 +58,44 @@ function Step({ n, title, body }: { n: number; title: string; body: string }) {
   );
 }
 
+function PlanCard({ plan, tiers }: { plan: string; tiers: { points: number; reward: string; detail: string }[] }) {
+  return (
+    <div className="rounded-2xl border border-stone-100 bg-white shadow-sm shadow-stone-100 p-6">
+      <p className="text-xs font-bold uppercase tracking-widest text-[#585858] mb-4">{plan}</p>
+      <ul className="flex flex-col">
+        {tiers.map((t) => (
+          <li key={t.points} className="flex items-center gap-3 py-3 border-t border-stone-100 first:border-t-0 first:pt-0">
+            <span className="flex-shrink-0 w-12 h-12 rounded-full bg-[#FAEFD1] flex flex-col items-center justify-center leading-none">
+              <span className="font-serif text-lg text-[#B74217]">{t.points}</span>
+              <span className="text-[9px] font-bold uppercase tracking-wider text-[#B74217]/70">pts</span>
+            </span>
+            <div>
+              <p className="font-bold text-[#1a1a1a] text-sm">{t.reward}</p>
+              <p className="text-sm text-[#585858]">{t.detail}</p>
+            </div>
+          </li>
+        ))}
+      </ul>
+      <p className="text-[11px] font-bold text-[#4FA4A1] uppercase tracking-widest mt-4">Rolling 90 days</p>
+    </div>
+  );
+}
+
 export default function Treats() {
   return (
     <PageShell
       title="How Treats work"
-      subtitle="Write reviews, earn points, get treats. Here's everything you need to know about BarkFind's rewards programme — from your first review to redeeming your reward."
+      subtitle="Review the places you go, and it comes back to you. Here's how BarkFind's rewards work, from your first review to the treat that lands on your bill."
     >
       <p className="text-[#444] leading-relaxed">
-        Treats are our way of saying thank you. Every review you leave helps other dog owners find great
-        dog-friendly places — and the more you contribute, the more you save on BarkFind. BarkFind launches on
-        iPhone soon, and Treats go live with it.
+        Treats are our way of saying thank you. Every review you leave helps another owner work out whether they can
+        bring their dog, and the more you add, the more you save on BarkFind. The app launches on iPhone soon, and
+        Treats go live with it.
       </p>
 
-      {/* Earning — points */}
+      {/* Earning: points */}
       <Section title="How you earn points">
-        <p>You earn <strong className="text-[#1a1a1a]">points</strong> for reviews — and a fuller review is worth more:</p>
+        <p>You earn <strong className="text-[#1a1a1a]">points</strong> for reviews, and a fuller review is worth more:</p>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-2">
           {EARN.map((e) => (
             <div
@@ -85,68 +114,54 @@ export default function Treats() {
             </div>
           ))}
         </div>
-        <p className="text-sm text-[#585858]">Add a photo and a few words, earn double. Simple as that.</p>
+        <p className="text-sm text-[#585858]">A sentence or two about your visit earns double. Only approved reviews count, and reviews are moderated.</p>
       </Section>
 
-      {/* Tiers */}
-      <Section title="The rewards">
-        <p>Your points unlock treats at three tiers:</p>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-2">
-          {TIERS.map((t) => (
-            <div
-              key={t.points}
-              className={`rounded-2xl p-6 flex flex-col items-center text-center gap-2 border ${
-                t.highlight ? "bg-[#B74217] border-[#B74217] text-white" : "bg-white border-stone-100 shadow-sm shadow-stone-100"
-              }`}
-            >
-              <div className={`w-12 h-12 rounded-full flex items-center justify-center ${t.highlight ? "bg-white/15" : "bg-[#FAEFD1]"}`}>
-                <PawMark className="w-6 h-6" color={t.highlight ? "#ffffff" : "#B74217"} />
-              </div>
-              <p className={`text-xs font-bold uppercase tracking-widest ${t.highlight ? "text-white/70" : "text-[#585858]"}`}>
-                {t.points} points
-              </p>
-              <p className={`font-serif text-2xl ${t.highlight ? "text-white" : "text-[#1a1a1a]"}`}>{t.reward}</p>
-              <p className={`text-sm ${t.highlight ? "text-white/80" : "text-[#585858]"}`}>{t.detail}</p>
-              <span className={`mt-1 text-[11px] font-bold px-2.5 py-1 rounded-full ${t.highlight ? "bg-white/20 text-white" : "bg-[#4FA4A1]/10 text-[#4FA4A1]"}`}>
-                {t.note}
-              </span>
-            </div>
-          ))}
+      {/* Rewards: differ by plan */}
+      <Section title="What your points unlock">
+        <p>
+          What you get depends on your plan, because a percentage off doesn't make much sense on a single yearly bill.
+          Same points, same 90-day window, different treat.
+        </p>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
+          <PlanCard plan="Monthly plan" tiers={MONTHLY_TIERS} />
+          <PlanCard plan="Annual plan" tiers={ANNUAL_TIERS} />
         </div>
-      </Section>
 
-      {/* Monthly vs annual rule */}
-      <Section title="Monthly vs annual">
-        <div className="rounded-2xl bg-[#FAEFD1] border border-[#B74217]/15 p-6 flex flex-col gap-3 text-sm text-[#444]">
-          <p>
-            <strong className="text-[#1a1a1a]">On a monthly plan:</strong> the 25% and 50% discounts apply to your
-            monthly billing — one claim per billing cycle, and they don't stack.
-          </p>
-          <p>
-            <strong className="text-[#1a1a1a]">On an annual plan:</strong> you get one reward claim per account, for
-            life — annual plans don't get the rolling 25%/50% discounts against a single yearly bill.
-          </p>
-          <p>
-            <strong className="text-[#1a1a1a]">The 50-point free year</strong> applies to both — a full year added on us.
-          </p>
+        {/* 50 points: same for everyone */}
+        <div className="rounded-2xl bg-[#B74217] text-white p-6 mt-4 flex items-center gap-4">
+          <div className="w-12 h-12 rounded-full bg-white/15 flex items-center justify-center flex-shrink-0">
+            <PawMark className="w-6 h-6" color="#ffffff" />
+          </div>
+          <div>
+            <p className="font-serif text-2xl">50 points: a year free</p>
+            <p className="text-sm text-white/80">The same on either plan. Once per account, ever.</p>
+          </div>
         </div>
       </Section>
 
       {/* How to redeem */}
-      <Section title="How to redeem your Treat">
+      <Section title="How claiming works">
         <p>
-          Here's exactly what happens when you claim — you'll find it all under{" "}
-          <strong className="text-[#1a1a1a]">Profile → Treats</strong> in the app:
+          When Treats go live, you'll claim in the app under{" "}
+          <strong className="text-[#1a1a1a]">Profile, then Treats</strong>. Here's what happens for each reward:
         </p>
         <div className="flex flex-col gap-5 mt-1">
           {REDEEM_STEPS.map((s) => (
             <Step key={s.n} {...s} />
           ))}
         </div>
-        <div className="rounded-xl bg-[#FAEFD1] border border-[#B74217]/15 p-4 mt-2 text-sm text-[#585858]">
-          Your promo code is unique to you and is applied to your next billing cycle through Apple's offer system.
-          If anything doesn't come through, email{" "}
+
+        {/* Limits worth stating plainly */}
+        <div className="rounded-xl bg-[#FAEFD1] border border-[#B74217]/15 p-5 mt-2 text-sm text-[#444] flex flex-col gap-2">
+          <p><strong className="text-[#1a1a1a]">One claim per billing cycle.</strong> You can't stack several claims onto one bill.</p>
+          <p><strong className="text-[#1a1a1a]">Up to three extensions a year.</strong> Apple allows a maximum of three subscription extensions per person per year, so annual members can claim at most three times in twelve months.</p>
+        </div>
+
+        <div className="rounded-xl border border-stone-100 bg-white p-4 mt-3 text-sm text-[#585858]">
+          If a claim doesn't come through, email{" "}
           <a href="mailto:info@barkfind.com" className="text-[#B74217] font-semibold hover:underline">info@barkfind.com</a>.
+          Nothing is lost: if a claim fails, the points stay on your account and you can claim again.
         </div>
       </Section>
 
@@ -164,7 +179,7 @@ export default function Treats() {
 
       {/* CTA */}
       <Section title="Start earning Treats">
-        <p>BarkFind is launching on iPhone soon. Join early access to be first in — and to lock in founding-member pricing — then start earning points from your very first review.</p>
+        <p>BarkFind is launching on iPhone soon. Join early access to be first in, and to lock in founding-member pricing, then start earning points from your very first review.</p>
         <a
           href="/#download"
           className="inline-flex items-center justify-center mt-1 px-7 py-3.5 rounded-full bg-[#B74217] text-white font-bold text-sm hover:opacity-90 transition-opacity shadow-sm shadow-[#B74217]/25 self-start"

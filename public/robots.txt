@@ -1,0 +1,5 @@
+# BarkFind
+# Beta routes are kept out of search via noindex (meta + X-Robots-Tag),
+# NOT via Disallow - a disallowed page can never be read to see the noindex.
+User-agent: *
+Allow: /

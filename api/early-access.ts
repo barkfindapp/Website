@@ -4,7 +4,7 @@ import { Resend } from "resend";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 const SUPABASE_URL = process.env.SUPABASE_URL;
-// Publishable/anon key — safe to use here. The early_access table has RLS with an
+// Publishable/anon key, safe to use here. The early_access table has RLS with an
 // insert-only policy, so this key can add signups but cannot read the list.
 const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
 
@@ -27,7 +27,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   try {
     if (SUPABASE_URL && SUPABASE_ANON_KEY) {
-      // Unified list — the founding-member waitlist we'll email at launch.
+      // Unified list, the founding-member waitlist we'll email at launch.
       const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
         auth: { persistSession: false, autoRefreshToken: false },
       });
@@ -44,7 +44,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         .catch(() => {});
     }
 
-    // Confirmation email — best-effort; never fail the signup because of an email hiccup.
+    // Confirmation email, best-effort; never fail the signup because of an email hiccup.
     if (!duplicate) {
       await sendConfirmation(email, platform).catch((e) => console.error("Confirmation email failed:", e));
     }
@@ -76,15 +76,15 @@ async function sendConfirmation(email: string, platform: Platform) {
                 </td></tr>
                 <tr><td style="padding:32px;">
                   <p style="margin:0 0 16px;font-size:16px;color:#2F291E;line-height:1.6;">
-                    Thanks for joining BarkFind early access. We'll email you the moment we launch on ${device} — with your founding-member offer.
+                    Thanks for joining BarkFind early access. We'll email you the moment we launch on ${device}, with your founding-member offer.
                   </p>
                   <p style="margin:0 0 16px;font-size:16px;color:#585858;line-height:1.6;">
                     Founding members get first shot at our launch pricing: your <strong>first year for £19.99</strong> instead of £39.99. It's limited to our first <strong>500 members</strong>, so keep an eye on your inbox around launch.
                   </p>
                   <p style="margin:0 0 24px;font-size:14px;color:#8a8a8a;line-height:1.6;">
-                    Early access gives you first shot at the offer — it isn't a guaranteed slot, and the offer arrives when we launch, not before.
+                    Early access gives you first shot at the offer. It isn't a guaranteed slot, and the offer arrives when we launch, not before.
                   </p>
-                  <p style="margin:0;font-size:14px;color:#585858;">— The BarkFind team 🐾</p>
+                  <p style="margin:0;font-size:14px;color:#585858;">The BarkFind team 🐾</p>
                 </td></tr>
                 <tr><td style="background:#F5F1E9;padding:20px 32px;text-align:center;border-top:1px solid #e7dfc9;">
                   <p style="margin:0;font-size:12px;color:#585858;">© ${new Date().getFullYear()} BarkFind · <a href="https://www.barkfind.com" style="color:#B74217;">barkfind.com</a></p>

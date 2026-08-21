@@ -1,4 +1,4 @@
-// BarkFind Privacy Policy — rendered at /privacy
+// BarkFind Privacy Policy, rendered at /privacy
 // Source: company-supplied draft (last updated 29 June 2026).
 
 import PageShell, { Section } from "../components/PageShell";
@@ -37,7 +37,7 @@ export default function PrivacyPolicy() {
               ["Purchase information", "your subscription status and history. Payment itself is processed by Apple; we never see or store your card details."],
             ].map(([term, def]) => (
               <li key={term} className="pl-4 border-l-2 border-[#FAEFD1]">
-                <strong className="text-[#1a1a1a]">{term}</strong> — {def}
+                <strong className="text-[#1a1a1a]">{term}</strong>, {def}
               </li>
             ))}
           </ul>
@@ -79,7 +79,7 @@ export default function PrivacyPolicy() {
               ["Google Maps Platform", "map display and place data."],
             ].map(([term, def]) => (
               <li key={term} className="pl-4 border-l-2 border-[#FAEFD1]">
-                <strong className="text-[#1a1a1a]">{term}</strong> — {def}
+                <strong className="text-[#1a1a1a]">{term}</strong>, {def}
               </li>
             ))}
           </ul>

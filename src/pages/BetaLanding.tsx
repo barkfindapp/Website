@@ -1,4 +1,9 @@
 import { useState, useEffect } from "react";
+import PhoneDemo from "../components/beta/PhoneDemo";
+import ScrollFeatureSequence from "../components/beta/ScrollFeatureSequence";
+import MyloStory from "../components/beta/MyloStory";
+import LiveReviews from "../components/beta/LiveReviews";
+import { PhoneFrame } from "../components/beta/_shared";
 
 // TODO: replace with the real App Store listing URL once live.
 const APP_STORE_URL = "#download";
@@ -67,24 +72,29 @@ function Nav() {
 
 // ─── Hero ─────────────────────────────────────────────────────────────────────
 
+// Small paw rating for the floating hero review card. Same glyph as the live
+// review carousel so the two never drift apart.
+function HeroPaws({ n = 5 }: { n?: number }) {
+  return (
+    <div className="flex gap-0.5" aria-hidden="true">
+      {[...Array(5)].map((_, i) => (
+        <svg key={i} width="14" height="14" viewBox="0 0 40 40" fill={i < n ? "#B74217" : "#E7DFC9"}>
+          <path d="M7.29 19.46C8.12 20.72 9.41 21.46 10.65 21.5C11.86 21.37 13.17 20.52 13.76 18.65C13.86 17.67 13.6 16.64 13.01 15.74C12.42 14.84 11.58 14.18 10.65 13.87C9.67 13.55 8.7 13.66 7.92 14.17C6.34 15.2 6.06 17.57 7.29 19.46ZM16.46 15.76C17.39 15.62 18.19 15.05 18.71 14.17C19.21 13.32 19.4 12.27 19.25 11.21C18.92 8.97 17.14 7.38 15.28 7.65C14.36 7.79 13.56 8.35 13.03 9.23C12.53 10.08 12.34 11.14 12.5 12.19C12.65 13.26 13.13 14.21 13.86 14.88C14.47 15.45 15.2 15.76 15.95 15.78C16.29 15.78 16.29 15.78 16.46 15.76ZM27.86 12.69C28.08 11.64 27.96 10.58 27.51 9.7C27.05 8.79 26.29 8.17 25.37 7.98C24.46 7.79 23.52 8.04 22.72 8.68C21.95 9.3 21.41 10.22 21.19 11.27C20.71 13.48 21.83 15.59 23.67 15.99C23.84 16.02 24 16.04 24.17 16.05C25.84 16.1 27.43 14.7 27.86 12.69ZM25.16 21.73C24.7 21.58 24.35 21.23 24.18 20.75C23.55 18.88 21.92 17.64 20.01 17.58C18.11 17.52 16.4 18.66 15.64 20.48C15.45 20.94 15.07 21.27 14.61 21.39C12.44 21.91 10.82 23.81 10.75 25.91C10.67 28.56 12.67 30.79 15.23 30.87C16.12 30.9 17.03 30.67 17.84 30.2C18.97 29.54 20.29 29.58 21.36 30.31C22.14 30.83 23.03 31.13 23.93 31.15C26.48 31.24 28.63 29.14 28.71 26.49C28.78 24.39 27.29 22.39 25.16 21.73ZM33.52 17.41C33.48 16.39 33.05 15.51 32.3 14.95C31.56 14.39 30.59 14.23 29.6 14.48C28.64 14.73 27.76 15.33 27.12 16.19C25.77 18 25.9 20.38 27.4 21.51C27.89 21.88 28.48 22.08 29.11 22.1C29.43 22.11 29.77 22.07 30.11 21.99C31.06 21.74 31.94 21.14 32.58 20.28C33.23 19.42 33.56 18.4 33.52 17.41Z" />
+        </svg>
+      ))}
+    </div>
+  );
+}
+
 function Hero() {
   return (
     <section
       className="relative overflow-hidden"
       style={{
-        background: "radial-gradient(ellipse 80% 60% at 60% 40%, #f5e6c8 0%, #FAEFD1 50%, #f0e8d4 100%)",
+        // Clean, fresh warm wash, no coloured burst, just a gentle cream gradient.
+        background: "linear-gradient(180deg, #FDF8EC 0%, #FAEFD1 60%, #F7EAC9 100%)",
       }}
     >
-      {/* Subtle decorative circle */}
-      <div
-        className="absolute -top-32 -right-32 w-[500px] h-[500px] rounded-full opacity-30 pointer-events-none"
-        style={{ background: "radial-gradient(circle, #B74217 0%, transparent 70%)" }}
-      />
-      <div
-        className="absolute -bottom-20 -left-20 w-[350px] h-[350px] rounded-full opacity-20 pointer-events-none"
-        style={{ background: "radial-gradient(circle, #4FA4A1 0%, transparent 70%)" }}
-      />
-
       <div className="relative max-w-6xl mx-auto px-6 py-20 md:py-32 flex flex-col md:flex-row items-center gap-14">
         <div className="flex-1 text-center md:text-left">
           <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/60 text-[#B74217] text-xs font-bold mb-7 border border-[#B74217]/20 shadow-sm backdrop-blur-sm">
@@ -140,29 +150,50 @@ function Hero() {
           </div>
         </div>
 
-        <div className="flex-shrink-0 relative mx-auto w-[300px] md:w-[360px] lg:w-[420px]">
-          {/* Two-phone group: map + Ask Mylo */}
-          <img
-            src="/media/hero-group.png"
-            alt="BarkFind app showing the map and the Ask Mylo assistant"
-            className="relative w-full drop-shadow-2xl"
-          />
-          {/* Floating venue card */}
-          <img
-            src="/media/hero-card.png"
-            alt=""
-            aria-hidden="true"
-            className="absolute -left-6 sm:-left-12 top-10 w-40 sm:w-48 drop-shadow-xl pointer-events-none"
+        {/* Living product shot: framed device with a slight tilt and two
+            floating UI fragments (review card + nearby-spots pin) on separate
+            depth layers. Fragment copy is illustrative for now, easy to swap. */}
+        <div className="flex-shrink-0 relative mt-6 md:mt-0" style={{ width: 264 }}>
+          {/* Framed device, tilted */}
+          <div className="relative" style={{ transform: "rotate(4deg)" }}>
+            <PhoneFrame>
+              <img
+                src="/media/hero-map.png"
+                alt="BarkFind map screen showing dog-friendly places nearby"
+                className="absolute inset-0 w-full h-full object-cover object-top"
+              />
+            </PhoneFrame>
+          </div>
+
+          {/* Fragment A, review card (top right, tilted the other way) */}
+          <div
+            className="absolute -right-10 sm:-right-16 top-6 w-52 rounded-2xl bg-white p-3.5 shadow-xl shadow-black/10 ring-1 ring-black/5"
+            style={{ transform: "rotate(5deg)" }}
+          >
+            <div className="flex items-center justify-between mb-1.5">
+              <span className="text-sm font-bold text-[#1a1a1a]">DogHaus Coffee</span>
+              <HeroPaws n={5} />
+            </div>
+            <p className="text-xs text-[#585858] leading-snug">
+              "Water bowls out, treats at the counter, staff adored her."
+            </p>
+          </div>
+
+          {/* Fragment B, nearby-spots pin (bottom left) */}
+          <div
+            className="absolute -left-8 sm:-left-12 bottom-14 flex items-center gap-2 rounded-full bg-white pl-2 pr-4 py-2 shadow-xl shadow-black/10 ring-1 ring-black/5"
             style={{ transform: "rotate(-5deg)" }}
-          />
-          {/* Floating search bar */}
-          <img
-            src="/media/hero-search.png"
-            alt=""
-            aria-hidden="true"
-            className="absolute -right-4 sm:-right-8 bottom-12 w-44 sm:w-56 drop-shadow-xl pointer-events-none"
-            style={{ transform: "rotate(4deg)" }}
-          />
+          >
+            <span className="flex items-center justify-center w-7 h-7 rounded-full bg-[#4FA4A1]/12 text-[#4FA4A1]">
+              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true">
+                <path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
+              </svg>
+            </span>
+            <span className="text-sm font-bold text-[#1a1a1a] leading-tight">
+              3 dog-friendly spots
+              <span className="block text-xs font-semibold text-[#585858]">within 400m</span>
+            </span>
+          </div>
         </div>
       </div>
 
@@ -190,35 +221,35 @@ const SCREENS = [
     label: "Discover",
     title: "Find every dog-friendly spot near you",
     description: "Interactive map with custom paw pins. Switch between map and list view. Filter by cafes, parks, pubs, vets, and more.",
-    image: "/media/showcase-discover.png",
+    image: "/screen-map.png",
   },
   {
     id: "explore",
     label: "Explore",
     title: "Browse locations at a glance",
     description: "Rich listing cards with real photos, dual ratings (BarkFind + Google), distance, and verified amenity tags, all in one view.",
-    image: "/media/showcase-explore.png",
+    image: "/screen-explore.png",
   },
   {
     id: "saved",
     label: "Save",
     title: "Build your go-to list",
     description: "Save your favourite spots and access them instantly. Plan walks, days out, and trips around places you trust.",
-    image: "/media/showcase-save.png",
+    image: "/screen-saved.png",
   },
   {
     id: "reviews",
     label: "Reviews",
     title: "Reviews from real dog owners",
     description: "Paw ratings, honest written reviews, and real photos from dog owners. Know exactly what to expect before you arrive.",
-    image: "/media/showcase-reviews.png",
+    image: "/screen-reviews.png",
   },
   {
     id: "dogprofile",
     label: "Dog Profile",
     title: "A profile built around your dog",
     description: "Add breed, age, weight, and temperament. Premium members unlock advanced fields, behaviour with humans, reaction to wildlife, noise sensitivity, and more.",
-    image: "/media/showcase-dogprofile.png",
+    image: "/screen-dogprofile.png",
   },
 ];
 
@@ -262,6 +293,10 @@ function AppShowcase() {
           </div>
 
           <div className="relative flex justify-center">
+            <div
+              className="absolute inset-0 scale-75 blur-3xl opacity-30 pointer-events-none"
+              style={{ background: "radial-gradient(circle, #B74217 0%, #4FA4A1 100%)" }}
+            />
             <PhoneShot key={active} src={SCREENS[active].image} alt={SCREENS[active].title} className="relative w-60 fade-in" />
           </div>
 
@@ -307,6 +342,10 @@ function AppShowcase() {
           </div>
 
           <div className="flex-shrink-0 flex justify-center relative">
+            <div
+              className="absolute inset-0 scale-75 blur-3xl opacity-30 pointer-events-none"
+              style={{ background: "radial-gradient(circle, #B74217 0%, #4FA4A1 100%)" }}
+            />
             <PhoneShot key={active} src={SCREENS[active].image} alt={SCREENS[active].title} className="relative w-72 fade-in" />
           </div>
         </div>
@@ -431,10 +470,8 @@ function Mylo() {
     <section
       id="mylo"
       className="py-24 overflow-hidden relative"
-      style={{ background: "linear-gradient(135deg, #FAEFD1 0%, #f5e8c8 100%)" }}
+      style={{ background: "#F5F3EF" }}
     >
-      <div className="absolute -top-24 -left-24 w-96 h-96 rounded-full opacity-20 pointer-events-none" style={{ background: "radial-gradient(circle, #B74217 0%, transparent 70%)" }} />
-
       <div className="relative max-w-6xl mx-auto px-6">
         <div className="text-center mb-14">
           <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#B74217]/10 text-[#B74217] text-xs font-bold mb-5 border border-[#B74217]/20">
@@ -498,9 +535,9 @@ function Mylo() {
 function TrustBar() {
   const items = [
     "Community-powered reviews",
-    "Somewhere that suits your dog",
+    "Earn rewards for reviewing",
     "Cafes, parks, pubs & more",
-    "iOS now, Android coming soon",
+    "iOS, Android coming soon",
   ];
   return (
     <div className="bg-white py-5 border-b border-stone-100">
@@ -684,6 +721,7 @@ const REWARDS = [
     highlight: true,
     icon: (
       <div className="w-9 h-9 rounded-full bg-[#B74217] flex items-center justify-center flex-shrink-0">
+        {/* Crown */}
         <svg className="w-[18px] h-[18px] text-white" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
           <path d="M3 8.5l3.2 2.4a.75.75 0 0 0 1.13-.27L9.9 5.4a.75.75 0 0 1 1.34 0l2.57 5.23a.75.75 0 0 0 1.13.27L18.99 8.5a.75.75 0 0 1 1.19.74l-1.2 6.86a1 1 0 0 1-.99.83H6.01a1 1 0 0 1-.99-.83L3.82 9.24A.75.75 0 0 1 5 8.5z"/>
           <rect x="5.5" y="18" width="13" height="2.2" rx="1" />
@@ -695,10 +733,11 @@ const REWARDS = [
 
 function Rewards() {
   return (
-    <section className="py-24 overflow-hidden" style={{ background: "#F5F3EF" }}>
+    <section className="py-24 bg-white overflow-hidden">
       <div className="max-w-6xl mx-auto px-6">
         <div className="flex flex-col lg:flex-row items-center gap-12 lg:gap-16">
-          {/* Left: copy */}
+
+          {/* Left, copy */}
           <div className="flex-1 text-center lg:text-left">
             <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#4FA4A1]/10 text-[#4FA4A1] text-xs font-bold mb-5 border border-[#4FA4A1]/20">
               <PawMark className="w-3.5 h-3.5" color="#4FA4A1" />
@@ -711,7 +750,7 @@ function Rewards() {
             <p className="text-lg text-[#585858] mb-8 leading-relaxed max-w-lg mx-auto lg:mx-0">
               Every review earns points: one per review, or two when you add a description of 40 characters or more. The more points you earn, the more you save, all the way up to a full year free.
             </p>
-            <p className="text-sm text-[#585858] bg-white rounded-xl px-4 py-3 inline-block border border-stone-100">
+            <p className="text-sm text-[#585858] bg-stone-50 rounded-xl px-4 py-3 inline-block border border-stone-100">
               When Treats go live, hit a points tier and claim in the app, and the reward applies to your next bill, no code to enter. Percentage discounts are for monthly plans; annual members get time added to their subscription instead. Fifty points earns a free year on either plan.
             </p>
             <p className="mt-4">
@@ -722,10 +761,14 @@ function Rewards() {
             </p>
           </div>
 
-          {/* Right: milestone cards */}
+          {/* Right, milestone cards */}
           <div className="flex-1 w-full max-w-md mx-auto lg:mx-0">
-            <div className="rounded-2xl border border-stone-100 shadow-sm overflow-hidden mb-4 bg-white">
-              <div className="px-6 py-5" style={{ background: "linear-gradient(135deg, #4FA4A1 0%, #3d8a87 100%)" }}>
+            {/* Progress bar mockup */}
+            <div className="rounded-2xl border border-stone-100 shadow-sm overflow-hidden mb-4">
+              <div
+                className="px-6 py-5"
+                style={{ background: "linear-gradient(135deg, #4FA4A1 0%, #3d8a87 100%)" }}
+              >
                 <div className="flex items-center gap-2 mb-1">
                   <span className="text-white font-bold text-base">Upcoming Treats</span>
                 </div>
@@ -740,7 +783,10 @@ function Rewards() {
 
               <div className="divide-y divide-stone-100">
                 {REWARDS.map((r) => (
-                  <div key={r.points} className={`flex items-center justify-between px-6 py-4 ${r.highlight ? "bg-[#FAEFD1]/40" : "bg-white"}`}>
+                  <div
+                    key={r.points}
+                    className={`flex items-center justify-between px-6 py-4 ${r.highlight ? "bg-[#FAEFD1]/40" : "bg-white"}`}
+                  >
                     <div className="flex items-center gap-3">
                       {r.icon}
                       <div>
@@ -752,7 +798,9 @@ function Rewards() {
                         <p className="text-xs text-[#585858]">{r.detail}</p>
                       </div>
                     </div>
-                    <span className="text-xs font-semibold text-[#585858] bg-stone-100 px-2.5 py-1 rounded-full">Locked</span>
+                    <span className="text-xs font-semibold text-[#585858] bg-stone-100 px-2.5 py-1 rounded-full">
+                      Locked
+                    </span>
                   </div>
                 ))}
               </div>
@@ -790,7 +838,7 @@ function HowItWorks() {
   return (
     <section
       className="py-24 relative overflow-hidden"
-      style={{ background: "linear-gradient(135deg, #FAEFD1 0%, #f5e8c8 100%)" }}
+      style={{ background: "#F5F3EF" }}
     >
       <div className="max-w-6xl mx-auto px-6">
         <div className="text-center mb-16">
@@ -853,7 +901,7 @@ const PLANS = [
     features: [
       ...SHARED_FEATURES.map((text) => ({ text, strong: false })),
       { text: "Ask Mylo, your AI dog-friendly guide", strong: false },
-      { text: "Review rewards: earn points for discounts", strong: true, href: "/treats" },
+      { text: "Review rewards, earn points for discounts", strong: true, href: "/treats" },
     ],
   },
   {
@@ -866,8 +914,8 @@ const PLANS = [
     saving: `~${MONTHS_FREE} months free`,
     features: [
       ...SHARED_FEATURES.map((text) => ({ text, strong: false })),
-      { text: "Ask Mylo: four times the daily searches", strong: true },
-      { text: "Review rewards: one claim per account", strong: true, href: "/treats" },
+      { text: "Ask Mylo, four times the daily searches", strong: true },
+      { text: "Review rewards, one claim per account", strong: true, href: "/treats" },
     ],
   },
 ];
@@ -1208,10 +1256,6 @@ function DownloadCTA() {
       className="relative py-28 overflow-hidden"
       style={{ background: "linear-gradient(135deg, #B74217 0%, #9a3512 100%)" }}
     >
-      {/* Decorative circles */}
-      <div className="absolute -top-24 -right-24 w-96 h-96 rounded-full opacity-10 pointer-events-none" style={{ background: "radial-gradient(circle, #fff 0%, transparent 70%)" }} />
-      <div className="absolute -bottom-16 -left-16 w-64 h-64 rounded-full opacity-10 pointer-events-none" style={{ background: "radial-gradient(circle, #F5F1E9 0%, transparent 70%)" }} />
-
       <div className="relative max-w-2xl mx-auto px-6 text-center">
         <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/15 text-white text-xs font-bold mb-6 border border-white/20">
           <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
@@ -1303,18 +1347,20 @@ function Footer() {
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
-export default function LandingPage() {
+export default function BetaLanding() {
   return (
     <div className="min-h-screen font-sans">
       <Nav />
       <Hero />
+      <PhoneDemo />
+      <ScrollFeatureSequence />
       <TrustBar />
-      <AppShowcase />
       <Mylo />
       <Features />
+      <MyloStory />
+      <Rewards />
       <HowItWorks />
       <Pricing />
-      <Rewards />
       <FAQ />
       <DownloadCTA />
       <Footer />

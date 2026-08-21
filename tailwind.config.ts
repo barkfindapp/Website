@@ -13,6 +13,7 @@ export default {
         teal: "#4FA4A1",
         nature: "#96BD99",
         cream: "#FAEFD1",
+        ink: "#2F291E",
       },
     },
   },

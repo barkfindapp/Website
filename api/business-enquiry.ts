@@ -26,7 +26,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       from: "BarkFind <hello@barkfind.com>",
       to: "info@barkfind.com",
       replyTo: email,
-      subject: `New business enquiry — ${business.trim()}`,
+      subject: `New business enquiry, ${business.trim()}`,
       html: `
         <h2>New business enquiry</h2>
         <p><strong>Business:</strong> ${esc(business)}</p>

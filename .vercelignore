@@ -1,0 +1,8 @@
+# public/media holds raw asset drop-offs (multi-MB screenshots, a 150MB screen
+# recording, mockup templates) that must not ship. Ship ONLY the web-ready,
+# resized copies that the site actually references.
+public/media/*
+!public/media/step-*.png
+!public/media/hero-*.png
+!public/media/showcase-*.png
+!public/media/mylo-*.png

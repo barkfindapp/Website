@@ -34,19 +34,19 @@ export default function Support() {
 
       <Section title="Getting started">
         <QA q="How do I start using BarkFind?">
-          <p>BarkFind is launching on iPhone soon and isn't downloadable yet. Join early access on our homepage to be first in — we'll email you the moment it's live. At launch you'll create an account, add your dog's profile, and start your 14-day free trial.</p>
+          <p>BarkFind is launching on iPhone soon and isn't downloadable yet. Join early access on our homepage to be first in. We'll email you the moment it's live. At launch you'll create an account, add your dog's profile, and start your 14-day free trial.</p>
         </QA>
         <QA q="Which devices are supported?">
-          <p>BarkFind is coming to iPhone (iOS) first. Android is on the way — register interest on our homepage to be notified when either launches.</p>
+          <p>BarkFind is coming to iPhone (iOS) first. Android is on the way. Register interest on our homepage to be notified when either launches.</p>
         </QA>
       </Section>
 
       <Section title="Subscriptions & billing">
         <QA q="How does the free trial work?">
-          <p>At launch, new subscribers start a 14-day free trial. It's card-gated through Apple — you add a payment method to begin but you're charged £0 up front. If you don't cancel before it ends, it auto-renews into your chosen plan (Monthly £5.99 or Annual £39.99).</p>
+          <p>At launch, new subscribers start a 14-day free trial. It's card-gated through Apple: you add a payment method to begin but you're charged £0 up front. If you don't cancel before it ends, it auto-renews into your chosen plan (Monthly £5.99 or Annual £39.99).</p>
         </QA>
         <QA q="What happens when my trial ends?">
-          <p>If you don't subscribe, BarkFind switches to read-only rather than locking you out. You keep your saved spots, your profile and dog profile, and your own reviews — and you can still read other people's reviews and leave new ones. You lose searching for new places, Ask Mylo, saving new favourites, and dog-profile recommendations until you subscribe.</p>
+          <p>If you don't subscribe, BarkFind switches to read-only rather than locking you out. You keep your saved spots, your profile and dog profile, and your own reviews, and you can still read other people's reviews and leave new ones. You lose searching for new places, Ask Mylo, saving new favourites, and dog-profile recommendations until you subscribe.</p>
         </QA>
         <QA q="How do I cancel or manage my subscription?">
           <p>Subscriptions are billed through your Apple App Store account. Manage or cancel any time via <strong>iPhone Settings → your name → Subscriptions → BarkFind</strong>. Deleting the app does not cancel your subscription.</p>
@@ -67,7 +67,7 @@ export default function Support() {
 
       <Section title="Reviews & rewards">
         <QA q="How do the review rewards (Treats) work?">
-          <p>Reviews earn points — one per review, or two with a photo and a description. On a monthly plan, 10 points = 25% off and 20 = 50% off your monthly bill (rolling 90 days); annual members get one reward claim per account; 50 points = a free year on either plan. Tap Redeem in the app to get your promo code. <a href="/treats" className="text-[#B74217] font-semibold hover:underline">More on how Treats work</a>.</p>
+          <p>Reviews earn points, one per review, or two with a photo and a description. On a monthly plan, 10 points = 25% off and 20 = 50% off your monthly bill (rolling 90 days); annual members get one reward claim per account; 50 points = a free year on either plan. Tap Redeem in the app to get your promo code. <a href="/treats" className="text-[#B74217] font-semibold hover:underline">More on how Treats work</a>.</p>
         </QA>
         <QA q="How do I report an inappropriate review or listing?">
           <p>Use the report option within the app on any review or place. We review reports and remove content that breaks our rules. See our <a href="/terms" className="text-[#B74217] font-semibold hover:underline">Terms of Use</a> for details.</p>
@@ -76,7 +76,7 @@ export default function Support() {
 
       <Section title="Mylo AI">
         <QA q="What is Mylo?">
-          <p>Mylo is BarkFind's AI assistant, included with your subscription. Ask it in plain English — "a quiet pub with a water bowl" — and it finds matching places from BarkFind's rated directory.</p>
+          <p>Mylo is BarkFind's AI assistant, included with your subscription. Ask it in plain English, "a quiet pub with a water bowl", and it finds matching places from BarkFind's rated directory.</p>
         </QA>
       </Section>
 
@@ -90,7 +90,7 @@ export default function Support() {
       <Section title="Still need help?">
         <Bullets
           items={[
-            <>Email <a href="mailto:info@barkfind.com" className="text-[#B74217] font-semibold hover:underline">info@barkfind.com</a> — include your account email and a description of the issue.</>,
+            <>Email <a href="mailto:info@barkfind.com" className="text-[#B74217] font-semibold hover:underline">info@barkfind.com</a>, include your account email and a description of the issue.</>,
             <>Business owner? Visit our <a href="/business" className="text-[#B74217] font-semibold hover:underline">For Businesses</a> page.</>,
           ]}
         />

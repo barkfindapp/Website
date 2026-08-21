@@ -1,4 +1,4 @@
-// BarkFind Terms of Use — rendered at /terms
+// BarkFind Terms of Use, rendered at /terms
 // Source: company-supplied draft.
 // Defaults applied: Last updated = 29 June 2026; contact = info@barkfind.com.
 
@@ -94,7 +94,7 @@ export default function TermsOfUse() {
           <p>
             BarkFind shows dog-friendly places with information, amenities and ratings sourced from our community,
             public sources and third parties. This information may be incomplete, out of date or inaccurate.
-            Whether dogs are welcome is ultimately at each venue's discretion — always check with the venue before
+            Whether dogs are welcome is ultimately at each venue's discretion, always check with the venue before
             relying on a listing. BarkFind is not responsible for your experience at any venue.
           </p>
         </Section>
@@ -102,7 +102,7 @@ export default function TermsOfUse() {
         <Section title="8. Mylo AI assistant">
           <p>
             "Mylo" provides AI-generated suggestions based on your request and available data. Suggestions may be
-            inaccurate or incomplete and are provided for convenience only — they are not professional advice. Use
+            inaccurate or incomplete and are provided for convenience only, they are not professional advice. Use
             your own judgement.
           </p>
         </Section>
@@ -165,7 +165,7 @@ export default function TermsOfUse() {
           </p>
         </Section>
 
-        <Section title="16. Apple App Store — additional terms">
+        <Section title="16. Apple App Store, additional terms">
           <p>
             These additional terms apply to your use of the BarkFind iOS app downloaded from the Apple App Store:
           </p>
