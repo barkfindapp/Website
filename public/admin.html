@@ -210,6 +210,7 @@ a.evidence { color:var(--rust); font-size:12px; word-break:break-all; }
     <button data-tab="support">Support</button>
     <button data-tab="rewards">Rewards</button>
     <button data-tab="comms">Comms</button>
+    <button data-tab="content">Content</button>
     <button data-tab="revenue">Revenue</button>
     <button data-tab="costs">Costs</button>
     <button data-tab="ops">Ops</button>
@@ -353,6 +354,52 @@ a.evidence { color:var(--rust); font-size:12px; word-break:break-all; }
       </div>
     </div>
     <div class="panel"><h2>Recent announcements</h2><div id="commsList"><div class="loading">Loading…</div></div></div>
+  </section>
+
+  <section id="content" class="section">
+    <div id="cePipeTiles" class="tiles"><div class="loading">Loading…</div></div>
+    <div class="panel"><h2>Content queue</h2>
+      <div class="muted" style="margin-bottom:10px">AI drafts land here and nothing publishes itself. Approve means you have signed it off; exported means you actually posted it, by hand, where it belongs.</div>
+      <div class="toolbar">
+        <span class="chip active" data-cs="" onclick="setCeStatus(this,'')">All</span>
+        <span class="chip" data-cs="draft" onclick="setCeStatus(this,'draft')">Draft</span>
+        <span class="chip" data-cs="needs_edit" onclick="setCeStatus(this,'needs_edit')">Needs edit</span>
+        <span class="chip" data-cs="approved" onclick="setCeStatus(this,'approved')">Approved</span>
+        <span class="chip" data-cs="exported" onclick="setCeStatus(this,'exported')">Exported</span>
+        <select id="ceChannel" class="mini-select" onchange="renderCePieces()"><option value="">All channels</option></select>
+        <select id="ceType" class="mini-select" onchange="renderCePieces()"><option value="">All types</option></select>
+        <span id="ceCount" class="muted"></span>
+      </div>
+      <div id="cePieces"><div class="loading">Loading…</div></div>
+    </div>
+    <div class="panel"><h2>Generate release notes</h2>
+      <div class="muted" style="margin-bottom:8px">Paste the Lovable diff for the build range. The draft only describes what the diff shows; anything unclear is flagged rather than guessed.</div>
+      <div style="display:flex;flex-direction:column;gap:8px;max-width:720px">
+        <input id="ceBuildLabel" class="note-in" placeholder="Build label (e.g. build 10)" />
+        <textarea id="ceDiff" class="reply-box" placeholder="Paste the diff here…" style="margin-top:0;min-height:120px"></textarea>
+        <div class="toolbar" style="margin:0">
+          <button class="btn on" onclick="ceGenReleaseNotes()">Draft release notes</button>
+          <span id="ceRnResult" class="muted"></span>
+        </div>
+      </div>
+    </div>
+    <div class="panel"><h2>Restriction spotlights</h2>
+      <div class="muted" style="margin-bottom:8px">New restrictions draft automatically on approval. This button catches up on any approved restrictions that have no draft yet.</div>
+      <div class="toolbar" style="margin:0">
+        <button class="btn on" onclick="ceGenRestrictions()">Draft missing spotlights</button>
+        <span id="ceRsResult" class="muted"></span>
+      </div>
+    </div>
+    <div class="panel"><h2>Location pages</h2>
+      <div id="ceLocStats" class="muted" style="margin-bottom:8px">Loading…</div>
+      <div class="toolbar" style="margin:0">
+        <button class="btn" onclick="ceDryRunLocations()">Dry run</button>
+        <button class="btn on" id="ceLocGenBtn" onclick="ceGenLocationPages()">Generate next batch</button>
+        <span id="ceLpResult" class="muted"></span>
+      </div>
+      <div id="ceDryRunOut" class="muted" style="margin-top:8px"></div>
+    </div>
+    <div class="panel"><h2>Recent runs</h2><div id="ceRuns"><div class="loading">Loading…</div></div></div>
   </section>
 
   <section id="ops" class="section">
@@ -1477,8 +1524,175 @@ async function accessAdd(){
   }catch(e){ showGlobalErr(e); }
 }
 
+/* Content engine — review queue for generate-content drafts. Reads/writes via runSQL
+   (service role through /api/admin, auto-audited); generation via the edge function with
+   the signed-in admin's JWT, same auth shape as the Access tab. Nothing here publishes
+   anywhere: exported is a record that a human already posted it. */
+const CONTENT_FN='https://kwwnwniyijeuorpbyvmn.supabase.co/functions/v1/generate-content';
+let _cePieces=[], _ceStatus='', _ceOpen=null;
+function currentUserId(){ try{ const t=accessToken(); if(!t) return null; const p=JSON.parse(atob(t.split('.')[1].replace(/-/g,'+').replace(/_/g,'/'))); return p.sub||null; }catch(_e){ return null; } }
+async function callContentFn(body){
+  const tok=accessToken();
+  if(!tok) throw new Error('Not signed in — reload the page and sign in again.');
+  const res=await fetch(CONTENT_FN,{ method:'POST', headers:{ 'Content-Type':'application/json', 'apikey':ACCESS_KEY, 'Authorization':'Bearer '+tok }, body:JSON.stringify(body) });
+  let j=null; try{ j=await res.json(); }catch(_e){}
+  if(!j) throw new Error('The content service did not respond ('+res.status+').');
+  return j;
+}
+const CE_STATUS_LABELS={draft:'Draft',needs_edit:'Needs edit',approved:'Approved',exported:'Exported'};
+async function loadContent(){
+  try{
+    _cePieces = await runSQL(`SELECT id, channel, content_type, source_type, source_ref, title, status, published_url, created_at, approved_at FROM content_pieces ORDER BY created_at DESC LIMIT 300 -- ${Date.now()}`);
+    const counts={draft:0,needs_edit:0,approved:0,exported:0};
+    _cePieces.forEach(p=>{ if(counts[p.status]!==undefined) counts[p.status]++; });
+    const tile=(l,v)=>`<div class="tile"><div class="lbl">${l}</div><div class="val">${v}</div></div>`;
+    document.getElementById('cePipeTiles').innerHTML = tile('Drafts',counts.draft)+tile('Needs edit',counts.needs_edit)+tile('Approved',counts.approved)+tile('Exported',counts.exported);
+    const chans=[...new Set(_cePieces.map(p=>p.channel))].sort();
+    const types=[...new Set(_cePieces.map(p=>p.content_type))].sort();
+    const chanSel=document.getElementById('ceChannel'), typeSel=document.getElementById('ceType');
+    const keepC=chanSel.value, keepT=typeSel.value;
+    chanSel.innerHTML='<option value="">All channels</option>'+chans.map(c=>`<option value="${esc(c)}">${esc(c)}</option>`).join('');
+    typeSel.innerHTML='<option value="">All types</option>'+types.map(t=>`<option value="${esc(t)}">${esc(t)}</option>`).join('');
+    chanSel.value=keepC; typeSel.value=keepT;
+    renderCePieces();
+    loadCeStats();
+    loadCeRuns();
+  }catch(e){ showGlobalErr(e); }
+}
+function setCeStatus(el,s){ _ceStatus=s; document.querySelectorAll('[data-cs]').forEach(c=>c.classList.toggle('active',c===el)); renderCePieces(); }
+function renderCePieces(){
+  const chan=document.getElementById('ceChannel').value, type=document.getElementById('ceType').value;
+  const rows=_cePieces.filter(p=>(!_ceStatus||p.status===_ceStatus)&&(!chan||p.channel===chan)&&(!type||p.content_type===type));
+  document.getElementById('ceCount').textContent=rows.length+' piece(s)';
+  document.getElementById('cePieces').innerHTML = rows.length? rows.map(p=>`
+    <div class="card" id="ce-${p.id}">
+      <div class="top"><div>
+        <span class="name">${esc(p.title||'(untitled)')}</span>
+        <div class="muted">${esc(p.channel)} · ${esc(p.content_type)} · ${esc(CE_STATUS_LABELS[p.status]||p.status)} · ${esc((p.created_at||'').slice(0,10))}${p.published_url?' · '+esc(p.published_url):''}</div>
+      </div>
+      <button class="btn" onclick="openCePiece('${p.id}')">${_ceOpen===p.id?'Close':'Open'}</button></div>
+      <div id="ceEdit-${p.id}"></div>
+    </div>`).join('') : '<div class="empty">Nothing here. Drafts appear when a review, restriction or claim is approved, or when you generate above.</div>';
+  if(_ceOpen){ const p=_cePieces.find(x=>x.id===_ceOpen); if(p&&document.getElementById('ceEdit-'+p.id)) openCePiece(p.id,true); }
+}
+async function openCePiece(id,force){
+  if(_ceOpen===id&&!force){ _ceOpen=null; renderCePieces(); return; }
+  _ceOpen=id;
+  const box=document.getElementById('ceEdit-'+id); if(!box) return;
+  box.innerHTML='<div class="loading">Loading…</div>';
+  document.querySelectorAll('[id^="ceEdit-"]').forEach(el=>{ if(el.id!=='ceEdit-'+id) el.innerHTML=''; });
+  try{
+    const rows=await runSQL(`SELECT title, body_md, status FROM content_pieces WHERE id='${sqlLit(id)}' -- ${Date.now()}`);
+    const p=rows[0]; if(!p){ box.innerHTML='<div class="err">Not found.</div>'; return; }
+    const st=p.status;
+    const btns=[];
+    if(st!=='approved'&&st!=='exported') btns.push(`<button class="btn on" onclick="ceSetStatus('${id}','approved')">Approve</button>`);
+    if(st==='draft'||st==='approved') btns.push(`<button class="btn" onclick="ceSetStatus('${id}','needs_edit')">Needs edit</button>`);
+    if(st==='approved') btns.push(`<button class="btn" onclick="ceMarkExported('${id}')">Mark exported</button>`);
+    btns.push(`<button class="btn danger" data-cedel onclick="ceDeletePiece('${id}')">Delete</button>`);
+    box.innerHTML=`
+      <div style="display:flex;flex-direction:column;gap:8px;margin-top:10px">
+        <input id="ceTitle-${id}" class="note-in" value="${esc(p.title||'')}" placeholder="Title" />
+        <textarea id="ceBody-${id}" class="reply-box" style="margin-top:0;min-height:220px">${esc(p.body_md||'')}</textarea>
+        <div class="toolbar" style="margin:0">
+          <button class="btn on" onclick="ceSavePiece('${id}')">Save edits</button>
+          ${btns.join('')}
+          <span id="ceMsg-${id}" class="muted"></span>
+        </div>
+      </div>`;
+  }catch(e){ showGlobalErr(e); box.innerHTML='<div class="err">'+esc(e.message||e)+'</div>'; }
+}
+async function ceSavePiece(id){
+  const title=(document.getElementById('ceTitle-'+id)||{}).value||'';
+  const body=(document.getElementById('ceBody-'+id)||{}).value||'';
+  const msg=document.getElementById('ceMsg-'+id);
+  try{
+    const safe=String(body).replace(/\$cbody\$/g,'');
+    await runSQL(`UPDATE content_pieces SET title='${sqlLit(title)}', body_md=$cbody$${safe}$cbody$, updated_at=now() WHERE id='${sqlLit(id)}'`);
+    if(msg) msg.textContent='Saved ✓'; setTimeout(()=>{ if(msg) msg.textContent=''; },2000);
+    const p=_cePieces.find(x=>x.id===id); if(p) p.title=title;
+    renderCePieces();
+  }catch(e){ showGlobalErr(e); }
+}
+async function ceSetStatus(id,status){
+  try{
+    const extra = status==='approved' ? `, approved_by=${currentUserId()?`'${sqlLit(currentUserId())}'`:'NULL'}, approved_at=now()` : '';
+    await runSQL(`UPDATE content_pieces SET status='${sqlLit(status)}'${extra}, updated_at=now() WHERE id='${sqlLit(id)}'`);
+    await loadContent();
+  }catch(e){ showGlobalErr(e); }
+}
+function ceMarkExported(id){
+  openModal('Where did it go? Paste the URL if there is one (optional).', [], async (v)=>{
+    try{
+      const urlPart=(v&&v.trim())?`, published_url='${sqlLit(v.trim())}'`:'';
+      await runSQL(`UPDATE content_pieces SET status='exported'${urlPart}, updated_at=now() WHERE id='${sqlLit(id)}'`);
+      await loadContent();
+    }catch(e){ showGlobalErr(e); }
+  });
+}
+async function ceDeletePiece(id){
+  const card=document.getElementById('ce-'+id); const btn=card&&card.querySelector('[data-cedel]');
+  if(btn && !btn.classList.contains('armed')){ btn.textContent='Confirm delete'; btn.classList.add('armed'); setTimeout(()=>{ if(btn){ btn.textContent='Delete'; btn.classList.remove('armed'); } },3000); return; }
+  _ceOpen=null;
+  deferAction('Content piece removed', `DELETE FROM content_pieces WHERE id='${sqlLit(id)}' -- ${Date.now()}`, ()=>loadContent(), card);
+}
+async function loadCeStats(){
+  try{
+    const s=(await runSQL(`SELECT * FROM content_location_page_stats() -- ${Date.now()}`))[0]||{};
+    const scope=await runSQL(`SELECT kind, value, label FROM content_geo_scope WHERE active ORDER BY value -- ${Date.now()}`);
+    const scopeTxt=scope.map(r=>`${r.value} (${r.label||r.kind})`).join(', ')||'none';
+    document.getElementById('ceLocStats').innerHTML=`Scope: ${esc(scopeTxt)}.<br>${s.in_scope??'—'} places in scope · ${s.eligible??'—'} pass the quality floor (opening hours + verdict) · ${s.remaining??'—'} still without a page. Floor is 20 eligible: below that, runs refuse and log why. Batches of 25, best-known venues first.`;
+  }catch(e){ document.getElementById('ceLocStats').textContent='Stats unavailable: '+(e.message||e); }
+}
+async function ceDryRunLocations(){
+  const out=document.getElementById('ceDryRunOut'); out.textContent='Running…';
+  try{
+    const j=await callContentFn({ source_type:'location_page', dry_run:true, triggered_by:'admin_console_dry_run' });
+    if(j.error){ out.textContent=`Refused: ${j.error}${j.detail?' — '+j.detail:''}`; return; }
+    out.innerHTML=`Would draft ${j.would_generate} page(s) this run.`+(j.sample&&j.sample.length?'<br>Next up:<br>'+j.sample.map(esc).join('<br>'):'');
+  }catch(e){ out.textContent=''; showGlobalErr(e); }
+}
+async function ceGenLocationPages(){
+  const btn=document.getElementById('ceLocGenBtn'); const res=document.getElementById('ceLpResult');
+  if(btn && !btn.classList.contains('armed')){ btn.textContent='Confirm: draft up to 25 pages'; btn.classList.add('armed'); setTimeout(()=>{ if(btn){ btn.textContent='Generate next batch'; btn.classList.remove('armed'); } },4000); return; }
+  if(btn){ btn.textContent='Generate next batch'; btn.classList.remove('armed'); }
+  if(res) res.textContent='Generating… this can take a couple of minutes.';
+  try{
+    const j=await callContentFn({ source_type:'location_page', triggered_by:'admin_console' });
+    if(res) res.textContent=j.error?`Refused: ${j.error}`:`Drafted ${j.created} page(s)${j.failed?`, ${j.failed} failed`:''}.`;
+    await loadContent();
+  }catch(e){ if(res) res.textContent=''; showGlobalErr(e); }
+}
+async function ceGenReleaseNotes(){
+  const diff=(document.getElementById('ceDiff').value||'').trim();
+  const label=(document.getElementById('ceBuildLabel').value||'').trim();
+  const res=document.getElementById('ceRnResult');
+  if(!diff){ if(res) res.textContent='Paste the diff first.'; return; }
+  if(res) res.textContent='Drafting…';
+  try{
+    const j=await callContentFn({ source_type:'release_notes', diff, build_label:label, triggered_by:'admin_console' });
+    if(res) res.textContent=j.error?`Refused: ${j.error}${j.detail?' — '+j.detail:''}`:`Drafted ${j.created} piece(s).`;
+    if(!j.error){ document.getElementById('ceDiff').value=''; await loadContent(); }
+  }catch(e){ if(res) res.textContent=''; showGlobalErr(e); }
+}
+async function ceGenRestrictions(){
+  const res=document.getElementById('ceRsResult');
+  if(res) res.textContent='Drafting…';
+  try{
+    const j=await callContentFn({ source_type:'restriction_spotlight', triggered_by:'admin_console' });
+    if(res) res.textContent=j.error?`Refused: ${j.error}`:`Drafted ${j.created} piece(s)${j.created===0?' (all approved restrictions already have drafts)':''}.`;
+    await loadContent();
+  }catch(e){ if(res) res.textContent=''; showGlobalErr(e); }
+}
+async function loadCeRuns(){
+  try{
+    const rows=await runSQL(`SELECT triggered_by, source_type, started_at, finished_at, pieces_created, pieces_failed, error_detail FROM content_runs ORDER BY started_at DESC LIMIT 25 -- ${Date.now()}`);
+    document.getElementById('ceRuns').innerHTML = rows.length? rows.map(r=>`<div class="card"><div class="top"><div><span class="name">${esc(r.source_type)}</span><div class="muted">${esc(r.triggered_by)} · ${esc((r.started_at||'').replace('T',' ').slice(0,16))} · ${r.pieces_created??0} created${r.pieces_failed?`, ${r.pieces_failed} failed`:''}</div></div></div>${r.error_detail?`<p class="muted" style="margin:6px 0 0">${esc(r.error_detail)}</p>`:''}</div>`).join('') : '<div class="empty">No runs yet.</div>';
+  }catch(e){ showGlobalErr(e); }
+}
+
 /* Tabs */
-const loaders={overview:loadOverview,analytics:loadAnalytics,locations:loadLocations,users:loadUsers,moderation:loadModeration,safety:loadSafety,claims:loadClaims,support:loadSupport,rewards:loadRewards,comms:loadComms,revenue:loadRevenue,costs:loadCosts,ops:loadOps,access:loadAccess};
+const loaders={overview:loadOverview,analytics:loadAnalytics,locations:loadLocations,users:loadUsers,moderation:loadModeration,safety:loadSafety,claims:loadClaims,support:loadSupport,rewards:loadRewards,comms:loadComms,content:loadContent,revenue:loadRevenue,costs:loadCosts,ops:loadOps,access:loadAccess};
 function refreshActive(){ const b=document.querySelector('nav button.active'); const tab=b&&b.dataset.tab; if(tab&&loaders[tab]){ const btn=document.querySelector('.refresh-btn'); if(btn){ btn.textContent='↻ Refreshing…'; setTimeout(()=>{ btn.textContent='↻ Refresh'; },900); } loaders[tab](); } }
 const loaded={};
 function activate(tab){
