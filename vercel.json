@@ -15,6 +15,10 @@
       "headers": [{ "key": "X-Robots-Tag", "value": "noindex, nofollow" }]
     },
     {
+      "source": "/confirmed",
+      "headers": [{ "key": "X-Robots-Tag", "value": "noindex, nofollow" }]
+    },
+    {
       "source": "/beta",
       "headers": [{ "key": "X-Robots-Tag", "value": "noindex, nofollow" }]
     },
