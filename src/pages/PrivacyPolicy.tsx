@@ -1,13 +1,11 @@
 // BarkFind Privacy Policy, rendered at /privacy
 // Source: company-supplied draft.
-// NOTE: "Last updated" is a placeholder. Set it to the actual go-live date (the day
-// the guest-browsing app build ships) before publishing. Do not deploy before then.
 
 import PageShell, { Section } from "../components/PageShell";
 
 export default function PrivacyPolicy() {
   return (
-    <PageShell title="Privacy Policy" meta="Last updated: pending go-live date">
+    <PageShell title="Privacy Policy" meta="Last updated: 15 September 2026">
         <p className="text-[#444] leading-relaxed">
           BarkFind ("BarkFind", "we", "us", "our") is operated by <strong>BARKFIND LIMITED</strong> (company
           no. GB17093288), registered at 80A Walliscote Road, Weston-Super-Mare, North Somerset, United
