@@ -1,12 +1,14 @@
 // BarkFind Terms of Use, rendered at /terms
 // Source: company-supplied draft.
-// Defaults applied: Last updated = 29 June 2026; contact = info@barkfind.com.
+// Contact = info@barkfind.com.
+// NOTE: "Last updated" is a placeholder. Set it to the actual go-live date (the day
+// the guest-browsing app build ships) before publishing. Do not deploy before then.
 
 import PageShell, { Section, Bullets } from "../components/PageShell";
 
 export default function TermsOfUse() {
   return (
-    <PageShell title="Terms of Use" meta="Last updated: 29 June 2026">
+    <PageShell title="Terms of Use" meta="Last updated: pending go-live date">
         <p className="text-[#444] leading-relaxed">
           These Terms of Use ("Terms") govern your access to and use of the BarkFind mobile app and the
           barkfind.com website (together, the "Service"), operated by BarkFind Limited (company no. GB17093288),
@@ -27,10 +29,11 @@ export default function TermsOfUse() {
 
         <Section title="2. Your account">
           <p>
-            To use most features you must create an account. You agree to provide accurate information, keep your
-            password secure, and accept responsibility for all activity under your account. You may sign in using
-            email and password or a third-party provider (such as Apple or Google). You can delete your account at
-            any time in Settings.
+            You can browse BarkFind without an account. An account is needed to save places, write reviews, add a
+            dog profile, use Mylo or subscribe. You agree to provide accurate information, keep your password
+            secure, and accept responsibility for all activity under your account. You may sign in using email and
+            password or a third-party provider (such as Apple or Google). You can delete your account at any time
+            in Settings.
           </p>
         </Section>
 

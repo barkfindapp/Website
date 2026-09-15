@@ -1,11 +1,13 @@
 // BarkFind Privacy Policy, rendered at /privacy
-// Source: company-supplied draft (last updated 29 June 2026).
+// Source: company-supplied draft.
+// NOTE: "Last updated" is a placeholder. Set it to the actual go-live date (the day
+// the guest-browsing app build ships) before publishing. Do not deploy before then.
 
 import PageShell, { Section } from "../components/PageShell";
 
 export default function PrivacyPolicy() {
   return (
-    <PageShell title="Privacy Policy" meta="Last updated: 29 June 2026">
+    <PageShell title="Privacy Policy" meta="Last updated: pending go-live date">
         <p className="text-[#444] leading-relaxed">
           BarkFind ("BarkFind", "we", "us", "our") is operated by <strong>BARKFIND LIMITED</strong> (company
           no. GB17093288), registered at 80A Walliscote Road, Weston-Super-Mare, North Somerset, United
@@ -27,13 +29,21 @@ export default function PrivacyPolicy() {
 
         <Section title="What we collect">
           <p>We only collect what we need to run BarkFind. Specifically:</p>
+          <p>
+            You can use BarkFind without an account. When you open the app without signing in, we create an anonymous
+            session so the map, search and place pages work straight away. It is a random identifier, not your name or
+            email. It is held on your device and against a record on our servers. Your searches and basic usage are
+            recorded against it; nothing that needs an account, such as reviews, saved places or a dog profile, is
+            created for a guest. If you sign in or create an account later, the guest session ends and your activity
+            from then on is held against your account.
+          </p>
           <ul className="flex flex-col gap-3 list-none">
             {[
               ["Account information", "your name and email address when you create an account or contact support. Authentication is handled through our backend provider; if you sign in with Apple or Google, we receive the basic identifiers you authorise."],
-              ["Location", "with your permission, your device's precise location, used to show dog-friendly places near you and to power distance-based search. You can turn location access off at any time in your device settings; some features will be limited without it."],
+              ["Location", "with your permission, your device's precise location, used to show dog-friendly places near you and to power distance-based search. Location is optional: the map still works without it, and you can find any town using search. You can turn location access off at any time in your device settings."],
               ["Content you create", "reviews, ratings, photos you upload, your dog's profile (name, breed, size, temperament and similar details), saved favourites, and messages you send us through support."],
-              ["Search activity", "the searches you run in the app, including questions you ask our AI assistant “Mylo”, so we can return results and improve the feature."],
-              ["Usage data", "how you interact with the app (for example sessions, screens viewed and search counts) and basic device information, used for analytics and to keep the app working reliably."],
+              ["Search activity", "the searches you run in the app, including questions you ask our AI assistant “Mylo”, so we can return results and improve the feature. When you are not signed in, these are recorded against your anonymous identifier rather than an account."],
+              ["Usage data", "how you interact with the app (for example sessions, screens viewed and search counts) and basic device information, used for analytics and to keep the app working reliably. When you are not signed in, this is recorded against your anonymous identifier rather than an account."],
               ["Purchase information", "your subscription status and history. Payment itself is processed by Apple; we never see or store your card details."],
             ].map(([term, def]) => (
               <li key={term} className="pl-4 border-l-2 border-[#FAEFD1]">
@@ -61,8 +71,9 @@ export default function PrivacyPolicy() {
           <p>
             We rely on: <strong>performance of a contract</strong> (to provide the app and your subscription);
             <strong> consent</strong> (for precise location access, which you can withdraw at any time); and our
-            <strong> legitimate interests</strong> (to secure, maintain, analyse and improve the service, and to
-            moderate community content), balanced against your rights.
+            <strong> legitimate interests</strong> (to create and operate an anonymous session so the app works for
+            you before you sign up, and to secure, maintain, analyse and improve the service, and to moderate
+            community content), balanced against your rights.
           </p>
         </Section>
 
@@ -101,15 +112,26 @@ export default function PrivacyPolicy() {
             to meet legal, tax or fraud-prevention obligations. Community reviews may be retained in anonymised
             form.
           </p>
+          <p>
+            If you have not signed in, we delete the anonymous session and its usage records after 30 days of
+            inactivity, and any use of the app resets that period. Searches made during that session are kept without
+            any identifier attached, so they can no longer be linked to you or your device. Opening the app again
+            later simply starts a new anonymous session.
+          </p>
         </Section>
 
         <Section title="Your rights">
           <p>
             Under UK GDPR you have the right to access, correct, delete, restrict or object to our processing of
-            your data, to data portability, and to withdraw consent. The app provides in-built tools to{" "}
-            <strong>export</strong> and <strong>delete</strong> your data, and you can also contact us at{" "}
+            your data, to data portability, and to withdraw consent. If you have an account, the app provides
+            in-built tools to <strong>export</strong> and <strong>delete</strong> your data, and you can also email
+            us at{" "}
             <a href="mailto:info@barkfind.com" className="text-[#B74217] font-semibold hover:underline">info@barkfind.com</a>.
-            You have the right to complain to the Information Commissioner's Office (ICO) at{" "}
+            If you have not signed in, deleting the app ends your anonymous session, the anonymous record is removed
+            by the 30-day inactivity deletion described above, and you can email{" "}
+            <a href="mailto:info@barkfind.com" className="text-[#B74217] font-semibold hover:underline">info@barkfind.com</a>{" "}
+            to have it removed sooner. You have the right to complain to the Information Commissioner's Office (ICO)
+            at{" "}
             <a href="https://ico.org.uk" target="_blank" rel="noopener noreferrer" className="text-[#B74217] font-semibold hover:underline">ico.org.uk</a>.
           </p>
         </Section>
