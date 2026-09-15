@@ -1641,7 +1641,7 @@ async function loadCeStats(){
     const s=(await runSQL(`SELECT * FROM content_location_page_stats() -- ${Date.now()}`))[0]||{};
     const scope=await runSQL(`SELECT kind, value, label FROM content_geo_scope WHERE active ORDER BY value -- ${Date.now()}`);
     const scopeTxt=scope.map(r=>`${r.value} (${r.label||r.kind})`).join(', ')||'none';
-    document.getElementById('ceLocStats').innerHTML=`Scope: ${esc(scopeTxt)}.<br>${s.in_scope??'—'} places in scope · ${s.eligible??'—'} pass the quality floor (opening hours + verdict) · ${s.remaining??'—'} still without a page. Floor is 20 eligible: below that, runs refuse and log why. Batches of 25, best-known venues first.`;
+    document.getElementById('ceLocStats').innerHTML=`Scope: ${esc(scopeTxt)}.<br>${s.in_scope??'—'} places in scope · ${s.eligible??'—'} visitable venues pass the quality bar (opening hours + verdict) · ${s.areas_ready??'—'} areas have enough venues (5+) for a page · ${s.areas_remaining??'—'} still without one. One page per area, best-covered towns first, 5 areas per run. Below 20 eligible venues overall, runs refuse and log why.`;
   }catch(e){ document.getElementById('ceLocStats').textContent='Stats unavailable: '+(e.message||e); }
 }
 async function ceDryRunLocations(){
@@ -1654,7 +1654,7 @@ async function ceDryRunLocations(){
 }
 async function ceGenLocationPages(){
   const btn=document.getElementById('ceLocGenBtn'); const res=document.getElementById('ceLpResult');
-  if(btn && !btn.classList.contains('armed')){ btn.textContent='Confirm: draft up to 25 pages'; btn.classList.add('armed'); setTimeout(()=>{ if(btn){ btn.textContent='Generate next batch'; btn.classList.remove('armed'); } },4000); return; }
+  if(btn && !btn.classList.contains('armed')){ btn.textContent='Confirm: draft up to 5 area pages'; btn.classList.add('armed'); setTimeout(()=>{ if(btn){ btn.textContent='Generate next batch'; btn.classList.remove('armed'); } },4000); return; }
   if(btn){ btn.textContent='Generate next batch'; btn.classList.remove('armed'); }
   if(res) res.textContent='Generating… this can take a couple of minutes.';
   try{
