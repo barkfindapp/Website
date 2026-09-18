@@ -1,4 +1,5 @@
 import PageShell, { Section, Bullets } from "../components/PageShell";
+import { useSeo } from "../lib/seo";
 
 function Step({ n, title, children }: { n: number; title: string; children: React.ReactNode }) {
   return (
@@ -15,6 +16,12 @@ function Step({ n, title, children }: { n: number; title: string; children: Reac
 }
 
 export default function DeleteAccount() {
+  useSeo({
+    title: "Delete your account and data | BarkFind",
+    description:
+      "How to delete your BarkFind account and the personal data associated with it, from within the app or by contacting us.",
+    path: "/delete-account",
+  });
   return (
     <PageShell
       title="Delete your account & data"

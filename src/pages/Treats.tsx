@@ -1,4 +1,5 @@
 import PageShell, { Section } from "../components/PageShell";
+import { useSeo } from "../lib/seo";
 
 // Brand paw mark (matches the in-app rating / rewards icon)
 function PawMark({ className = "", color = "currentColor" }: { className?: string; color?: string }) {
@@ -82,6 +83,12 @@ function PlanCard({ plan, tiers }: { plan: string; tiers: { points: number; rewa
 }
 
 export default function Treats() {
+  useSeo({
+    title: "Treats: rewards for reviewing | BarkFind",
+    description:
+      "Earn treats for honest reviews on BarkFind and get a little back on your subscription. See how points and claims work on the monthly and annual plans.",
+    path: "/treats",
+  });
   return (
     <PageShell
       title="How Treats work"

@@ -5,6 +5,7 @@
 
 import { useEffect, useState } from "react";
 import PageShell from "../components/PageShell";
+import { useSeo } from "../lib/seo";
 
 function readOutcome(): "success" | "error" {
   if (typeof window === "undefined") return "success";
@@ -14,6 +15,12 @@ function readOutcome(): "success" | "error" {
 }
 
 export default function Confirmed() {
+  useSeo({
+    title: "Email confirmed | BarkFind",
+    description: "Your BarkFind email address has been confirmed.",
+    path: "/confirmed",
+    noindex: true,
+  });
   // Read once, synchronously, so the correct state renders on first paint.
   const [outcome] = useState(readOutcome);
 

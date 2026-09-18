@@ -1,4 +1,5 @@
 import PageShell, { Section, Bullets } from "../components/PageShell";
+import { useSeo } from "../lib/seo";
 
 function QA({ q, children }: { q: string; children: React.ReactNode }) {
   return (
@@ -10,6 +11,12 @@ function QA({ q, children }: { q: string; children: React.ReactNode }) {
 }
 
 export default function Support() {
+  useSeo({
+    title: "Support | BarkFind",
+    description:
+      "Get help with BarkFind: accounts, subscriptions, the free trial, reviews, saved places and Ask Mylo, plus how to contact us.",
+    path: "/support",
+  });
   return (
     <PageShell
       title="Help & Support"

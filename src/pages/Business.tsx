@@ -1,5 +1,6 @@
 import { useState } from "react";
 import PageShell, { Section } from "../components/PageShell";
+import { useSeo } from "../lib/seo";
 
 const BENEFITS = [
   {
@@ -123,6 +124,12 @@ function EnquiryForm() {
 }
 
 export default function Business() {
+  useSeo({
+    title: "List your business on BarkFind | For businesses",
+    description:
+      "Reach dog owners actively looking for dog-friendly places. Claim your BarkFind listing for free: cafes, pubs, restaurants, shops and more.",
+    path: "/business",
+  });
   return (
     <PageShell
       title="BarkFind for Businesses"

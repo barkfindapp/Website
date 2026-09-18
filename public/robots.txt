@@ -3,3 +3,5 @@
 # NOT via Disallow - a disallowed page can never be read to see the noindex.
 User-agent: *
 Allow: /
+
+Sitemap: https://www.barkfind.com/sitemap.xml

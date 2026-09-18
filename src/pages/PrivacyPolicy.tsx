@@ -2,8 +2,15 @@
 // Source: company-supplied draft.
 
 import PageShell, { Section } from "../components/PageShell";
+import { useSeo } from "../lib/seo";
 
 export default function PrivacyPolicy() {
+  useSeo({
+    title: "Privacy Policy | BarkFind",
+    description:
+      "How BarkFind collects, uses and protects your data under UK GDPR, including guest browsing, location, reviews and subscriptions.",
+    path: "/privacy",
+  });
   return (
     <PageShell title="Privacy Policy" meta="Last updated: 15 September 2026">
         <p className="text-[#444] leading-relaxed">

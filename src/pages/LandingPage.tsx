@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useSeo, organizationSchema, softwareApplicationSchema, faqSchema } from "../lib/seo";
 
 // TODO: replace with the real App Store listing URL once live.
 const APP_STORE_URL = "#download";
@@ -1329,6 +1330,13 @@ function Footer() {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function LandingPage() {
+  useSeo({
+    title: "BarkFind: Dog-friendly places, found in seconds.",
+    description:
+      "BarkFind is a UK app for finding dog-friendly places reviewed by dog owners: cafes, pubs, parks, restaurants and more on one map.",
+    path: "/",
+    jsonLd: [organizationSchema, softwareApplicationSchema, faqSchema(FAQ_ITEMS)],
+  });
   return (
     <div className="min-h-screen font-sans">
       <Nav />

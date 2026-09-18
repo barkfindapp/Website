@@ -3,8 +3,15 @@
 // Contact = info@barkfind.com.
 
 import PageShell, { Section, Bullets } from "../components/PageShell";
+import { useSeo } from "../lib/seo";
 
 export default function TermsOfUse() {
+  useSeo({
+    title: "Terms of Use | BarkFind",
+    description:
+      "The terms governing your use of the BarkFind app and website, including accounts, subscriptions, the free trial, reviews and rewards.",
+    path: "/terms",
+  });
   return (
     <PageShell title="Terms of Use" meta="Last updated: 15 September 2026">
         <p className="text-[#444] leading-relaxed">
