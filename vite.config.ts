@@ -3,8 +3,10 @@ import react from "@vitejs/plugin-react-swc";
 import { resolve } from "path";
 
 export default defineConfig({
-  // Relative base so the built site works from any GitHub Pages subpath
-  base: "./",
+  // Absolute base for the Vercel root-domain deploy. Required so prerendered
+  // sub-pages (e.g. /treats/index.html) reference /assets/... rather than a
+  // path relative to the sub-folder, which would 404.
+  base: "/",
   plugins: [react()],
   build: {
     rollupOptions: {
