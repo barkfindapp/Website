@@ -15,7 +15,6 @@ import { readFile, writeFile, mkdir, stat } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { join, extname, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import puppeteer from "puppeteer";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const DIST = join(__dirname, "..", "dist");
@@ -78,16 +77,35 @@ function startServer() {
   return new Promise((resolve) => server.listen(PORT, () => resolve(server)));
 }
 
+// Launch headless Chrome. On Vercel's Linux build container the full Puppeteer
+// download is unreliable and missing system libraries, so use a Lambda-grade
+// Chromium there. Locally, use the full Puppeteer that ships its own browser.
+async function launchBrowser() {
+  if (process.env.VERCEL) {
+    const [{ default: chromium }, { default: puppeteerCore }] = await Promise.all([
+      import("@sparticuz/chromium"),
+      import("puppeteer-core"),
+    ]);
+    return puppeteerCore.launch({
+      args: chromium.args,
+      executablePath: await chromium.executablePath(),
+      headless: chromium.headless,
+    });
+  }
+  const { default: puppeteer } = await import("puppeteer");
+  return puppeteer.launch({
+    headless: "new",
+    args: ["--no-sandbox", "--disable-setuid-sandbox"],
+  });
+}
+
 async function run() {
   if (!existsSync(join(DIST, "index.html"))) {
     throw new Error("dist/index.html not found. Run `vite build` before prerender.");
   }
 
   const server = await startServer();
-  const browser = await puppeteer.launch({
-    headless: "new",
-    args: ["--no-sandbox", "--disable-setuid-sandbox"],
-  });
+  const browser = await launchBrowser();
 
   try {
     for (const route of ROUTES) {
