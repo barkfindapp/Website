@@ -1197,7 +1197,7 @@ function EarlyAccessForm({
           {status === "duplicate" ? "You're already on the list, nice one." : "You're on the list! 🐾"}
         </p>
         <p className="text-white/80 text-sm leading-relaxed">
-          We'll email you the moment BarkFind launches, with your founding-member offer. Founding pricing is limited to 500 members, so keep an eye on your inbox.
+          We'll email you the moment BarkFind launches, with your founding-member offer. Founding pricing is limited to 100 members, so keep an eye on your inbox.
         </p>
       </div>
     );
@@ -1247,13 +1247,13 @@ function DownloadCTA() {
           Be first through the door
         </h2>
         <p className="text-white/80 text-lg mb-8 leading-relaxed">
-          BarkFind launches on iPhone soon. Join early access for first shot at founding-member pricing, your first year for <strong className="text-white">£19.99</strong> instead of £39.99. Limited to our first <strong className="text-white">500 members</strong>.
+          BarkFind launches on iPhone soon. Join early access for first shot at founding-member pricing, your first year for <strong className="text-white">£19.99</strong> instead of £39.99. Limited to our first <strong className="text-white">100 members</strong>.
         </p>
 
         <EarlyAccessForm platform="ios" buttonLabel="Get early access" />
 
         <p className="text-white/55 text-xs mt-4 max-w-md mx-auto leading-relaxed">
-          First shot at the offer, not a guaranteed slot (we may pass 500), and it arrives when we launch, not today. No spam, unsubscribe any time.
+          First shot at the offer, not a guaranteed slot (we may pass 100), and it arrives when we launch, not today. No spam, unsubscribe any time.
         </p>
 
         {/* Android, same list, tagged android */}
