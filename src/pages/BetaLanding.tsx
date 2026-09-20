@@ -248,7 +248,7 @@ const SCREENS = [
     id: "dogprofile",
     label: "Dog Profile",
     title: "A profile built around your dog",
-    description: "Add breed, age, weight, and temperament. Premium members unlock advanced fields, behaviour with humans, reaction to wildlife, noise sensitivity, and more.",
+    description: "Add breed, age, weight and temperament, plus how your dog behaves with people, reacts to wildlife and copes with noise. Your dog's profile is free, and it is what our recommendations are matched to.",
     image: "/screen-dogprofile.png",
   },
 ];
@@ -879,14 +879,22 @@ const YEAR_AT_MONTHLY = MONTHLY_PRICE * 12;
 const SAVE_PCT = Math.round(((YEAR_AT_MONTHLY - ANNUAL_PRICE) / YEAR_AT_MONTHLY) * 100);
 const MONTHS_FREE = Math.floor((YEAR_AT_MONTHLY - ANNUAL_PRICE) / MONTHLY_PRICE);
 
+// Free, and stays free: browsing, reading and writing reviews, your dog's profile,
+// and anything already saved. None of this needs a subscription.
+const FREE_FEATURES = [
+  "Browse the map and open any place, with its amenities, opening hours, the venue's own dog policy and official council restrictions",
+  "Read community reviews and paw ratings",
+  "Write your own reviews and add photos",
+  "Your dog's profile",
+  "Every spot you have already saved stays yours, even if you never subscribe",
+];
+
+// The four premium features (from the app's PremiumGate): search, mylo, save,
+// recommendations. Shared by both paid plans; Mylo's allowance differs by plan.
 const SHARED_FEATURES = [
-  "Full access to all BarkFind features",
-  "Interactive map with paw-pin locations",
-  "Advanced filters (off-lead, water access & more)",
-  "Keep saving new places",
-  "Dog profile & personalised recommendations",
-  "Community reviews, photos & paw ratings",
-  "Real-time nearby alerts",
+  "Search built around your dog, not just what's nearby",
+  "Save new spots as you find them",
+  "Recommendations matched to your dog's temperament, size and how they cope indoors",
 ];
 
 const PLANS = [
@@ -894,14 +902,14 @@ const PLANS = [
     name: "Monthly",
     price: `£${MONTHLY_PRICE.toFixed(2)}`,
     period: "per month",
-    description: "Full access, cancel anytime.",
+    description: "Cancel anytime.",
     highlight: false,
     badge: null,
     saving: null,
     features: [
       ...SHARED_FEATURES.map((text) => ({ text, strong: false })),
-      { text: "Ask Mylo, your AI dog-friendly guide", strong: false },
-      { text: "Review rewards, earn points for discounts", strong: true, href: "/treats" },
+      { text: "Ask Mylo: 15 questions a day", strong: false },
+      { text: "Review rewards: earn points for discounts", strong: true, href: "/treats" },
     ],
   },
   {
@@ -914,8 +922,8 @@ const PLANS = [
     saving: `~${MONTHS_FREE} months free`,
     features: [
       ...SHARED_FEATURES.map((text) => ({ text, strong: false })),
-      { text: "Ask Mylo, four times the daily searches", strong: true },
-      { text: "Review rewards, one claim per account", strong: true, href: "/treats" },
+      { text: "Ask Mylo: 60 questions a day", strong: true },
+      { text: "Review rewards: one claim per account", strong: true, href: "/treats" },
     ],
   },
 ];
@@ -929,7 +937,24 @@ function Pricing() {
           <h2 className="font-serif text-3xl md:text-4xl lg:text-5xl text-[#1a1a1a] mb-5">
             Simple, transparent pricing
           </h2>
-          <p className="text-lg text-[#585858] max-w-xl mx-auto">When BarkFind launches, start with a 14-day free trial, cancel anytime before it renews.</p>
+          <p className="text-lg text-[#585858] max-w-xl mx-auto">Browsing and reading are free. When BarkFind launches, a subscription adds search, Ask Mylo and more, starting with a 14-day free trial you can cancel anytime before it renews.</p>
+        </div>
+
+        {/* Free, and stays free */}
+        <div className="rounded-2xl bg-white border border-stone-100 shadow-sm shadow-stone-100 p-6 sm:p-8 mb-8">
+          <p className="text-xs font-bold uppercase tracking-widest text-[#4FA4A1] mb-1">Free, and it stays free</p>
+          <p className="text-sm text-[#585858] mb-5">No account or subscription needed for any of this.</p>
+          <ul className="grid sm:grid-cols-2 gap-x-8 gap-y-2.5">
+            {FREE_FEATURES.map((text) => (
+              <li key={text} className="flex items-start gap-2.5 text-sm text-[#1a1a1a]">
+                <svg className="w-4 h-4 mt-0.5 flex-shrink-0 text-[#4FA4A1]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                </svg>
+                <span>{text}</span>
+              </li>
+            ))}
+          </ul>
+          <p className="text-sm text-[#585858] mt-5">New here? You get one free go at the premium features before they lock, so you can try before you subscribe. Your saved spots and your own reviews stay yours, always, even if you stop paying.</p>
         </div>
 
         {/* Trial banner */}
@@ -941,7 +966,7 @@ function Pricing() {
           </div>
           <div>
             <p className="font-bold text-[#1a1a1a] text-base">14-day free trial, full access, every feature</p>
-            <p className="text-sm text-[#585858] mt-0.5">The trial is card-gated through Apple: add a payment method to start, pay £0 up front, and it auto-renews into your plan after 14 days unless you cancel.</p>
+            <p className="text-sm text-[#585858] mt-0.5">Pay nothing for 14 days. It becomes a paid plan when the trial ends, unless you cancel first. During the trial you get the full annual Ask Mylo allowance, so you can try BarkFind at its best.</p>
           </div>
         </div>
 
@@ -1026,7 +1051,7 @@ function Pricing() {
           ))}
         </div>
 
-        <p className="text-center text-xs text-[#8a857c] max-w-2xl mx-auto">Mylo AI: 15 searches a day on monthly, 60 a day on annual. Fair-use limits apply. Your saved spots stay yours either way.</p>
+        <p className="text-center text-xs text-[#8a857c] max-w-2xl mx-auto">Ask Mylo: 60 questions a day on annual and during the trial, 15 a day on monthly, counted over a rolling 30 days rather than a calendar month. Fair-use limits apply. Your saved spots and your own reviews stay yours either way.</p>
         <p className="text-center text-sm text-[#585858] mt-4">Prices apply when BarkFind launches on iPhone · Founding members get their first year for £19.99</p>
       </div>
     </section>
