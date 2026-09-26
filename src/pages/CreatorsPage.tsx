@@ -27,14 +27,15 @@ export default function CreatorsPage() {
 
       <Section title="What we are asking for">
         <p>
-          An honest post. You have followers who own dogs and trust what you say about where you take yours.
-          We would like you to try BarkFind with your own dog, in your own area, and tell them what you found.
-          If it fell short somewhere, say so. A post that reads like an advert does worse for both of us than
-          one that reads like you.
+          An honest post. You have followers who own dogs, and they trust what you say about where you take
+          yours. We would like you to try BarkFind with your own dog, in your own area, and tell them what you
+          found. If it fell short somewhere, say so. A post that reads like an advert does worse for both of us
+          than one that reads like you.
         </p>
         <p>
-          We do not script posts, approve scripts or ask for edits, with one exception in the section on what
-          not to say.
+          We do not script posts, approve scripts or ask for edits, with one exception in the section below
+          on{" "}
+          <a href="#what-not-to-say" className="text-[#B74217] font-semibold hover:underline">what not to say</a>.
         </p>
       </Section>
 
@@ -105,6 +106,7 @@ export default function CreatorsPage() {
         </p>
       </Section>
 
+      <div id="what-not-to-say" className="scroll-mt-24">
       <Section title="What not to say">
         <p>Three things, because each one turns into a refund request or a complaint.</p>
         <Bullets
@@ -124,6 +126,7 @@ export default function CreatorsPage() {
           ]}
         />
       </Section>
+      </div>
 
       <Section title="What we give you">
         <p>
