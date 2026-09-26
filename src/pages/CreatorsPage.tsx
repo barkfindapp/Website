@@ -1,5 +1,6 @@
 import { useState } from "react";
 import PageShell, { Section, Bullets } from "../components/PageShell";
+import StoryBand from "../components/StoryBand";
 import { useSeo } from "../lib/seo";
 
 // The public-facing creator programme page. Not linked from anywhere and not
@@ -191,6 +192,24 @@ export default function CreatorsPage() {
           spelling of Mylo.
         </p>
       </Section>
+
+      {/* Who you are working with: the shared rust StoryBand (from the beta "Meet
+          Mylo" band), full-bleed so it spans the viewport inside PageShell's column.
+          mt-14 gives the same top gap the terms band has. */}
+      <div className="mt-14 relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen">
+        <StoryBand
+          label="Who you are working with"
+          paragraphs={[
+            <p>I am Josh. I built BarkFind from Weston-super-Mare with two dogs, Mylo and Ralph, and one too many afternoons cut short because the only free table was the one by the door.</p>,
+            <p>The Mylo in the app is named after the real one.</p>,
+            <p>There is no team, no office and no investor. It is me, a laptop, and twelve months of evenings and weekends, which is also why the terms below are short and the email gets answered.</p>,
+          ]}
+          photos={[
+            { alt: "Josh with both dogs on the beach", src: "/media/creator-josh.jpg", placeholderLabel: "Photo of Josh with both dogs" },
+            { alt: "Mylo the Vizsla out on the beach", src: "/media/creator-mylo.jpg", placeholderLabel: "Photo of Mylo out and about" },
+          ]}
+        />
+      </div>
 
       <Section title="Get in touch">
         <p>
