@@ -110,6 +110,16 @@ export default function PrivacyPolicy() {
           </p>
         </Section>
 
+        <Section title="Analytics on our website">
+          <p>
+            This section is about the barkfind.com website only, and is separate from the app data described
+            above. The website uses Plausible, a cookieless analytics service hosted in the EU, to understand how
+            the site is used. It records the page visited, the site you came from, your browser type and your
+            country. It sets no cookies, does not identify you, and no email address or other personal data is
+            sent to it.
+          </p>
+        </Section>
+
         <Section title="How long we keep it">
           <p>
             We keep your account data for as long as your account is active. If you delete your account, we delete

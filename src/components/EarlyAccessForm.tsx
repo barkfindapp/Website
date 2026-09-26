@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { track } from "../lib/analytics";
 
 // Shared early-access email capture. Writes to the unified waitlist (Supabase
 // public.early_access) via /api/early-access, tagged by platform.
@@ -30,6 +31,9 @@ export default function EarlyAccessForm({
       });
       const data = await res.json().catch(() => ({}));
       if (res.ok) {
+        // Fires from the homepage and the creator page alike; the page filter
+        // separates them. No data attached (Starter plan has no event props).
+        track("Early Access Submit");
         setStatus(data.duplicate ? "duplicate" : "success");
       } else {
         setErrorMsg(data.error || "Something went wrong. Please try again.");

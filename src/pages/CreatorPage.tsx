@@ -1,18 +1,19 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import PageShell from "../components/PageShell";
 import EarlyAccessForm from "../components/EarlyAccessForm";
 import { useSeo } from "../lib/seo";
 import { isAndroid } from "../lib/platform";
 import { LAUNCHED } from "../data/launch";
 import { CREATORS, type Creator } from "../data/creators";
+import { track } from "../lib/analytics";
 
-// The tracker for this page is the creator's Apple offer code, counted as
-// redemptions in App Store Connect and filtered by code. There is no
+// The primary tracker for this page is the creator's Apple offer code, counted
+// as redemptions in App Store Connect and filtered by code. There is no
 // website-side attribution and none is wanted: RevenueCat attribution is not
 // wired and the Apple redeem URL carries no campaign parameters. Do not
 // "improve" this by bolting tracking params onto the redeem link; the code is
-// the tracker. Page-view analytics would be a nice secondary metric but the
-// site loads no analytics, so none is fired here (reported as a gap).
+// the tracker. Plausible events below are a secondary reach metric only,
+// filtered by page (the slug is in the URL); no data is attached to any event.
 const APP_STORE_ID = "6782144377";
 const redeemUrl = (code: string) =>
   `https://apps.apple.com/redeem?ctx=offercodes&id=${APP_STORE_ID}&code=${code}`;
@@ -22,6 +23,7 @@ function CodeBlock({ code }: { code: string }) {
   const codeRef = useRef<HTMLSpanElement>(null);
 
   const onCopy = async () => {
+    track("Creator Code Copied"); // fires on both the clipboard and fallback paths
     try {
       await navigator.clipboard.writeText(code);
       setCopied(true);
@@ -89,6 +91,11 @@ function CreatorContent({ creator }: { creator: Creator }) {
     path: `/with/${creator.slug}`,
     noindex: true,
   });
+  // Reach metric: one page view per active creator page. Filtered by page in
+  // the dashboard, so /with/jenny is Jenny's number. No data attached.
+  useEffect(() => {
+    track("Creator Page View");
+  }, []);
   const android = isAndroid();
 
   return (
@@ -122,6 +129,7 @@ function CreatorContent({ creator }: { creator: Creator }) {
               ) : (
                 <a
                   href={redeemUrl(creator.offerCode)}
+                  onClick={() => track("Creator Store Click")}
                   className="block text-center px-6 py-4 rounded-full bg-rust text-white font-bold hover:opacity-90 transition-opacity"
                 >
                   Get the app with {creator.displayName}'s code
