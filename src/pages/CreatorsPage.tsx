@@ -33,9 +33,8 @@ export default function CreatorsPage() {
           than one that reads like you.
         </p>
         <p>
-          We do not script posts, approve scripts or ask for edits, with one exception in the section below
-          on{" "}
-          <a href="#what-not-to-say" className="text-[#B74217] font-semibold hover:underline">what not to say</a>.
+          We do not script posts, approve scripts, or ask for edits, with one exception found below in{" "}
+          <a href="#what-not-to-say" className="text-[#B74217] font-semibold hover:underline">What not to say</a>.
         </p>
       </Section>
 
