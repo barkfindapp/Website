@@ -209,7 +209,7 @@ export default function CreatorsPage() {
           label="Who you are working with"
           paragraphs={[
             <p>I am Josh. I built BarkFind from Weston-super-Mare with two dogs, Mylo and Ralph, and one too many afternoons cut short because the only free table was the one by the door.</p>,
-            <p>The Mylo in the app is named after the real one.</p>,
+            <p>The Mylo in the app is named after the real one: my first dog, a Hungarian Vizsla who is very particular about his ideal location.</p>,
             <p>There is no team, no office and no investor. It is me, a laptop, and twelve months of evenings and weekends, which is also why the terms below are short and the email gets answered.</p>,
           ]}
           photos={[
