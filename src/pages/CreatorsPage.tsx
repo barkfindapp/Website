@@ -59,7 +59,7 @@ export default function CreatorsPage() {
 
   return (
     <PageShell eyebrow="Working with BarkFind" title="Creators">
-      <Section title="The problem we are fixing">
+      <Section title="Dog friendly, done differently">
         <p>
           Most "dog friendly" is a guess. A pub that lets dogs in the garden but not the bar. A beach with
           a summer ban nobody mentioned. A café that was fine last year and is not now. BarkFind checks the
@@ -69,7 +69,7 @@ export default function CreatorsPage() {
         <p>We launch on iPhone on 13 October 2026, UK only. Android is planned but not built.</p>
       </Section>
 
-      <Section title="What we are asking for">
+      <Section title="How you can help">
         <p>
           An honest post. You have followers who own dogs, and they trust what you say about where you take
           yours. We would like you to try BarkFind with your own dog, in your own area, and tell them what you
@@ -93,16 +93,21 @@ export default function CreatorsPage() {
                 <span className="text-xs font-bold uppercase tracking-widest text-[#B74217]">Their offer</span>
                 <span className="w-1.5 h-1.5 rounded-full bg-[#B74217]" />
               </div>
-              <p className="font-bold text-base mb-1 text-[#1a1a1a]">20% off their first year</p>
+              <p className="font-bold text-base mb-1 text-[#1a1a1a]">20% off their first Annual Premium subscription</p>
               <p className="text-sm text-[#585858] leading-relaxed mt-2">
                 £31.99 instead of £39.99, after a 14 day free trial. Then £39.99 a year unless they cancel.
               </p>
             </div>
-            <p>
-              Premium is the full app: dog-matched search, Ask Mylo, saving spots and recommendations matched
-              to their dog. Browsing the map, opening any place and reading its dog policy and restrictions is
-              free for everyone, with or without a subscription.
-            </p>
+            <p className="font-semibold text-[#1a1a1a]">BarkFind Premium gives users:</p>
+            <Bullets
+              items={[
+                "Search built around their dog, not just what's nearby",
+                "Save new spots as they find them",
+                "Recommendations matched to their dog's temperament, size and how they cope indoors",
+                "Ask Mylo: 60 questions a day",
+                "Browsing the map, opening any place and reading its dog policy and restrictions is free for everyone, with or without a subscription.",
+              ]}
+            />
           </div>
           {/* Reused from the homepage app showcase (SCREENS "Discover" tab), same flat
               drop-shadow treatment PhoneShot uses, at the homepage's w-60. */}
@@ -161,7 +166,7 @@ export default function CreatorsPage() {
 
       <div id="what-not-to-say" className="scroll-mt-24">
       <Section title="What not to say">
-        <p>Three things, because each one turns into a refund request or a complaint.</p>
+        <p>Three things, because each one could turn into a refund request or a complaint.</p>
         <Bullets
           items={[
             <>
@@ -169,12 +174,15 @@ export default function CreatorsPage() {
               £39.99 unless cancelled.
             </>,
             <>
-              Do not mention points, treats or rewards. They exist, they are for existing users, and they are
-              not part of your offer.
+              Treats, the points people earn for honest reviews, are a real feature and you are welcome to show
+              them. Just keep them separate from your discount. "Reviews earn treats" is fine; "use my code and
+              earn treats" is not, because the code has nothing to do with them.
             </>,
             <>
-              Do not promise BarkFind covers everywhere. It covers a lot of the UK and some places are thin.
-              "Check your area" is honest; "every pub in Britain" is not.
+              Do not promise BarkFind covers everywhere. It covers a lot of the UK and some places are thin, and
+              that is worth saying out loud: it is built by the people who use it. If somewhere is missing,
+              recommend it in the app's settings area, or get in touch with us directly, and it gets added once
+              checked. "Check your area, and add what is missing" is honest; "every pub in Britain" is not.
             </>,
           ]}
         />
@@ -184,8 +192,8 @@ export default function CreatorsPage() {
       <Section title="What we give you">
         <p>
           Founding creator credit on our site when the programme goes public. Early access to new features
-          before they ship, and a direct line to the person building it. A say in what gets built next, because
-          you hear from dog owners we do not.
+          before they go live, and a direct line to the person building it. A say in what gets built next,
+          because we value your outreach.
         </p>
         <p>
           Assets on request: the app icon, screenshots, a short description in our words and the correct
