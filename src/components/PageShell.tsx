@@ -185,12 +185,19 @@ export default function PageShell({
   title,
   subtitle,
   meta,
+  eyebrow,
+  compact,
   children,
   maxWidth = "max-w-3xl",
 }: {
   title: string;
   subtitle?: string;
   meta?: string;
+  // Small kicker line above the h1 (used by the creator pages). Undefined = not rendered.
+  eyebrow?: string;
+  // Tighter hero/body padding and a smaller phone h1, so a short page fits one phone
+  // screen (used by the creator pages). Undefined = the default spacing below, unchanged.
+  compact?: boolean;
   children: React.ReactNode;
   maxWidth?: string;
 }) {
@@ -202,15 +209,18 @@ export default function PageShell({
 
       {/* Hero strip */}
       <div className="bg-[#FAEFD1]">
-        <div className={`${maxWidth} mx-auto px-6 py-14`}>
-          <h1 className="font-serif text-4xl md:text-5xl text-[#1a1a1a] mb-3">{title}</h1>
+        <div className={`${maxWidth} mx-auto px-6 ${compact ? "py-7" : "py-14"}`}>
+          {eyebrow && (
+            <p className="text-sm font-bold uppercase tracking-widest text-rust mb-2">{eyebrow}</p>
+          )}
+          <h1 className={`font-serif ${compact ? "text-3xl md:text-5xl" : "text-4xl md:text-5xl"} text-[#1a1a1a] mb-3`}>{title}</h1>
           {subtitle && <p className="text-lg text-[#585858] max-w-2xl leading-relaxed">{subtitle}</p>}
           {meta && <p className="text-sm text-[#585858] font-semibold">{meta}</p>}
         </div>
       </div>
 
       {/* Body */}
-      <main className={`${maxWidth} mx-auto px-6 py-14`}>{children}</main>
+      <main className={`${maxWidth} mx-auto px-6 ${compact ? "py-7" : "py-14"}`}>{children}</main>
 
       {/* Footer */}
       <footer className="bg-[#1a1a1a] text-white/50 py-10">
