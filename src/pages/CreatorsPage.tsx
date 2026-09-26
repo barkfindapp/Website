@@ -209,7 +209,7 @@ export default function CreatorsPage() {
           <ol className="flex flex-col gap-4 list-decimal pl-6 marker:font-bold marker:text-[#1a1a1a]">
             <li>
               Payment is per confirmed subscriber: someone who redeems your code, completes the free trial and
-              pays for the first year. Apple's report of redemptions is the count we both use. Downloads, trial
+              pays for the first year, at £{PAY.fee} each. Apple's report of redemptions is the count we both use. Downloads, trial
               starts, cancellations during the trial and refunds do not count.
             </li>
             <li>
@@ -217,7 +217,7 @@ export default function CreatorsPage() {
               The first-post guarantee is paid with the first monthly payment.
             </li>
             <li>
-              Your code carries a redemption cap. Once it is reached, further redemptions are not possible until
+              Your code carries a redemption cap of {PAY.cap}. Once it is reached, further redemptions are not possible until
               we raise it, which we will do together, in writing.
             </li>
             <li>
