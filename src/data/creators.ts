@@ -9,4 +9,12 @@ export type Creator = {
   active: boolean; // false = not-found card
 };
 
-export const CREATORS: Creator[] = [];
+export const CREATORS: Creator[] = [
+  {
+    slug: "jenny",
+    displayName: "Jenny",
+    handle: "@jennoid",
+    offerCode: "JENNY20",
+    active: true,
+  },
+];
