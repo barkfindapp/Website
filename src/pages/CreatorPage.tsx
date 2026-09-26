@@ -109,9 +109,21 @@ function CreatorContent({ creator }: { creator: Creator }) {
             (£31.99 vs £39.99), hardcoded here. If codes ever differ, add a field to Creator. */}
         <p className="text-ink/75 leading-relaxed">
           BarkFind checks the dog policy, the council restrictions and what other owners found when they
-          turned up, so you know before you set off. {creator.displayName}'s link gets you 20% off: your
-          first year for £31.99 instead of £39.99, after a 14 day free trial.
+          turned up, so you know before you set off.
         </p>
+
+        {/* Offer card: reuses the homepage "See it in action" active-tab card style
+            (AppShowcase active state): cream fill, rust border, small-caps rust label. */}
+        <div className="mt-6 rounded-2xl px-6 py-5 border bg-[#FAEFD1] border-[#B74217]/20 shadow-sm">
+          <div className="flex items-center gap-3 mb-1">
+            <span className="text-xs font-bold uppercase tracking-widest text-[#B74217]">Your offer</span>
+            <span className="w-1.5 h-1.5 rounded-full bg-[#B74217]" />
+          </div>
+          <p className="font-bold text-base mb-1 text-[#1a1a1a]">20% off your first year</p>
+          <p className="text-sm text-[#585858] leading-relaxed mt-2">
+            £31.99 instead of £39.99, after a 14 day free trial. Then £39.99 a year unless you cancel.
+          </p>
+        </div>
 
         {LAUNCHED ? (
           <>
@@ -147,8 +159,7 @@ function CreatorContent({ creator }: { creator: Creator }) {
         )}
 
         <p className="mt-4 text-xs text-ink/60 leading-relaxed">
-          iPhone only for now. First year at £31.99, then £39.99 a year unless you cancel. Cancel any time
-          during the free trial and you pay nothing.
+          iPhone only for now. Cancel any time during the free trial and you pay nothing.
         </p>
       </div>
     </PageShell>
