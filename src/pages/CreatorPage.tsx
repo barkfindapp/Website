@@ -98,10 +98,12 @@ function CreatorContent({ creator }: { creator: Creator }) {
       title="Somewhere your dog is actually welcome, not just tolerated"
     >
       <div className="max-w-md">
+        {/* All creator codes currently share one price: 20% off the annual plan
+            (£31.99 vs £39.99), hardcoded here. If codes ever differ, add a field to Creator. */}
         <p className="text-ink/75 leading-relaxed">
           BarkFind checks the dog policy, the council restrictions and what other owners found when they
-          turned up, so you know before you set off. {creator.displayName}'s link gets you the
-          founding-member price: your first year for £19.99 instead of £39.99, after a 14 day free trial.
+          turned up, so you know before you set off. {creator.displayName}'s link gets you 20% off: your
+          first year for £31.99 instead of £39.99, after a 14 day free trial.
         </p>
 
         {LAUNCHED ? (
@@ -137,7 +139,7 @@ function CreatorContent({ creator }: { creator: Creator }) {
         )}
 
         <p className="mt-4 text-xs text-ink/60 leading-relaxed">
-          iPhone only for now. First year at £19.99, then £39.99 a year unless you cancel. Cancel any time
+          iPhone only for now. First year at £31.99, then £39.99 a year unless you cancel. Cancel any time
           during the free trial and you pay nothing.
         </p>
       </div>
