@@ -39,15 +39,26 @@ export default function CreatorsPage() {
       </Section>
 
       <Section title="What your followers get">
-        <p>
-          20% off their first year of BarkFind Premium: £31.99 instead of £39.99, after a 14 day free trial.
-          The trial is free and can be cancelled before it ends with nothing to pay.
-        </p>
-        <p>
-          Premium is the full app: dog-matched search, Ask Mylo, saving spots and recommendations matched to
-          their dog. Browsing the map, opening any place and reading its dog policy and restrictions is free
-          for everyone, with or without a subscription.
-        </p>
+        <div className="flex flex-col sm:flex-row gap-6 sm:gap-8 sm:items-center">
+          <div className="flex flex-col gap-4">
+            <p>
+              20% off their first year on the annual plan: £31.99 instead of £39.99, after a 14 day free
+              trial. The trial is free and can be cancelled before it ends with nothing to pay.
+            </p>
+            <p>
+              Premium is the full app: dog-matched search, Ask Mylo, saving spots and recommendations matched
+              to their dog. Browsing the map, opening any place and reading its dog policy and restrictions is
+              free for everyone, with or without a subscription.
+            </p>
+          </div>
+          {/* Reused from the homepage app showcase (SCREENS "Discover" tab), same
+              flat drop-shadow treatment PhoneShot uses. */}
+          <img
+            src="/media/showcase-discover.png"
+            alt="BarkFind map screen showing dog-friendly places with paw pins"
+            className="w-56 sm:w-64 flex-shrink-0 mx-auto drop-shadow-2xl"
+          />
+        </div>
       </Section>
 
       <Section title="How it works">
@@ -120,10 +131,18 @@ export default function CreatorsPage() {
           before they ship, and a direct line to the person building it. A say in what gets built next, because
           you hear from dog owners we do not.
         </p>
-        <p>
-          Assets on request: the app icon, screenshots, a short description in our words and the correct
-          spelling of Mylo.
-        </p>
+        <div className="flex items-center gap-4">
+          {/* The square brand mark used as the site favicon (public/barkfind-paw-logo.png). */}
+          <img
+            src="/barkfind-paw-logo.png"
+            alt="BarkFind app icon"
+            className="w-16 h-16 flex-shrink-0 object-contain"
+          />
+          <p>
+            Assets on request: the app icon, screenshots, a short description in our words and the correct
+            spelling of Mylo.
+          </p>
+        </div>
       </Section>
 
       <Section title="Get in touch">
