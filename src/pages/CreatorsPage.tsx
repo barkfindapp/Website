@@ -39,24 +39,33 @@ export default function CreatorsPage() {
       </Section>
 
       <Section title="What your followers get">
-        <div className="flex flex-col sm:flex-row gap-6 sm:gap-8 sm:items-center">
+        {/* Two columns like the homepage AppShowcase (text left, phone right), top-aligned
+            so the content starts level with the top of the phone. Stacks on mobile. */}
+        <div className="flex flex-col sm:flex-row gap-8 sm:items-start">
           <div className="flex flex-col gap-4">
-            <p>
-              20% off their first year on the annual plan: £31.99 instead of £39.99, after a 14 day free
-              trial. The trial is free and can be cancelled before it ends with nothing to pay.
-            </p>
+            {/* Same offer card as the /with/ page: cream fill, rust border, small-caps label. */}
+            <div className="rounded-2xl px-6 py-5 border bg-[#FAEFD1] border-[#B74217]/20 shadow-sm">
+              <div className="flex items-center gap-3 mb-1">
+                <span className="text-xs font-bold uppercase tracking-widest text-[#B74217]">Their offer</span>
+                <span className="w-1.5 h-1.5 rounded-full bg-[#B74217]" />
+              </div>
+              <p className="font-bold text-base mb-1 text-[#1a1a1a]">20% off their first year</p>
+              <p className="text-sm text-[#585858] leading-relaxed mt-2">
+                £31.99 instead of £39.99, after a 14 day free trial. Then £39.99 a year unless they cancel.
+              </p>
+            </div>
             <p>
               Premium is the full app: dog-matched search, Ask Mylo, saving spots and recommendations matched
               to their dog. Browsing the map, opening any place and reading its dog policy and restrictions is
               free for everyone, with or without a subscription.
             </p>
           </div>
-          {/* Reused from the homepage app showcase (SCREENS "Discover" tab), same
-              flat drop-shadow treatment PhoneShot uses. */}
+          {/* Reused from the homepage app showcase (SCREENS "Discover" tab), same flat
+              drop-shadow treatment PhoneShot uses, at the homepage's w-60. */}
           <img
             src="/media/showcase-discover.png"
             alt="BarkFind map screen showing dog-friendly places with paw pins"
-            className="w-56 sm:w-64 flex-shrink-0 mx-auto drop-shadow-2xl"
+            className="w-60 flex-shrink-0 mx-auto drop-shadow-2xl"
           />
         </div>
       </Section>
@@ -133,18 +142,10 @@ export default function CreatorsPage() {
           before they ship, and a direct line to the person building it. A say in what gets built next, because
           you hear from dog owners we do not.
         </p>
-        <div className="flex items-center gap-4">
-          {/* The square brand mark used as the site favicon (public/barkfind-paw-logo.png). */}
-          <img
-            src="/barkfind-paw-logo.png"
-            alt="BarkFind app icon"
-            className="w-16 h-16 flex-shrink-0 object-contain"
-          />
-          <p>
-            Assets on request: the app icon, screenshots, a short description in our words and the correct
-            spelling of Mylo.
-          </p>
-        </div>
+        <p>
+          Assets on request: the app icon, screenshots, a short description in our words and the correct
+          spelling of Mylo.
+        </p>
       </Section>
 
       <Section title="Get in touch">
