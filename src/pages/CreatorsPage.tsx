@@ -1,5 +1,6 @@
 import { useState } from "react";
 import PageShell, { Section, Bullets } from "../components/PageShell";
+import StoryBand from "../components/StoryBand";
 import { useSeo } from "../lib/seo";
 
 // The public-facing creator programme page. Not linked from anywhere and not
@@ -191,6 +192,22 @@ export default function CreatorsPage() {
           spelling of Mylo.
         </p>
       </Section>
+
+      {/* Who you are working with: the shared rust StoryBand (from the beta "Meet
+          Mylo" band), full-bleed so it spans the viewport inside PageShell's column.
+          HELD: the Josh paragraph and both photos are placeholders until supplied. */}
+      <div className="relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen">
+        <StoryBand
+          label="Who you are working with"
+          paragraphs={[
+            <p className="text-white/60 italic">[ Josh paragraph to be supplied ]</p>,
+          ]}
+          photos={[
+            { alt: "Josh with both dogs", placeholderLabel: "Photo of Josh with both dogs" },
+            { alt: "Mylo out and about", placeholderLabel: "Photo of Mylo out and about" },
+          ]}
+        />
+      </div>
 
       <Section title="Get in touch">
         <p>
