@@ -7,6 +7,7 @@ import DeleteAccount from "./pages/DeleteAccount";
 import Business from "./pages/Business";
 import Treats from "./pages/Treats";
 import Confirmed from "./pages/Confirmed";
+import CreatorsPage from "./pages/CreatorsPage";
 import { lazy, Suspense } from "react";
 
 // Lazy so the creator config (offer codes in src/data/creators.ts) ships in its
@@ -23,6 +24,7 @@ const ROUTES: Record<string, () => JSX.Element> = {
   "/business": Business,
   "/treats": Treats,
   "/confirmed": Confirmed,
+  "/creators": CreatorsPage,
 };
 
 export default function App() {
