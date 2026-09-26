@@ -7,9 +7,10 @@ import { useSeo } from "../lib/seo";
 // change is adding a nav link and removing noindex. Static page, no data file,
 // no code, no slug.
 
-// Single source of truth for the pay numbers (GBP), used by both the prose and
-// the earnings calculator so the page cannot disagree with itself.
-const PAY = { fee: 4, floor: 50, cap: 50 };
+// Single source of truth for the programme numbers, used by the prose, the
+// earnings calculator and the terms so the page cannot disagree with itself.
+// fee/floor/cap are GBP; notice is days.
+const PAY = { fee: 4, floor: 50, cap: 50, notice: 7 };
 
 // Earnings calculator: React state only, no dependency, no form, nothing sent.
 function EarningsCalculator() {
@@ -197,6 +198,65 @@ export default function CreatorsPage() {
           One person reads it and it is the same person who built the app.
         </p>
       </Section>
+
+      {/* Full-bleed cream band matching the PageShell hero; content stays in the
+          standard max-w-3xl column. The break-out escapes PageShell's content column. */}
+      <section className="mt-14 -mb-14 bg-[#FAEFD1] relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen">
+        <div className="max-w-3xl mx-auto px-6 py-14 text-[#444] leading-relaxed">
+          <p className="text-sm font-bold uppercase tracking-widest text-[#B74217] mb-2">Terms</p>
+          <h2 className="font-serif text-2xl md:text-3xl text-[#1a1a1a] mb-4">The terms</h2>
+          <p className="mb-6">The short version of the agreement, written so it can be read in two minutes.</p>
+          <ol className="flex flex-col gap-4 list-decimal pl-6 marker:font-bold marker:text-[#1a1a1a]">
+            <li>
+              Payment is per confirmed subscriber: someone who redeems your code, completes the free trial and
+              pays for the first year. Apple's report of redemptions is the count we both use. Downloads, trial
+              starts, cancellations during the trial and refunds do not count.
+            </li>
+            <li>
+              Payment is made monthly, in arrears, by bank transfer, within 14 days of the end of each month.
+              The first-post guarantee is paid with the first monthly payment.
+            </li>
+            <li>
+              Your code carries a redemption cap. Once it is reached, further redemptions are not possible until
+              we raise it, which we will do together, in writing.
+            </li>
+            <li>
+              We can pause, change or withdraw a code with {PAY.notice} days' notice, for example if the price,
+              the discount or the programme changes. Subscribers who redeemed before the change are still paid
+              for.
+            </li>
+            <li>
+              We can withdraw a code immediately, without notice, if it is posted on a coupon or discount site,
+              used for self-referral, shared in exchange for payment, or promoted with claims we have asked you
+              not to make. Subscribers from that activity are not paid for.
+            </li>
+            <li>
+              Every post mentioning BarkFind must carry an ad label, per the CAP Code. You are responsible for
+              your posts complying with UK advertising law.
+            </li>
+            <li>
+              Either of us can end the arrangement with {PAY.notice} days' notice. Confirmed subscribers up to
+              the end date are still paid for.
+            </li>
+            <li>
+              You are not an employee, agent or partner of BarkFind Ltd. You are responsible for your own tax.
+            </li>
+            <li>
+              We will not use your name, handle, image or content in our marketing without asking first. You may
+              use our name, icon and screenshots as supplied, for posts about BarkFind, and for nothing else.
+            </li>
+            <li>
+              No exclusivity either way. You can work with other apps; we can work with other creators.
+            </li>
+            <li>
+              We may update these terms. If we do, the new version applies to redemptions after the date shown
+              below, and we will tell you before it changes.
+            </li>
+            <li>English law applies.</li>
+          </ol>
+          <p className="text-[#585858] mt-6">Version 1, 26 September 2026.</p>
+        </div>
+      </section>
     </PageShell>
   );
 }
