@@ -8,7 +8,7 @@
     { "source": "/beta", "destination": "/beta.html" },
     { "source": "/beta-treats", "destination": "/beta-treats.html" },
     { "source": "/unsubscribed", "destination": "/unsubscribed.html" },
-    { "source": "/(.*)", "destination": "/index.html" }
+    { "source": "/(.*)", "destination": "/" }
   ],
   "headers": [
     {
