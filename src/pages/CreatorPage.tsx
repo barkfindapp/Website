@@ -116,7 +116,7 @@ function CreatorContent({ creator }: { creator: Creator }) {
             (AppShowcase active state): cream fill, rust border, small-caps rust label. */}
         <div className="mt-6 rounded-2xl px-6 py-5 border bg-[#FAEFD1] border-[#B74217]/20 shadow-sm">
           <div className="flex items-center gap-3 mb-1">
-            <span className="text-xs font-bold uppercase tracking-widest text-[#B74217]">Your offer</span>
+            <span className="text-xs font-bold uppercase tracking-widest text-[#B74217]">{creator.displayName}'s code gets you:</span>
             <span className="w-1.5 h-1.5 rounded-full bg-[#B74217]" />
           </div>
           <p className="font-bold text-base mb-1 text-[#1a1a1a]">20% off your first year</p>
