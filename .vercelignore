@@ -6,3 +6,4 @@ public/media/*
 !public/media/hero-*.png
 !public/media/showcase-*.png
 !public/media/mylo-*.png
+!public/media/creator-*.jpg

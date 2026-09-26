@@ -203,8 +203,8 @@ export default function CreatorsPage() {
             <p className="text-white/60 italic">[ Josh paragraph to be supplied ]</p>,
           ]}
           photos={[
-            { alt: "Josh with both dogs", placeholderLabel: "Photo of Josh with both dogs" },
-            { alt: "Mylo out and about", placeholderLabel: "Photo of Mylo out and about" },
+            { alt: "Josh with both dogs on the beach", src: "/media/creator-josh.jpg", placeholderLabel: "Photo of Josh with both dogs" },
+            { alt: "Mylo the Vizsla out on the beach", src: "/media/creator-mylo.jpg", placeholderLabel: "Photo of Mylo out and about" },
           ]}
         />
       </div>
