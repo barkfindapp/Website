@@ -1,10 +1,52 @@
+import { useState } from "react";
 import PageShell, { Section, Bullets } from "../components/PageShell";
 import { useSeo } from "../lib/seo";
 
 // The public-facing creator programme page. Not linked from anywhere and not
 // indexed: it is sent by link on purpose. When the programme opens up, the only
 // change is adding a nav link and removing noindex. Static page, no data file,
-// no form, no code, no slug. Numbers (fee, floor, cap) are set below.
+// no code, no slug.
+
+// Single source of truth for the pay numbers (GBP), used by both the prose and
+// the earnings calculator so the page cannot disagree with itself.
+const PAY = { fee: 4, floor: 50, cap: 50 };
+
+// Earnings calculator: React state only, no dependency, no form, nothing sent.
+function EarningsCalculator() {
+  const [subs, setSubs] = useState(10);
+  const earned = subs * PAY.fee;
+
+  let note: string;
+  if (subs === 0) note = `Your first post still earns the £${PAY.floor} guarantee.`;
+  else if (earned < PAY.floor) note = `Below the £${PAY.floor} guarantee, so your first post earns £${PAY.floor}.`;
+  else note = `£${PAY.fee} per subscriber. Paid the month after they convert.`;
+  if (subs === PAY.cap) note += ` That is the current cap on your code. We raise it once it is working.`;
+
+  return (
+    <div className="rounded-2xl px-6 py-5 border bg-[#FAEFD1] border-[#B74217]/20 shadow-sm">
+      <div className="flex items-center gap-3 mb-1">
+        <span className="text-xs font-bold uppercase tracking-widest text-[#B74217]">Your earnings</span>
+        <span className="w-1.5 h-1.5 rounded-full bg-[#B74217]" />
+      </div>
+      <label htmlFor="subs" className="block text-sm text-[#585858] mt-3">
+        Confirmed subscribers: <span className="font-bold text-[#1a1a1a]">{subs}</span>
+      </label>
+      <input
+        id="subs"
+        type="range"
+        min={0}
+        max={PAY.cap}
+        step={1}
+        value={subs}
+        onChange={(e) => setSubs(Number(e.target.value))}
+        className="w-full mt-2 accent-rust"
+      />
+      <p className="font-serif text-4xl font-bold text-[#1a1a1a] mt-4">£{earned}</p>
+      <p className="text-sm text-[#585858] leading-relaxed mt-1">{note}</p>
+    </div>
+  );
+}
+
 export default function CreatorsPage() {
   useSeo({
     title: "Creators | BarkFind",
@@ -83,19 +125,20 @@ export default function CreatorsPage() {
       <Section title="How you are paid">
         <p>
           You are paid per person who uses your code and becomes a paying subscriber after their free trial,
-          at £4 each. Downloads, trial starts and people who cancel during the trial are not counted, because
-          we have not been paid for them either.
+          at £{PAY.fee} each. Downloads, trial starts and people who cancel during the trial are not counted,
+          because we have not been paid for them either.
         </p>
         <p>
-          Your first post carries a guaranteed £50 regardless of results, so you are not working for nothing
-          if it does not land.
+          Your first post carries a guaranteed £{PAY.floor} regardless of results, so you are not working for
+          nothing if it does not land.
         </p>
         <p>
           Payment is monthly in arrears, by bank transfer, against the previous month's confirmed subscribers.
           Apple's 14 day trial means a post on the 1st produces its first confirmed subscribers around the
-          15th, and the month settles about four weeks after the post. Your code carries a redemption limit of
-          50, which we can raise together once we have seen it work.
+          15th, and the month settles about four weeks after the post. Your code carries a redemption limit of{" "}
+          {PAY.cap}, which we can raise together once we have seen it work.
         </p>
+        <EarningsCalculator />
       </Section>
 
       <Section title="How it is counted">
