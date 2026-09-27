@@ -276,7 +276,9 @@ function Questions() {
 function SectionNav() {
   const [items, setItems] = useState<{ id: string; label: string }[]>([]);
   const [active, setActive] = useState<string>("");
+  const [mobileOpen, setMobileOpen] = useState(false);
   const elsRef = useRef<{ id: string; el: HTMLElement }[]>([]);
+  const mobileRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const SHORT: Record<string, string> = { "Dog friendly, done differently": "Welcome" };
@@ -285,7 +287,9 @@ function SectionNav() {
       const text = (h.textContent || "").trim();
       const slug = "sec-" + text.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
       h.id = slug; // prefixed, so it never clashes with the #questions wrapper
-      h.style.scrollMarginTop = "5.5rem"; // clear the sticky header on jump
+      // Clear the sticky chrome on jump: header + the mobile jump bar below xl,
+      // header only at xl+. (Literal classes so Tailwind generates them.)
+      h.classList.add("scroll-mt-32", "xl:scroll-mt-20");
       return { id: slug, label: SHORT[text] ?? text, el: h as HTMLElement };
     });
     elsRef.current = built.map(({ id, el }) => ({ id, el }));
@@ -303,6 +307,23 @@ function SectionNav() {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
+  // Close the mobile dropdown on outside click or Escape.
+  useEffect(() => {
+    if (!mobileOpen) return;
+    const onDown = (e: MouseEvent) => {
+      if (mobileRef.current && !mobileRef.current.contains(e.target as Node)) setMobileOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setMobileOpen(false);
+    };
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [mobileOpen]);
+
   const onClick = (e: React.MouseEvent, id: string) => {
     e.preventDefault();
     const el = document.getElementById(id);
@@ -316,30 +337,87 @@ function SectionNav() {
   if (items.length === 0) return null;
 
   return (
-    <nav
-      aria-label="Skip to section"
-      className="hidden xl:block fixed top-1/2 -translate-y-1/2 z-30 max-h-[72vh] overflow-y-auto rounded-xl border border-stone-200 bg-white/95 backdrop-blur-sm shadow-sm p-2"
-      style={{ left: "max(1.5rem, calc((100vw - 48rem) / 2 - 13.5rem))", width: "12rem" }}
-    >
-      <ul className="flex flex-col border-l border-stone-200 text-sm">
-        {items.map((s) => (
-          <li key={s.id}>
-            <a
-              href={`#${s.id}`}
-              onClick={(e) => onClick(e, s.id)}
-              aria-current={active === s.id ? "true" : undefined}
-              className={`block -ml-px border-l-2 pl-4 py-1.5 leading-snug transition-colors ${
-                active === s.id
-                  ? "border-[#B74217] text-[#B74217] font-semibold"
-                  : "border-transparent text-[#585858] hover:text-[#1a1a1a] hover:border-stone-300"
-              }`}
+    <>
+      {/* Desktop: floating panel pinned in the left gutter (xl+ only). */}
+      <nav
+        aria-label="Skip to section"
+        className="hidden xl:block fixed top-1/2 -translate-y-1/2 z-30 max-h-[72vh] overflow-y-auto rounded-xl border border-stone-200 bg-white/95 backdrop-blur-sm shadow-sm p-2"
+        style={{ left: "max(1.5rem, calc((100vw - 48rem) / 2 - 13.5rem))", width: "12rem" }}
+      >
+        <ul className="flex flex-col border-l border-stone-200 text-sm">
+          {items.map((s) => (
+            <li key={s.id}>
+              <a
+                href={`#${s.id}`}
+                onClick={(e) => onClick(e, s.id)}
+                aria-current={active === s.id ? "true" : undefined}
+                className={`block -ml-px border-l-2 pl-4 py-1.5 leading-snug transition-colors ${
+                  active === s.id
+                    ? "border-[#B74217] text-[#B74217] font-semibold"
+                    : "border-transparent text-[#585858] hover:text-[#1a1a1a] hover:border-stone-300"
+                }`}
+              >
+                {s.label}
+              </a>
+            </li>
+          ))}
+        </ul>
+      </nav>
+
+      {/* Phone and tablet: a sticky "Jump to section" dropdown under the header. */}
+      <div
+        ref={mobileRef}
+        className="xl:hidden sticky top-16 z-40 -mx-6 mb-6 bg-white/95 backdrop-blur border-b border-stone-200"
+      >
+        <div className="max-w-3xl mx-auto px-6 py-2">
+          <div className="relative">
+            <button
+              type="button"
+              aria-expanded={mobileOpen}
+              aria-controls="section-list-mobile"
+              onClick={() => setMobileOpen((o) => !o)}
+              className="w-full flex items-center justify-between gap-2 rounded-lg border border-stone-200 bg-white px-4 py-2.5 text-sm font-semibold text-[#1a1a1a]"
             >
-              {s.label}
-            </a>
-          </li>
-        ))}
-      </ul>
-    </nav>
+              <span>Jump to section</span>
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 16 16"
+                fill="none"
+                aria-hidden="true"
+                className={`text-[#B74217] transition-transform ${mobileOpen ? "rotate-180" : ""}`}
+              >
+                <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </button>
+            {mobileOpen && (
+              <ul
+                id="section-list-mobile"
+                className="absolute left-0 right-0 top-full mt-1 z-50 max-h-[60vh] overflow-y-auto rounded-lg border border-stone-200 bg-white shadow-lg"
+              >
+                {items.map((s) => (
+                  <li key={s.id}>
+                    <a
+                      href={`#${s.id}`}
+                      onClick={(e) => {
+                        onClick(e, s.id);
+                        setMobileOpen(false);
+                      }}
+                      aria-current={active === s.id ? "true" : undefined}
+                      className={`block px-4 py-2.5 text-sm border-b border-stone-100 last:border-b-0 ${
+                        active === s.id ? "text-[#B74217] font-semibold bg-[#FAEFD1]/50" : "text-[#585858]"
+                      }`}
+                    >
+                      {s.label}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </div>
+      </div>
+    </>
   );
 }
 
