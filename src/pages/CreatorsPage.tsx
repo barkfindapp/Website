@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import PageShell, { Section, Bullets } from "../components/PageShell";
 import StoryBand from "../components/StoryBand";
 import { useSeo } from "../lib/seo";
@@ -269,6 +269,80 @@ function Questions() {
   );
 }
 
+// Floating section nav for the left gutter. Reads the section <h2>s from the
+// DOM so it stays in sync with the page, highlights the section in view, and
+// smooth-scrolls on click. Shown only on wide screens (xl+) where the gutter
+// exists; hidden on phone and tablet.
+function SectionNav() {
+  const [items, setItems] = useState<{ id: string; label: string }[]>([]);
+  const [active, setActive] = useState<string>("");
+  const elsRef = useRef<{ id: string; el: HTMLElement }[]>([]);
+
+  useEffect(() => {
+    const SHORT: Record<string, string> = { "Dog friendly, done differently": "Dog friendly" };
+    const heads = Array.from(document.querySelectorAll<HTMLHeadingElement>("main h2"));
+    const built = heads.map((h) => {
+      const text = (h.textContent || "").trim();
+      const slug = "sec-" + text.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+      h.id = slug; // prefixed, so it never clashes with the #questions wrapper
+      h.style.scrollMarginTop = "5.5rem"; // clear the sticky header on jump
+      return { id: slug, label: SHORT[text] ?? text, el: h as HTMLElement };
+    });
+    elsRef.current = built.map(({ id, el }) => ({ id, el }));
+    setItems(built.map(({ id, label }) => ({ id, label })));
+
+    const onScroll = () => {
+      let cur = elsRef.current[0]?.id ?? "";
+      for (const { id, el } of elsRef.current) {
+        if (el.getBoundingClientRect().top <= 96) cur = id;
+      }
+      setActive(cur);
+    };
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  const onClick = (e: React.MouseEvent, id: string) => {
+    e.preventDefault();
+    const el = document.getElementById(id);
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "start" });
+      history.replaceState(null, "", `#${id}`);
+      setActive(id);
+    }
+  };
+
+  if (items.length === 0) return null;
+
+  return (
+    <nav
+      aria-label="Skip to section"
+      className="hidden xl:flex fixed top-1/2 -translate-y-1/2 z-30 flex-col max-h-[72vh] overflow-y-auto"
+      style={{ left: "max(1.5rem, calc((100vw - 48rem) / 2 - 13.5rem))", width: "12rem" }}
+    >
+      <ul className="flex flex-col border-l border-stone-200 text-sm">
+        {items.map((s) => (
+          <li key={s.id}>
+            <a
+              href={`#${s.id}`}
+              onClick={(e) => onClick(e, s.id)}
+              aria-current={active === s.id ? "true" : undefined}
+              className={`block -ml-px border-l-2 pl-4 py-1.5 leading-snug transition-colors ${
+                active === s.id
+                  ? "border-[#B74217] text-[#B74217] font-semibold"
+                  : "border-transparent text-[#585858] hover:text-[#1a1a1a] hover:border-stone-300"
+              }`}
+            >
+              {s.label}
+            </a>
+          </li>
+        ))}
+      </ul>
+    </nav>
+  );
+}
+
 export default function CreatorsPage() {
   useSeo({
     title: "Creators | BarkFind",
@@ -279,6 +353,7 @@ export default function CreatorsPage() {
 
   return (
     <PageShell eyebrow="Working with BarkFind" title="Creators">
+      <SectionNav />
       <Section title="Dog friendly, done differently">
         <p>
           Most "dog friendly" is a guess. A pub that lets dogs in the garden but not the bar. A beach with
