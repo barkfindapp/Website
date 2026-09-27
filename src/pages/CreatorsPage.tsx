@@ -68,7 +68,7 @@ function EarningsCalculator() {
             aria-selected={tab === i}
             onClick={() => selectTab(i)}
             className={`px-3 py-2 text-sm font-semibold border-b-2 -mb-px transition-colors ${
-              tab === i ? "border-rust text-rust" : "border-transparent text-ink/60 hover:text-ink"
+              tab === i ? "border-teal text-teal" : "border-transparent text-ink/60 hover:text-ink"
             }`}
           >
             {label}
