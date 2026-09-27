@@ -291,14 +291,27 @@ export default function CreatorsPage() {
 
       <Section title="How you can help">
         <p>
-          An honest post. You have followers who own dogs, and they trust what you say about where you take
-          yours. We would like you to try BarkFind with your own dog, in your own area, and tell them what you
-          found. If it fell short somewhere, say so. A post that reads like an advert does worse for both of us
-          than one that reads like you.
+          BarkFind exists because "dog friendly" is a guess, and a bad guess costs an afternoon. We built it to
+          be honest about where dogs are actually welcome, and to be built by the people who use it. That is the
+          whole idea, and it is what we are asking you to help with.
         </p>
         <p>
-          We do not script posts, approve scripts, or ask for edits, with one exception found below in{" "}
-          <a href="#what-not-to-say" className="text-[#B74217] font-semibold hover:underline">What not to say</a>.
+          We are not looking for a lot of creators. We are looking for the right ones: people who already take
+          their dog everywhere, who tell their followers the truth about a place even when it is not the truth
+          the place wanted, and who would tell their followers about BarkFind anyway, because it is useful, not
+          because there is money in it. If that is you, we would like you to be more than a name on a list. We
+          would like you to be an ambassador: someone whose feedback shapes what gets built, who gets things
+          first, and who we stay in touch with properly rather than once a month with a payment.
+        </p>
+        <p>
+          What that looks like in practice is simple. Try the app with your own dog, in the places you actually
+          go. Post about what you found, honestly, including the gaps. Share your code so your followers get the
+          discount. Tell us what is missing, what is wrong and what is good, because you will hear things from
+          dog owners that we never will.
+        </p>
+        <p>
+          And if it turns out we are not a fit, that is fine. No hard feelings, no awkward follow-up. We would
+          rather have five people who mean it than fifty who do not.
         </p>
       </Section>
 
