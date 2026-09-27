@@ -367,7 +367,7 @@ function SectionNav() {
       {/* Phone and tablet: a sticky "Jump to section" dropdown under the header. */}
       <div
         ref={mobileRef}
-        className="xl:hidden sticky top-16 z-40 -mx-6 mb-6 bg-white/95 backdrop-blur"
+        className="xl:hidden sticky top-16 z-40 -mx-6 -mt-8 mb-6 bg-white/95 backdrop-blur"
       >
         {/* Soft white-to-transparent fade below the bar instead of a hard line.
             First child so the open dropdown paints over it. */}
