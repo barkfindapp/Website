@@ -58,8 +58,10 @@ function EarningsCalculator() {
         <span className="w-1.5 h-1.5 rounded-full bg-[#B74217]" />
       </div>
 
-      {/* Tier tabs: the tab is the tier. Each is a keyboard-reachable button. */}
-      <div role="tablist" aria-label="Follower tier" className="flex flex-wrap gap-1 border-b border-[#B74217]/15 mt-3">
+      {/* Tier tabs: the tab is the tier. Filled segmented control drawn from the
+          pricing-page palette: active is a solid teal pill, others white pills
+          on the cream card. Each is a keyboard-reachable button. */}
+      <div role="tablist" aria-label="Follower tier" className="flex flex-wrap gap-2 mt-3">
         {tabLabels.map((label, i) => (
           <button
             key={label}
@@ -67,8 +69,10 @@ function EarningsCalculator() {
             role="tab"
             aria-selected={tab === i}
             onClick={() => selectTab(i)}
-            className={`px-3 py-2 text-sm font-semibold border-b-2 -mb-px transition-colors ${
-              tab === i ? "border-teal text-teal" : "border-transparent text-ink/60 hover:text-ink"
+            className={`px-4 py-2 rounded-full text-sm font-semibold transition-colors ${
+              tab === i
+                ? "bg-teal text-white shadow-sm"
+                : "bg-white text-ink/70 hover:text-ink border border-[#B74217]/10"
             }`}
           >
             {label}
