@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import PageShell, { Section, Bullets } from "../components/PageShell";
 import StoryBand from "../components/StoryBand";
 import { useSeo } from "../lib/seo";
@@ -18,13 +18,13 @@ export type Tier = {
   minFollowers: number; // inclusive
   maxFollowers: number; // exclusive
   fee: number; // £ per paying subscriber
-  floor: number; // £ guaranteed on first post
+  guarantee: number; // £ guaranteed on first post
   cap: number; // how many people the code works for
 };
 
 export const TIERS: Tier[] = [
-  { id: "small", label: "Under 10,000", minFollowers: 0, maxFollowers: 10000, fee: 4, floor: 50, cap: 50 },
-  { id: "mid", label: "10,000 to 30,000", minFollowers: 10000, maxFollowers: 30000, fee: 6, floor: 100, cap: 100 },
+  { id: "small", label: "Under 10,000", minFollowers: 0, maxFollowers: 10000, fee: 4, guarantee: 50, cap: 50 },
+  { id: "mid", label: "10,000 to 30,000", minFollowers: 10000, maxFollowers: 30000, fee: 6, guarantee: 100, cap: 100 },
 ];
 
 export const BESPOKE_FROM = 30000; // at or above this, no published rate
@@ -128,15 +128,15 @@ function TierEarnings({
   setSubs: (n: number) => void;
   onLight: boolean;
 }) {
-  const earned = Math.max(subs * tier.fee, tier.floor);
+  const earned = Math.max(subs * tier.fee, tier.guarantee);
   const pct = tier.cap === 0 ? 0 : (subs / tier.cap) * 100;
   const track = onLight ? "rgba(47,41,30,0.15)" : "rgba(255,255,255,0.35)";
   const strong = onLight ? "text-ink" : "text-white";
   const muted = onLight ? "text-ink/70" : "text-white/85";
 
   let note: string;
-  if (subs === 0) note = `Your first post still earns the £${tier.floor} guarantee.`;
-  else if (subs * tier.fee < tier.floor) note = `Below the £${tier.floor} guarantee, so your first post earns £${tier.floor}.`;
+  if (subs === 0) note = `Your first post still earns the £${tier.guarantee} guarantee.`;
+  else if (subs * tier.fee < tier.guarantee) note = `Below the £${tier.guarantee} guarantee, so your first post earns £${tier.guarantee}.`;
   else note = `£${tier.fee} for each paying subscriber, paid the month after they start paying.`;
   if (subs === tier.cap) note += ` That is as many as your code allows. Reach it and you move up a tier.`;
 
@@ -168,6 +168,259 @@ function TierEarnings({
   );
 }
 
+// FAQ accordion: one panel open at a time, each question a button with
+// aria-expanded. Figures come from the first tier (TIERS[0]), never hardcoded.
+function Questions() {
+  const t = TIERS[0];
+  const guarantee = t.guarantee;
+  const fee = t.fee;
+  const cap = t.cap;
+  const breakeven = Math.ceil(guarantee / fee); // subscribers where per-head beats the guarantee
+
+  const items: { q: string; a: string }[] = [
+    {
+      q: `Do I get the £${guarantee} just for posting?`,
+      a: `Yes, your first post is guaranteed at least £${guarantee}, whatever happens. Once you pass ${breakeven} subscribers, you earn £${fee} each instead, because that is worth more. So 0 subscribers is £${guarantee}, 20 is £${20 * fee}, ${cap} is £${cap * fee}. It is one or the other, whichever is higher, not both added together. After the first post there is no minimum, just £${fee} per subscriber.`,
+    },
+    {
+      q: `I have more than one account. Which one counts?`,
+      a: `You get one code, linked to you rather than a handle, so share it from every account you have. Your tier is set by the largest of them. Apple tells us how many people used a code, not where they came from, so one code across all your accounts is the only way it works, and the more places it appears, the better for both of us.`,
+    },
+    {
+      q: `What happens when my code hits its limit?`,
+      a: `It stops working, you move up a tier, and we send you a new code at the next rate. The people who used the first code are still paid for.`,
+    },
+    {
+      q: `How do I know how many people have used my code?`,
+      a: `We email you a count at the end of every month, straight from Apple's report, with the payment. If you want a number mid-month, ask.`,
+    },
+    {
+      q: `When do I actually get paid?`,
+      a: `By bank transfer within 14 days of the end of each month, for the month before. Because of Apple's 14 day free trial, a post on the 1st brings its first paying subscribers around the 15th, so expect your first payment about six weeks after your first post.`,
+    },
+    {
+      q: `Do I have to say it is an ad?`,
+      a: `Yes, every time, at the start of the post. That is UK law for any post where you are being paid, and a fine from the ASA lands on you, not us. "Ad" or "Paid partnership" is enough.`,
+    },
+    {
+      q: `Can I try the app before I post about it?`,
+      a: `Yes. Ask and we will add you to the test build before launch. Post about what you actually find, including the bits that need work. It is more believable and we would rather know.`,
+    },
+    {
+      q: `Do I have to show my face?`,
+      a: `No. Your dog, the app, a walk, a pub garden. Whatever your account normally does.`,
+    },
+    {
+      q: `How many posts do you expect?`,
+      a: `One to start with. If it works for both of us, we talk about more. There is no minimum and no schedule.`,
+    },
+    {
+      q: `Can I work with other apps?`,
+      a: `Yes. No exclusivity in either direction.`,
+    },
+    {
+      q: `What do my followers actually get?`,
+      a: `20% off their first year of Premium, £31.99 instead of £39.99, with the free trial still included. It works on iPhone; Android is coming.`,
+    },
+    {
+      q: `What can I not do with the code?`,
+      a: `Post it on a discount or coupon site, use it to sign yourself up, or sell it. Any of those and the code is stopped straight away.`,
+    },
+    {
+      q: `Do I need to invoice you, and what about tax?`,
+      a: `No invoice. We pay against Apple's count and email you the breakdown. You are not employed by us, so any tax on what you earn is yours to sort out.`,
+    },
+  ];
+
+  const [open, setOpen] = useState(0); // index of the open panel, -1 for none
+
+  return (
+    <div className="border-t border-stone-200">
+      {items.map((item, i) => {
+        const isOpen = open === i;
+        return (
+          <div key={i} className="border-b border-stone-200">
+            <h3 className="m-0">
+              <button
+                type="button"
+                id={`faq-btn-${i}`}
+                aria-expanded={isOpen}
+                aria-controls={`faq-panel-${i}`}
+                onClick={() => setOpen(isOpen ? -1 : i)}
+                className="w-full flex items-center justify-between gap-4 text-left py-4 font-bold text-[#1a1a1a] hover:text-[#B74217] transition-colors"
+              >
+                <span>{item.q}</span>
+                <span aria-hidden="true" className={`flex-shrink-0 text-[#B74217] transition-transform ${isOpen ? "rotate-180" : ""}`}>
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                    <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </span>
+              </button>
+            </h3>
+            {isOpen && (
+              <div id={`faq-panel-${i}`} role="region" aria-labelledby={`faq-btn-${i}`} className="pb-4 -mt-1 text-[#444] leading-relaxed">
+                {item.a}
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// Floating section nav for the left gutter. Reads the section <h2>s from the
+// DOM so it stays in sync with the page, highlights the section in view, and
+// smooth-scrolls on click. Shown only on wide screens (xl+) where the gutter
+// exists; hidden on phone and tablet.
+function SectionNav() {
+  const [items, setItems] = useState<{ id: string; label: string }[]>([]);
+  const [active, setActive] = useState<string>("");
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const elsRef = useRef<{ id: string; el: HTMLElement }[]>([]);
+  const mobileRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const SHORT: Record<string, string> = { "Dog friendly, done differently": "Welcome" };
+    const heads = Array.from(document.querySelectorAll<HTMLHeadingElement>("main h2"));
+    const built = heads.map((h) => {
+      const text = (h.textContent || "").trim();
+      const slug = "sec-" + text.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+      h.id = slug; // prefixed, so it never clashes with the #questions wrapper
+      // Clear the sticky chrome on jump: header + the mobile jump bar below xl,
+      // header only at xl+. (Literal classes so Tailwind generates them.)
+      h.classList.add("scroll-mt-32", "xl:scroll-mt-20");
+      return { id: slug, label: SHORT[text] ?? text, el: h as HTMLElement };
+    });
+    elsRef.current = built.map(({ id, el }) => ({ id, el }));
+    setItems(built.map(({ id, label }) => ({ id, label })));
+
+    const onScroll = () => {
+      let cur = elsRef.current[0]?.id ?? "";
+      for (const { id, el } of elsRef.current) {
+        if (el.getBoundingClientRect().top <= 96) cur = id;
+      }
+      setActive(cur);
+    };
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  // Close the mobile dropdown on outside click or Escape.
+  useEffect(() => {
+    if (!mobileOpen) return;
+    const onDown = (e: MouseEvent) => {
+      if (mobileRef.current && !mobileRef.current.contains(e.target as Node)) setMobileOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setMobileOpen(false);
+    };
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [mobileOpen]);
+
+  const onClick = (e: React.MouseEvent, id: string) => {
+    e.preventDefault();
+    const el = document.getElementById(id);
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "start" });
+      history.replaceState(null, "", `#${id}`);
+      setActive(id);
+    }
+  };
+
+  if (items.length === 0) return null;
+
+  return (
+    <>
+      {/* Desktop: floating panel pinned in the left gutter (xl+ only). */}
+      <nav
+        aria-label="Skip to section"
+        className="hidden xl:block fixed top-1/2 -translate-y-1/2 z-30 max-h-[72vh] overflow-y-auto rounded-xl border border-stone-200 bg-white/95 backdrop-blur-sm shadow-sm p-2"
+        style={{ left: "max(1.5rem, calc((100vw - 48rem) / 2 - 13.5rem))", width: "12rem" }}
+      >
+        <ul className="flex flex-col border-l border-stone-200 text-sm">
+          {items.map((s) => (
+            <li key={s.id}>
+              <a
+                href={`#${s.id}`}
+                onClick={(e) => onClick(e, s.id)}
+                aria-current={active === s.id ? "true" : undefined}
+                className={`block -ml-px border-l-2 pl-4 py-1.5 leading-snug transition-colors ${
+                  active === s.id
+                    ? "border-[#B74217] text-[#B74217] font-semibold"
+                    : "border-transparent text-[#585858] hover:text-[#1a1a1a] hover:border-stone-300"
+                }`}
+              >
+                {s.label}
+              </a>
+            </li>
+          ))}
+        </ul>
+      </nav>
+
+      {/* Phone and tablet: a sticky "Jump to section" dropdown under the header. */}
+      <div
+        ref={mobileRef}
+        className="xl:hidden sticky top-16 z-40 -mx-6 mb-6 bg-white/95 backdrop-blur border-b border-stone-200"
+      >
+        <div className="max-w-3xl mx-auto px-6 py-2">
+          <div className="relative">
+            <button
+              type="button"
+              aria-expanded={mobileOpen}
+              aria-controls="section-list-mobile"
+              onClick={() => setMobileOpen((o) => !o)}
+              className="w-full flex items-center justify-between gap-2 rounded-lg border border-stone-200 bg-white px-4 py-2.5 text-sm font-semibold text-[#1a1a1a]"
+            >
+              <span>Jump to section</span>
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 16 16"
+                fill="none"
+                aria-hidden="true"
+                className={`text-[#B74217] transition-transform ${mobileOpen ? "rotate-180" : ""}`}
+              >
+                <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </button>
+            {mobileOpen && (
+              <ul
+                id="section-list-mobile"
+                className="absolute left-0 right-0 top-full mt-1 z-50 max-h-[60vh] overflow-y-auto rounded-lg border border-stone-200 bg-white shadow-lg"
+              >
+                {items.map((s) => (
+                  <li key={s.id}>
+                    <a
+                      href={`#${s.id}`}
+                      onClick={(e) => {
+                        onClick(e, s.id);
+                        setMobileOpen(false);
+                      }}
+                      aria-current={active === s.id ? "true" : undefined}
+                      className={`block px-4 py-2.5 text-sm border-b border-stone-100 last:border-b-0 ${
+                        active === s.id ? "text-[#B74217] font-semibold bg-[#FAEFD1]/50" : "text-[#585858]"
+                      }`}
+                    >
+                      {s.label}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
+
 export default function CreatorsPage() {
   useSeo({
     title: "Creators | BarkFind",
@@ -178,6 +431,7 @@ export default function CreatorsPage() {
 
   return (
     <PageShell eyebrow="Working with BarkFind" title="Creators">
+      <SectionNav />
       <Section title="Dog friendly, done differently">
         <p>
           Most "dog friendly" is a guess. A pub that lets dogs in the garden but not the bar. A beach with
@@ -190,14 +444,29 @@ export default function CreatorsPage() {
 
       <Section title="How you can help">
         <p>
-          An honest post. You have followers who own dogs, and they trust what you say about where you take
-          yours. We would like you to try BarkFind with your own dog, in your own area, and tell them what you
-          found. If it fell short somewhere, say so. A post that reads like an advert does worse for both of us
-          than one that reads like you.
+          We built BarkFind for people who take the dog everywhere and are tired of finding out at the door.
+          That includes the dogs who need a bit more thought: the reactive ones, the anxious ones, the ones who
+          are fine with people and not with other dogs. Knowing a place is genuinely good for your dog, not just
+          tolerant of dogs in general, is the difference between a good afternoon and a short one. That is what
+          we are asking you to help with.
         </p>
         <p>
-          We do not script posts, approve scripts, or ask for edits, with one exception found below in{" "}
-          <a href="#what-not-to-say" className="text-[#B74217] font-semibold hover:underline">What not to say</a>.
+          We are not looking for a lot of creators. We are looking for the right ones: people who already take
+          their dog everywhere, who tell their followers the truth about a place even when it is not the truth
+          the place wanted, and who would tell their followers about BarkFind anyway, because it is useful, not
+          because there is money in it. If that is you, we would like you to be more than a name on a list. We
+          would like you to be an ambassador: someone whose feedback shapes what gets built, who gets things
+          first, and who we stay in touch with properly rather than once a month with a payment.
+        </p>
+        <p>
+          What that looks like in practice is simple. Try the app with your own dog, in the places you actually
+          go. Post about what you found, honestly, including the gaps. Share your code so your followers get the
+          discount. Tell us what is missing, what is wrong and what is good, because you will hear things from
+          dog owners that we never will.
+        </p>
+        <p>
+          And if it turns out we are not a fit, that is fine. No hard feelings, no awkward follow-up. We would
+          rather have five people who mean it than fifty who do not.
         </p>
       </Section>
 
@@ -246,6 +515,15 @@ export default function CreatorsPage() {
           watching without sound.
         </p>
         <p>Your code is unique to you. That is how we know a subscriber came from you.</p>
+        <a
+          href="#questions"
+          className="inline-flex items-center gap-2 w-fit px-5 py-2.5 rounded-full bg-[#B74217] text-white text-sm font-bold hover:opacity-90 transition-opacity"
+        >
+          Your questions asked
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+            <path d="M8 3v10M4 9l4 4 4-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </a>
       </Section>
 
       <Section title="How you are paid">
@@ -261,7 +539,7 @@ export default function CreatorsPage() {
             <div key={t.id} className="rounded-2xl bg-white border border-stone-100 shadow-sm p-6">
               <h3 className="font-bold text-[#1a1a1a] mb-1">{t.label} followers</h3>
               <p className="text-sm text-[#585858] leading-relaxed">
-                £{t.fee} for every paying subscriber, a guaranteed £{t.floor} on your first post, and your code
+                £{t.fee} for every paying subscriber, a guaranteed £{t.guarantee} on your first post, and your code
                 works for up to {t.cap} people.
               </p>
             </div>
@@ -360,6 +638,12 @@ export default function CreatorsPage() {
             { alt: "Mylo the Vizsla out on the beach", src: "/media/creator-mylo.jpg", placeholderLabel: "Photo of Mylo out and about" },
           ]}
         />
+      </div>
+
+      <div id="questions" className="scroll-mt-24">
+        <Section title="Questions">
+          <Questions />
+        </Section>
       </div>
 
       <Section title="Get in touch">
