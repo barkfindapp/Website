@@ -228,7 +228,7 @@ function Questions() {
     },
     {
       q: `Do I need to invoice you, and what about tax?`,
-      a: `No invoice. We pay against Apple's count and email you the breakdown. You are not employed by us, so any tax on what you earn is yours to sort out.`,
+      a: `No invoice needed. Each month we email you a statement showing the count, the rate and the total, and pay it by bank transfer. Keep it for your own records. If you are VAT registered, tell us, because that works slightly differently. You are not employed by us, so any tax on what you earn is yours to sort out.`,
     },
   ];
 
