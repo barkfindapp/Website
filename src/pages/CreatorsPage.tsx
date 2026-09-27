@@ -101,7 +101,7 @@ function EarningsCalculator() {
         <TierEarnings tier={tier} subs={subs} setSubs={setSubs} onLight={onLight} />
       ) : (
         <div className="mt-4">
-          <p className={`text-sm ${muted}`}>Over {fmt(BESPOKE_FROM)} followers we agree terms with you directly.</p>
+          <p className={`text-sm ${muted}`}>Over {fmt(BESPOKE_FROM)} followers, we quote a rate rather than publish one.</p>
           <a
             href="mailto:info@barkfind.com?subject=Creator%20programme"
             className={`inline-block mt-3 text-2xl font-serif font-bold hover:underline ${strong}`}
@@ -269,9 +269,9 @@ export default function CreatorsPage() {
           <div className="rounded-2xl bg-white border border-stone-100 shadow-sm p-6">
             <h3 className="font-bold text-[#1a1a1a] mb-1">Over {fmt(BESPOKE_FROM)} followers</h3>
             <p className="text-sm text-[#585858] leading-relaxed">
-              We agree terms with you directly. Email{" "}
-              <a href="mailto:info@barkfind.com" className="text-[#B74217] font-semibold hover:underline">info@barkfind.com</a>{" "}
-              and tell us what you usually charge.
+              We quote a rate rather than publish one.{" "}
+              <a href="mailto:info@barkfind.com?subject=Creator%20programme" className="text-[#B74217] font-semibold hover:underline">Get in touch</a>{" "}
+              and we can work out something that suits you.
             </p>
           </div>
         </div>
