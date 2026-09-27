@@ -347,6 +347,15 @@ export default function CreatorsPage() {
           watching without sound.
         </p>
         <p>Your code is unique to you. That is how we know a subscriber came from you.</p>
+        <a
+          href="#questions"
+          className="inline-flex items-center gap-2 w-fit px-5 py-2.5 rounded-full bg-[#B74217] text-white text-sm font-bold hover:opacity-90 transition-opacity"
+        >
+          Your questions asked
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+            <path d="M8 3v10M4 9l4 4 4-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </a>
       </Section>
 
       <Section title="How you are paid">
@@ -445,10 +454,6 @@ export default function CreatorsPage() {
         </p>
       </Section>
 
-      <Section title="Questions">
-        <Questions />
-      </Section>
-
       {/* Who you are working with: the shared rust StoryBand (from the beta "Meet
           Mylo" band), full-bleed so it spans the viewport inside PageShell's column.
           mt-14 gives the same top gap the terms band has. */}
@@ -465,6 +470,12 @@ export default function CreatorsPage() {
             { alt: "Mylo the Vizsla out on the beach", src: "/media/creator-mylo.jpg", placeholderLabel: "Photo of Mylo out and about" },
           ]}
         />
+      </div>
+
+      <div id="questions" className="scroll-mt-24">
+        <Section title="Questions">
+          <Questions />
+        </Section>
       </div>
 
       <Section title="Get in touch">
