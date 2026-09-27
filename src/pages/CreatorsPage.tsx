@@ -17,7 +17,7 @@ export type Tier = {
   label: string; // shown to the creator
   minFollowers: number; // inclusive
   maxFollowers: number; // exclusive
-  fee: number; // £ per confirmed subscriber
+  fee: number; // £ per paying subscriber
   floor: number; // £ guaranteed on first post
   cap: number; // redemption cap on the code
 };
@@ -37,16 +37,18 @@ export function tierFor(followers: number): Tier | null {
 const fmt = (n: number) => n.toLocaleString("en-GB");
 
 // Earnings calculator: React state only, no dependency, no form, nothing sent.
+// The tier is chosen by three tabs (the two published tiers plus bespoke).
 function EarningsCalculator() {
-  const [followers, setFollowers] = useState(5000);
+  const [tab, setTab] = useState(0); // 0..TIERS.length-1 -> a tier; last -> bespoke
   const [subs, setSubs] = useState(() => Math.min(10, TIERS[0].cap));
-  const tier = tierFor(followers);
+  const tier = tab < TIERS.length ? TIERS[tab] : null;
 
-  const onFollowers = (raw: number) => {
-    const v = Math.max(0, Math.min(50000, Number.isNaN(raw) ? 0 : raw));
-    setFollowers(v);
-    const t = tierFor(v);
-    if (t && subs > t.cap) setSubs(t.cap); // clamp when a lower cap applies
+  const tabLabels = [...TIERS.map((t) => t.label), `Over ${fmt(BESPOKE_FROM)}`];
+
+  const selectTab = (i: number) => {
+    setTab(i);
+    const t = i < TIERS.length ? TIERS[i] : null;
+    if (t && subs > t.cap) setSubs(t.cap); // clamp to the new tier's cap
   };
 
   return (
@@ -56,44 +58,36 @@ function EarningsCalculator() {
         <span className="w-1.5 h-1.5 rounded-full bg-[#B74217]" />
       </div>
 
-      {/* Input 1: followers, slider plus an editable number field bound to it */}
-      <label htmlFor="followers" className="block text-sm text-[#585858] mt-3">
-        Your followers: <span className="font-bold text-[#1a1a1a]">{fmt(followers)}</span>
-      </label>
-      <div className="flex items-center gap-3 mt-2">
-        <input
-          id="followers"
-          type="range"
-          min={0}
-          max={50000}
-          step={500}
-          value={followers}
-          onChange={(e) => onFollowers(Number(e.target.value))}
-          className="flex-1 accent-rust"
-        />
-        <input
-          type="number"
-          min={0}
-          max={50000}
-          value={followers}
-          onChange={(e) => onFollowers(Number(e.target.value))}
-          aria-label="Your followers"
-          className="w-24 px-4 py-2 rounded-full bg-white shadow-sm text-sm text-[#2F291E] text-center outline-none focus:ring-2 focus:ring-[#B74217]/30"
-        />
+      {/* Tier tabs: the tab is the tier. Each is a keyboard-reachable button. */}
+      <div role="tablist" aria-label="Follower tier" className="flex flex-wrap gap-1 border-b border-[#B74217]/15 mt-3">
+        {tabLabels.map((label, i) => (
+          <button
+            key={label}
+            type="button"
+            role="tab"
+            aria-selected={tab === i}
+            onClick={() => selectTab(i)}
+            className={`px-3 py-2 text-sm font-semibold border-b-2 -mb-px transition-colors ${
+              tab === i ? "border-rust text-rust" : "border-transparent text-ink/60 hover:text-ink"
+            }`}
+          >
+            {label}
+          </button>
+        ))}
       </div>
-      <p className="text-sm text-[#585858] mt-2">
-        {tier ? `Tier: ${tier.label}` : "Over 30,000: we agree terms with you directly."}
-      </p>
 
       {tier ? (
         <TierEarnings tier={tier} subs={subs} setSubs={setSubs} />
       ) : (
-        <a
-          href="mailto:info@barkfind.com?subject=Creator%20programme"
-          className="inline-block mt-5 text-2xl font-serif font-bold text-[#B74217] hover:underline"
-        >
-          Get in touch
-        </a>
+        <div className="mt-4">
+          <p className="text-sm text-[#585858]">Over {fmt(BESPOKE_FROM)} followers we agree terms with you directly.</p>
+          <a
+            href="mailto:info@barkfind.com?subject=Creator%20programme"
+            className="inline-block mt-3 text-2xl font-serif font-bold text-[#B74217] hover:underline"
+          >
+            Get in touch
+          </a>
+        </div>
       )}
     </div>
   );
@@ -106,13 +100,13 @@ function TierEarnings({ tier, subs, setSubs }: { tier: Tier; subs: number; setSu
   let note: string;
   if (subs === 0) note = `Your first post still earns the £${tier.floor} guarantee.`;
   else if (subs * tier.fee < tier.floor) note = `Below the £${tier.floor} guarantee, so your first post earns £${tier.floor}.`;
-  else note = `£${tier.fee} per subscriber. Paid the month after they convert.`;
-  if (subs === tier.cap) note += ` That is the cap on your code. Clear it and you move up a tier.`;
+  else note = `£${tier.fee} for each paying subscriber, paid the month after they start paying.`;
+  if (subs === tier.cap) note += ` That is as many as your code allows. Reach it and you move up a tier.`;
 
   return (
     <>
       <label htmlFor="subs" className="block text-sm text-[#585858] mt-4">
-        Confirmed subscribers: <span className="font-bold text-[#1a1a1a]">{subs}</span>
+        Paying subscribers: <span className="font-bold text-[#1a1a1a]">{subs}</span>
       </label>
       <input
         id="subs"
@@ -222,8 +216,8 @@ export default function CreatorsPage() {
             <div key={t.id} className="rounded-2xl bg-white border border-stone-100 shadow-sm p-6">
               <h3 className="font-bold text-[#1a1a1a] mb-1">{t.label} followers</h3>
               <p className="text-sm text-[#585858] leading-relaxed">
-                £{t.fee} per confirmed subscriber, a guaranteed £{t.floor} on your first post, and a cap of{" "}
-                {t.cap} redemptions on your code.
+                £{t.fee} for every paying subscriber, a guaranteed £{t.floor} on your first post, and your code
+                works for up to {t.cap} people.
               </p>
             </div>
           ))}
@@ -234,17 +228,17 @@ export default function CreatorsPage() {
           and tell us what you usually charge.
         </p>
         <p>
-          A confirmed subscriber is someone who uses your code and pays for their first year after the free
+          A paying subscriber is someone who uses your code and pays for their first year after the free
           trial. Downloads, trial starts and people who cancel during the trial are not counted, because we
           have not been paid for them either.
         </p>
         <p>
-          Whatever the tier, you get BarkFind Premium free for as long as the app exists. If your first post
-          clears its cap, you move up a tier for the next one.
+          Whatever the tier, you get BarkFind Premium free for as long as you are part of the programme. If your
+          first post uses up all of its code, you move up a tier for the next one.
         </p>
         <p>
-          Payment is monthly in arrears, by bank transfer, against the previous month's confirmed subscribers.
-          Apple's 14 day trial means a post on the 1st produces its first confirmed subscribers around the
+          Payment is monthly in arrears, by bank transfer, against the previous month's paying subscribers.
+          Apple's 14 day trial means a post on the 1st produces its first paying subscribers around the
           15th, and the month settles about four weeks after the post.
         </p>
         <EarningsCalculator />
@@ -357,6 +351,10 @@ export default function CreatorsPage() {
               Your tier is set by the larger of your TikTok and Instagram follower counts on the day your code
               is issued, as shown on your public profile, and does not change while that code is live. We may
               ask for a screenshot of the count.
+            </li>
+            <li>
+              You receive BarkFind Premium free while you are part of the programme. It ends when the
+              arrangement ends.
             </li>
             <li>
               We can pause, change or withdraw a code with {NOTICE_DAYS} days' notice, for example if the price,
