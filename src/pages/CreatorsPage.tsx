@@ -51,49 +51,60 @@ function EarningsCalculator() {
     if (t && subs > t.cap) setSubs(t.cap); // clamp to the new tier's cap
   };
 
+  // The whole card takes the selected tier's colour. Under 10,000 -> teal,
+  // 10,000-30,000 -> sand, Over 30,000 -> rust. Sand is a light fill, so that
+  // card uses dark ink text; teal and rust cards use white text.
+  const CARDS = [
+    { fill: "bg-teal", light: false }, // under 10,000
+    { fill: "bg-[#FAEFD1]", light: true }, // 10,000-30,000 (sand)
+    { fill: "bg-rust", light: false }, // over 30,000
+  ];
+  const card = CARDS[tab] ?? CARDS[2];
+  const onLight = card.light;
+  const strong = onLight ? "text-ink" : "text-white";
+  const muted = onLight ? "text-ink/70" : "text-white/85";
+  const dot = onLight ? "bg-ink/70" : "bg-white/85";
+
   return (
-    <div className="rounded-2xl px-6 py-5 border bg-white border-stone-100 shadow-sm">
+    <div className={`rounded-2xl px-6 py-5 border border-transparent shadow-sm transition-colors ${card.fill} ${strong}`}>
       <div className="flex items-center gap-3 mb-1">
-        <span className="text-xs font-bold uppercase tracking-widest text-[#B74217]">Your earnings</span>
-        <span className="w-1.5 h-1.5 rounded-full bg-[#B74217]" />
+        <span className={`text-xs font-bold uppercase tracking-widest ${muted}`}>Your earnings</span>
+        <span className={`w-1.5 h-1.5 rounded-full ${dot}`} />
       </div>
 
       {/* Tier tabs: the tab is the tier. A caption names what the numbers count.
-          Filled segmented control, one brand colour per tier so the active pill
-          differs by tab; inactive are outlined pills that read on the white
-          card. Each is keyboard-reachable. */}
-      <p className="text-sm text-[#585858] mt-3">Your followers</p>
+          Active pill inverts to solid white; inactive are translucent pills that
+          read on the card. Each is keyboard-reachable. */}
+      <p className={`text-sm mt-3 ${muted}`}>Your followers</p>
       <div role="tablist" aria-label="Follower tier" className="flex flex-wrap gap-2 mt-2">
-        {tabLabels.map((label, i) => {
-          // Under 10,000 -> rust (red), 10,000-30,000 -> nature (green), Over 30,000 -> teal (brand "blue").
-          const activeFill = ["bg-rust", "bg-nature", "bg-teal"][i] ?? "bg-teal";
-          return (
-            <button
-              key={label}
-              type="button"
-              role="tab"
-              aria-selected={tab === i}
-              onClick={() => selectTab(i)}
-              className={`px-4 py-2 rounded-full text-sm font-semibold transition-colors ${
-                tab === i
-                  ? `${activeFill} text-white shadow-sm`
-                  : "bg-white text-ink/70 hover:text-ink border border-stone-200"
-              }`}
-            >
-              {label}
-            </button>
-          );
-        })}
+        {tabLabels.map((label, i) => (
+          <button
+            key={label}
+            type="button"
+            role="tab"
+            aria-selected={tab === i}
+            onClick={() => selectTab(i)}
+            className={`px-4 py-2 rounded-full text-sm font-semibold transition-colors ${
+              tab === i
+                ? "bg-white text-ink shadow-sm border border-black/5"
+                : onLight
+                  ? "bg-white/40 text-ink/70 hover:bg-white/70 border border-ink/15"
+                  : "bg-white/15 text-white hover:bg-white/25 border border-white/40"
+            }`}
+          >
+            {label}
+          </button>
+        ))}
       </div>
 
       {tier ? (
-        <TierEarnings tier={tier} subs={subs} setSubs={setSubs} />
+        <TierEarnings tier={tier} subs={subs} setSubs={setSubs} onLight={onLight} />
       ) : (
         <div className="mt-4">
-          <p className="text-sm text-[#585858]">Over {fmt(BESPOKE_FROM)} followers we agree terms with you directly.</p>
+          <p className={`text-sm ${muted}`}>Over {fmt(BESPOKE_FROM)} followers we agree terms with you directly.</p>
           <a
             href="mailto:info@barkfind.com?subject=Creator%20programme"
-            className="inline-block mt-3 text-2xl font-serif font-bold text-[#B74217] hover:underline"
+            className={`inline-block mt-3 text-2xl font-serif font-bold hover:underline ${strong}`}
           >
             Get in touch
           </a>
@@ -104,8 +115,24 @@ function EarningsCalculator() {
 }
 
 // Input 2 and the output. Split out so the bespoke tier can drop it entirely.
-function TierEarnings({ tier, subs, setSubs }: { tier: Tier; subs: number; setSubs: (n: number) => void }) {
+// The progress bar mirrors the in-app control: a chunky, fully-rounded two-tone
+// bar with a rust fill over a lighter track (track colour adapts to the card).
+function TierEarnings({
+  tier,
+  subs,
+  setSubs,
+  onLight,
+}: {
+  tier: Tier;
+  subs: number;
+  setSubs: (n: number) => void;
+  onLight: boolean;
+}) {
   const earned = Math.max(subs * tier.fee, tier.floor);
+  const pct = tier.cap === 0 ? 0 : (subs / tier.cap) * 100;
+  const track = onLight ? "rgba(47,41,30,0.15)" : "rgba(255,255,255,0.35)";
+  const strong = onLight ? "text-ink" : "text-white";
+  const muted = onLight ? "text-ink/70" : "text-white/85";
 
   let note: string;
   if (subs === 0) note = `Your first post still earns the £${tier.floor} guarantee.`;
@@ -115,9 +142,11 @@ function TierEarnings({ tier, subs, setSubs }: { tier: Tier; subs: number; setSu
 
   return (
     <>
-      <label htmlFor="subs" className="block text-sm text-[#585858] mt-4">
-        Paying subscribers: <span className="font-bold text-[#1a1a1a]">{subs}</span>
+      <label htmlFor="subs" className={`block text-sm mt-4 ${muted}`}>
+        Paying subscribers: <span className={`font-bold ${strong}`}>{subs}</span>
       </label>
+      {/* Rust fill up to the current value, lighter track after: the app's bar look.
+          A small white thumb keeps it grabbable. */}
       <input
         id="subs"
         type="range"
@@ -126,10 +155,15 @@ function TierEarnings({ tier, subs, setSubs }: { tier: Tier; subs: number; setSu
         step={1}
         value={subs}
         onChange={(e) => setSubs(Number(e.target.value))}
-        className="w-full mt-2 accent-rust"
+        style={{
+          background: `linear-gradient(to right, #B74217 0%, #B74217 ${pct}%, ${track} ${pct}%, ${track} 100%)`,
+        }}
+        className="w-full mt-3 h-2.5 rounded-full appearance-none cursor-pointer
+          [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:shadow [&::-webkit-slider-thumb]:border [&::-webkit-slider-thumb]:border-black/10
+          [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-white [&::-moz-range-thumb]:border-0 [&::-moz-range-track]:bg-transparent"
       />
-      <p className="font-serif text-4xl font-bold text-[#1a1a1a] mt-4">£{earned}</p>
-      <p className="text-sm text-[#585858] leading-relaxed mt-1">{note}</p>
+      <p className={`font-serif text-4xl font-bold mt-4 ${strong}`}>£{earned}</p>
+      <p className={`text-sm leading-relaxed mt-1 ${muted}`}>{note}</p>
     </>
   );
 }
@@ -219,8 +253,9 @@ export default function CreatorsPage() {
           What we pay depends on the size of your audience when your code is issued. We use whichever of your
           TikTok or Instagram followings is larger, and the tier is fixed for as long as that code is live.
         </p>
-        {/* Two tier cards, matching the Business.tsx card convention (rounded-2xl white
-            card, stone border, soft shadow). Bespoke is prose below, not a third card. */}
+        {/* Three tier cards, matching the Business.tsx card convention (rounded-2xl
+            white card, stone border, soft shadow): the two published tiers plus a
+            bespoke card for over 30,000. */}
         <div className="flex flex-col gap-4 mt-2">
           {TIERS.map((t) => (
             <div key={t.id} className="rounded-2xl bg-white border border-stone-100 shadow-sm p-6">
@@ -231,12 +266,15 @@ export default function CreatorsPage() {
               </p>
             </div>
           ))}
+          <div className="rounded-2xl bg-white border border-stone-100 shadow-sm p-6">
+            <h3 className="font-bold text-[#1a1a1a] mb-1">Over {fmt(BESPOKE_FROM)} followers</h3>
+            <p className="text-sm text-[#585858] leading-relaxed">
+              We agree terms with you directly. Email{" "}
+              <a href="mailto:info@barkfind.com" className="text-[#B74217] font-semibold hover:underline">info@barkfind.com</a>{" "}
+              and tell us what you usually charge.
+            </p>
+          </div>
         </div>
-        <p>
-          Over {fmt(BESPOKE_FROM)} followers. We agree terms with you directly. Email{" "}
-          <a href="mailto:info@barkfind.com" className="text-[#B74217] font-semibold hover:underline">info@barkfind.com</a>{" "}
-          and tell us what you usually charge.
-        </p>
         <p>
           A paying subscriber is someone who uses your code and pays for their first year after the free
           trial. Downloads, trial starts and people who cancel during the trial are not counted, because we
