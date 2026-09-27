@@ -58,13 +58,15 @@ function EarningsCalculator() {
         <span className="w-1.5 h-1.5 rounded-full bg-[#B74217]" />
       </div>
 
-      {/* Tier tabs: the tab is the tier. Filled segmented control, one brand
-          colour per tier so the active pill differs by tab; inactive are
-          outlined pills that read on the white card. Each is keyboard-reachable. */}
-      <div role="tablist" aria-label="Follower tier" className="flex flex-wrap gap-2 mt-3">
+      {/* Tier tabs: the tab is the tier. A caption names what the numbers count.
+          Filled segmented control, one brand colour per tier so the active pill
+          differs by tab; inactive are outlined pills that read on the white
+          card. Each is keyboard-reachable. */}
+      <p className="text-sm text-[#585858] mt-3">Your followers</p>
+      <div role="tablist" aria-label="Follower tier" className="flex flex-wrap gap-2 mt-2">
         {tabLabels.map((label, i) => {
-          // Under 10,000 -> nature green, 10,000-30,000 -> rust, Over 30,000 -> teal.
-          const activeFill = ["bg-nature", "bg-rust", "bg-teal"][i] ?? "bg-teal";
+          // Under 10,000 -> rust (red), 10,000-30,000 -> nature (green), Over 30,000 -> teal (brand "blue").
+          const activeFill = ["bg-rust", "bg-nature", "bg-teal"][i] ?? "bg-teal";
           return (
             <button
               key={label}
