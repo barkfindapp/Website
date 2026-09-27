@@ -10,19 +10,44 @@ import { useSeo } from "../lib/seo";
 
 // Single source of truth for the programme numbers, used by the prose, the
 // earnings calculator and the terms so the page cannot disagree with itself.
-// fee/floor/cap are GBP; notice is days.
-const PAY = { fee: 4, floor: 50, cap: 50, notice: 7 };
+export const NOTICE_DAYS = 7;
+
+export type Tier = {
+  id: "small" | "mid";
+  label: string; // shown to the creator
+  minFollowers: number; // inclusive
+  maxFollowers: number; // exclusive
+  fee: number; // £ per confirmed subscriber
+  floor: number; // £ guaranteed on first post
+  cap: number; // redemption cap on the code
+};
+
+export const TIERS: Tier[] = [
+  { id: "small", label: "Under 10,000", minFollowers: 0, maxFollowers: 10000, fee: 4, floor: 50, cap: 50 },
+  { id: "mid", label: "10,000 to 30,000", minFollowers: 10000, maxFollowers: 30000, fee: 6, floor: 100, cap: 100 },
+];
+
+export const BESPOKE_FROM = 30000; // at or above this, no published rate
+
+export function tierFor(followers: number): Tier | null {
+  if (followers >= BESPOKE_FROM) return null;
+  return TIERS.find((t) => followers >= t.minFollowers && followers < t.maxFollowers) ?? TIERS[0];
+}
+
+const fmt = (n: number) => n.toLocaleString("en-GB");
 
 // Earnings calculator: React state only, no dependency, no form, nothing sent.
 function EarningsCalculator() {
-  const [subs, setSubs] = useState(10);
-  const earned = subs * PAY.fee;
+  const [followers, setFollowers] = useState(5000);
+  const [subs, setSubs] = useState(() => Math.min(10, TIERS[0].cap));
+  const tier = tierFor(followers);
 
-  let note: string;
-  if (subs === 0) note = `Your first post still earns the £${PAY.floor} guarantee.`;
-  else if (earned < PAY.floor) note = `Below the £${PAY.floor} guarantee, so your first post earns £${PAY.floor}.`;
-  else note = `£${PAY.fee} per subscriber. Paid the month after they convert.`;
-  if (subs === PAY.cap) note += ` That is the current cap on your code. We raise it once it is working.`;
+  const onFollowers = (raw: number) => {
+    const v = Math.max(0, Math.min(50000, Number.isNaN(raw) ? 0 : raw));
+    setFollowers(v);
+    const t = tierFor(v);
+    if (t && subs > t.cap) setSubs(t.cap); // clamp when a lower cap applies
+  };
 
   return (
     <div className="rounded-2xl px-6 py-5 border bg-[#FAEFD1] border-[#B74217]/20 shadow-sm">
@@ -30,14 +55,70 @@ function EarningsCalculator() {
         <span className="text-xs font-bold uppercase tracking-widest text-[#B74217]">Your earnings</span>
         <span className="w-1.5 h-1.5 rounded-full bg-[#B74217]" />
       </div>
-      <label htmlFor="subs" className="block text-sm text-[#585858] mt-3">
+
+      {/* Input 1: followers, slider plus an editable number field bound to it */}
+      <label htmlFor="followers" className="block text-sm text-[#585858] mt-3">
+        Your followers: <span className="font-bold text-[#1a1a1a]">{fmt(followers)}</span>
+      </label>
+      <div className="flex items-center gap-3 mt-2">
+        <input
+          id="followers"
+          type="range"
+          min={0}
+          max={50000}
+          step={500}
+          value={followers}
+          onChange={(e) => onFollowers(Number(e.target.value))}
+          className="flex-1 accent-rust"
+        />
+        <input
+          type="number"
+          min={0}
+          max={50000}
+          value={followers}
+          onChange={(e) => onFollowers(Number(e.target.value))}
+          aria-label="Your followers"
+          className="w-24 px-4 py-2 rounded-full bg-white shadow-sm text-sm text-[#2F291E] text-center outline-none focus:ring-2 focus:ring-[#B74217]/30"
+        />
+      </div>
+      <p className="text-sm text-[#585858] mt-2">
+        {tier ? `Tier: ${tier.label}` : "Over 30,000: we agree terms with you directly."}
+      </p>
+
+      {tier ? (
+        <TierEarnings tier={tier} subs={subs} setSubs={setSubs} />
+      ) : (
+        <a
+          href="mailto:info@barkfind.com?subject=Creator%20programme"
+          className="inline-block mt-5 text-2xl font-serif font-bold text-[#B74217] hover:underline"
+        >
+          Get in touch
+        </a>
+      )}
+    </div>
+  );
+}
+
+// Input 2 and the output. Split out so the bespoke tier can drop it entirely.
+function TierEarnings({ tier, subs, setSubs }: { tier: Tier; subs: number; setSubs: (n: number) => void }) {
+  const earned = Math.max(subs * tier.fee, tier.floor);
+
+  let note: string;
+  if (subs === 0) note = `Your first post still earns the £${tier.floor} guarantee.`;
+  else if (subs * tier.fee < tier.floor) note = `Below the £${tier.floor} guarantee, so your first post earns £${tier.floor}.`;
+  else note = `£${tier.fee} per subscriber. Paid the month after they convert.`;
+  if (subs === tier.cap) note += ` That is the cap on your code. Clear it and you move up a tier.`;
+
+  return (
+    <>
+      <label htmlFor="subs" className="block text-sm text-[#585858] mt-4">
         Confirmed subscribers: <span className="font-bold text-[#1a1a1a]">{subs}</span>
       </label>
       <input
         id="subs"
         type="range"
         min={0}
-        max={PAY.cap}
+        max={tier.cap}
         step={1}
         value={subs}
         onChange={(e) => setSubs(Number(e.target.value))}
@@ -45,7 +126,7 @@ function EarningsCalculator() {
       />
       <p className="font-serif text-4xl font-bold text-[#1a1a1a] mt-4">£{earned}</p>
       <p className="text-sm text-[#585858] leading-relaxed mt-1">{note}</p>
-    </div>
+    </>
   );
 }
 
@@ -131,19 +212,40 @@ export default function CreatorsPage() {
 
       <Section title="How you are paid">
         <p>
-          You are paid per person who uses your code and becomes a paying subscriber after their free trial,
-          at £{PAY.fee} each. Downloads, trial starts and people who cancel during the trial are not counted,
-          because we have not been paid for them either.
+          What we pay depends on the size of your audience when your code is issued. We use whichever of your
+          TikTok or Instagram followings is larger, and the tier is fixed for as long as that code is live.
+        </p>
+        {/* Two tier cards, matching the Business.tsx card convention (rounded-2xl white
+            card, stone border, soft shadow). Bespoke is prose below, not a third card. */}
+        <div className="flex flex-col gap-4 mt-2">
+          {TIERS.map((t) => (
+            <div key={t.id} className="rounded-2xl bg-white border border-stone-100 shadow-sm p-6">
+              <h3 className="font-bold text-[#1a1a1a] mb-1">{t.label} followers</h3>
+              <p className="text-sm text-[#585858] leading-relaxed">
+                £{t.fee} per confirmed subscriber, a guaranteed £{t.floor} on your first post, and a cap of{" "}
+                {t.cap} redemptions on your code.
+              </p>
+            </div>
+          ))}
+        </div>
+        <p>
+          Over {fmt(BESPOKE_FROM)} followers. We agree terms with you directly. Email{" "}
+          <a href="mailto:info@barkfind.com" className="text-[#B74217] font-semibold hover:underline">info@barkfind.com</a>{" "}
+          and tell us what you usually charge.
         </p>
         <p>
-          Your first post carries a guaranteed £{PAY.floor} regardless of results, so you are not working for
-          nothing if it does not land.
+          A confirmed subscriber is someone who uses your code and pays for their first year after the free
+          trial. Downloads, trial starts and people who cancel during the trial are not counted, because we
+          have not been paid for them either.
+        </p>
+        <p>
+          Whatever the tier, you get BarkFind Premium free for as long as the app exists. If your first post
+          clears its cap, you move up a tier for the next one.
         </p>
         <p>
           Payment is monthly in arrears, by bank transfer, against the previous month's confirmed subscribers.
           Apple's 14 day trial means a post on the 1st produces its first confirmed subscribers around the
-          15th, and the month settles about four weeks after the post. Your code carries a redemption limit of{" "}
-          {PAY.cap}, which we can raise together once we have seen it work.
+          15th, and the month settles about four weeks after the post.
         </p>
         <EarningsCalculator />
       </Section>
@@ -236,19 +338,28 @@ export default function CreatorsPage() {
           <ol className="flex flex-col gap-4 list-decimal pl-6 marker:font-bold marker:text-[#1a1a1a]">
             <li>
               Payment is per confirmed subscriber: someone who redeems your code, completes the free trial and
-              pays for the first year, at £{PAY.fee} each. Apple's report of redemptions is the count we both use. Downloads, trial
-              starts, cancellations during the trial and refunds do not count.
+              pays for the first year. The rate depends on your tier, set out under "How you are paid" above:
+              £{TIERS[0].fee} for accounts under {fmt(TIERS[0].maxFollowers)} followers, £{TIERS[1].fee} from{" "}
+              {fmt(TIERS[1].minFollowers)} to {fmt(BESPOKE_FROM)}, and agreed in writing above that. Apple's
+              report of redemptions is the count we both use. Downloads, trial starts, cancellations during the
+              trial and refunds do not count.
             </li>
             <li>
               Payment is made monthly, in arrears, by bank transfer, within 14 days of the end of each month.
               The first-post guarantee is paid with the first monthly payment.
             </li>
             <li>
-              Your code carries a redemption cap of {PAY.cap}. Once it is reached, further redemptions are not possible until
-              we raise it, which we will do together, in writing.
+              Your code carries a redemption cap, {TIERS[0].cap} or {TIERS[1].cap} depending on your tier. Once
+              it is reached, further redemptions are not possible until we raise it, which we will do together,
+              in writing. If your first post reaches its cap, your next code is issued at the tier above.
             </li>
             <li>
-              We can pause, change or withdraw a code with {PAY.notice} days' notice, for example if the price,
+              Your tier is set by the larger of your TikTok and Instagram follower counts on the day your code
+              is issued, as shown on your public profile, and does not change while that code is live. We may
+              ask for a screenshot of the count.
+            </li>
+            <li>
+              We can pause, change or withdraw a code with {NOTICE_DAYS} days' notice, for example if the price,
               the discount or the programme changes. Subscribers who redeemed before the change are still paid
               for.
             </li>
@@ -262,7 +373,7 @@ export default function CreatorsPage() {
               your posts complying with UK advertising law.
             </li>
             <li>
-              Either of us can end the arrangement with {PAY.notice} days' notice. Confirmed subscribers up to
+              Either of us can end the arrangement with {NOTICE_DAYS} days' notice. Confirmed subscribers up to
               the end date are still paid for.
             </li>
             <li>
@@ -281,7 +392,7 @@ export default function CreatorsPage() {
             </li>
             <li>English law applies.</li>
           </ol>
-          <p className="text-[#585858] mt-6">Version 1, 26 September 2026.</p>
+          <p className="text-[#585858] mt-6">Version 2, 27 September 2026.</p>
         </div>
       </section>
     </PageShell>
