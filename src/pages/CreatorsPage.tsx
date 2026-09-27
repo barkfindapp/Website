@@ -18,13 +18,13 @@ export type Tier = {
   minFollowers: number; // inclusive
   maxFollowers: number; // exclusive
   fee: number; // £ per paying subscriber
-  floor: number; // £ guaranteed on first post
+  guarantee: number; // £ guaranteed on first post
   cap: number; // how many people the code works for
 };
 
 export const TIERS: Tier[] = [
-  { id: "small", label: "Under 10,000", minFollowers: 0, maxFollowers: 10000, fee: 4, floor: 50, cap: 50 },
-  { id: "mid", label: "10,000 to 30,000", minFollowers: 10000, maxFollowers: 30000, fee: 6, floor: 100, cap: 100 },
+  { id: "small", label: "Under 10,000", minFollowers: 0, maxFollowers: 10000, fee: 4, guarantee: 50, cap: 50 },
+  { id: "mid", label: "10,000 to 30,000", minFollowers: 10000, maxFollowers: 30000, fee: 6, guarantee: 100, cap: 100 },
 ];
 
 export const BESPOKE_FROM = 30000; // at or above this, no published rate
@@ -128,15 +128,15 @@ function TierEarnings({
   setSubs: (n: number) => void;
   onLight: boolean;
 }) {
-  const earned = Math.max(subs * tier.fee, tier.floor);
+  const earned = Math.max(subs * tier.fee, tier.guarantee);
   const pct = tier.cap === 0 ? 0 : (subs / tier.cap) * 100;
   const track = onLight ? "rgba(47,41,30,0.15)" : "rgba(255,255,255,0.35)";
   const strong = onLight ? "text-ink" : "text-white";
   const muted = onLight ? "text-ink/70" : "text-white/85";
 
   let note: string;
-  if (subs === 0) note = `Your first post still earns the £${tier.floor} guarantee.`;
-  else if (subs * tier.fee < tier.floor) note = `Below the £${tier.floor} guarantee, so your first post earns £${tier.floor}.`;
+  if (subs === 0) note = `Your first post still earns the £${tier.guarantee} guarantee.`;
+  else if (subs * tier.fee < tier.guarantee) note = `Below the £${tier.guarantee} guarantee, so your first post earns £${tier.guarantee}.`;
   else note = `£${tier.fee} for each paying subscriber, paid the month after they start paying.`;
   if (subs === tier.cap) note += ` That is as many as your code allows. Reach it and you move up a tier.`;
 
@@ -165,6 +165,107 @@ function TierEarnings({
       <p className={`font-serif text-4xl font-bold mt-4 ${strong}`}>£{earned}</p>
       <p className={`text-sm leading-relaxed mt-1 ${muted}`}>{note}</p>
     </>
+  );
+}
+
+// FAQ accordion: one panel open at a time, each question a button with
+// aria-expanded. Figures come from the first tier (TIERS[0]), never hardcoded.
+function Questions() {
+  const t = TIERS[0];
+  const guarantee = t.guarantee;
+  const fee = t.fee;
+  const cap = t.cap;
+  const breakeven = Math.ceil(guarantee / fee); // subscribers where per-head beats the guarantee
+
+  const items: { q: string; a: string }[] = [
+    {
+      q: `Do I get the £${guarantee} just for posting?`,
+      a: `Yes, your first post is guaranteed at least £${guarantee}, whatever happens. Once you pass ${breakeven} subscribers, you earn £${fee} each instead, because that is worth more. So 0 subscribers is £${guarantee}, 20 is £${20 * fee}, ${cap} is £${cap * fee}. It is one or the other, whichever is higher, not both added together. After the first post there is no minimum, just £${fee} per subscriber.`,
+    },
+    {
+      q: `I have more than one account. Which one counts?`,
+      a: `You get one code, linked to you rather than a handle, so share it from every account you have. Your tier is set by the largest of them. Apple tells us how many people used a code, not where they came from, so one code across all your accounts is the only way it works, and the more places it appears, the better for both of us.`,
+    },
+    {
+      q: `What happens when my code hits its limit?`,
+      a: `It stops working, you move up a tier, and we send you a new code at the next rate. The people who used the first code are still paid for.`,
+    },
+    {
+      q: `How do I know how many people have used my code?`,
+      a: `We email you a count at the end of every month, straight from Apple's report, with the payment. If you want a number mid-month, ask.`,
+    },
+    {
+      q: `When do I actually get paid?`,
+      a: `By bank transfer within 14 days of the end of each month, for the month before. Because of Apple's 14 day free trial, a post on the 1st brings its first paying subscribers around the 15th, so expect your first payment about six weeks after your first post.`,
+    },
+    {
+      q: `Do I have to say it is an ad?`,
+      a: `Yes, every time, at the start of the post. That is UK law for any post where you are being paid, and a fine from the ASA lands on you, not us. "Ad" or "Paid partnership" is enough.`,
+    },
+    {
+      q: `Can I try the app before I post about it?`,
+      a: `Yes. Ask and we will add you to the test build before launch. Post about what you actually find, including the bits that need work. It is more believable and we would rather know.`,
+    },
+    {
+      q: `Do I have to show my face?`,
+      a: `No. Your dog, the app, a walk, a pub garden. Whatever your account normally does.`,
+    },
+    {
+      q: `How many posts do you expect?`,
+      a: `One to start with. If it works for both of us, we talk about more. There is no minimum and no schedule.`,
+    },
+    {
+      q: `Can I work with other apps?`,
+      a: `Yes. No exclusivity in either direction.`,
+    },
+    {
+      q: `What do my followers actually get?`,
+      a: `20% off their first year of Premium, £31.99 instead of £39.99, with the free trial still included. It works on iPhone; Android is coming.`,
+    },
+    {
+      q: `What can I not do with the code?`,
+      a: `Post it on a discount or coupon site, use it to sign yourself up, or sell it. Any of those and the code is stopped straight away.`,
+    },
+    {
+      q: `Do I need to invoice you, and what about tax?`,
+      a: `No invoice. We pay against Apple's count and email you the breakdown. You are not employed by us, so any tax on what you earn is yours to sort out.`,
+    },
+  ];
+
+  const [open, setOpen] = useState(0); // index of the open panel, -1 for none
+
+  return (
+    <div className="border-t border-stone-200">
+      {items.map((item, i) => {
+        const isOpen = open === i;
+        return (
+          <div key={i} className="border-b border-stone-200">
+            <h3 className="m-0">
+              <button
+                type="button"
+                id={`faq-btn-${i}`}
+                aria-expanded={isOpen}
+                aria-controls={`faq-panel-${i}`}
+                onClick={() => setOpen(isOpen ? -1 : i)}
+                className="w-full flex items-center justify-between gap-4 text-left py-4 font-bold text-[#1a1a1a] hover:text-[#B74217] transition-colors"
+              >
+                <span>{item.q}</span>
+                <span aria-hidden="true" className={`flex-shrink-0 text-[#B74217] transition-transform ${isOpen ? "rotate-180" : ""}`}>
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                    <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </span>
+              </button>
+            </h3>
+            {isOpen && (
+              <div id={`faq-panel-${i}`} role="region" aria-labelledby={`faq-btn-${i}`} className="pb-4 -mt-1 text-[#444] leading-relaxed">
+                {item.a}
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
   );
 }
 
@@ -261,7 +362,7 @@ export default function CreatorsPage() {
             <div key={t.id} className="rounded-2xl bg-white border border-stone-100 shadow-sm p-6">
               <h3 className="font-bold text-[#1a1a1a] mb-1">{t.label} followers</h3>
               <p className="text-sm text-[#585858] leading-relaxed">
-                £{t.fee} for every paying subscriber, a guaranteed £{t.floor} on your first post, and your code
+                £{t.fee} for every paying subscriber, a guaranteed £{t.guarantee} on your first post, and your code
                 works for up to {t.cap} people.
               </p>
             </div>
@@ -342,6 +443,10 @@ export default function CreatorsPage() {
           Assets on request: the app icon, screenshots, a short description in our words and the correct
           spelling of Mylo.
         </p>
+      </Section>
+
+      <Section title="Questions">
+        <Questions />
       </Section>
 
       {/* Who you are working with: the shared rust StoryBand (from the beta "Meet
