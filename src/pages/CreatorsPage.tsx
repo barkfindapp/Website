@@ -19,7 +19,7 @@ export type Tier = {
   maxFollowers: number; // exclusive
   fee: number; // £ per paying subscriber
   floor: number; // £ guaranteed on first post
-  cap: number; // redemption cap on the code
+  cap: number; // how many people the code works for
 };
 
 export const TIERS: Tier[] = [
@@ -101,7 +101,7 @@ function EarningsCalculator() {
         <TierEarnings tier={tier} subs={subs} setSubs={setSubs} onLight={onLight} />
       ) : (
         <div className="mt-4">
-          <p className={`text-sm ${muted}`}>Over {fmt(BESPOKE_FROM)} followers, we quote a rate rather than publish one.</p>
+          <p className={`text-sm ${muted}`}>Over {fmt(BESPOKE_FROM)} followers, let's have a chat.</p>
           <a
             href="mailto:info@barkfind.com?subject=Creator%20programme"
             className={`inline-block mt-3 text-2xl font-serif font-bold hover:underline ${strong}`}
@@ -251,7 +251,7 @@ export default function CreatorsPage() {
       <Section title="How you are paid">
         <p>
           What we pay depends on the size of your audience when your code is issued. We use whichever of your
-          TikTok or Instagram followings is larger, and the tier is fixed for as long as that code is live.
+          TikTok or Instagram followings is larger, and your tier stays the same for as long as that code is live.
         </p>
         {/* Three tier cards, matching the Business.tsx card convention (rounded-2xl
             white card, stone border, soft shadow): the two published tiers plus a
@@ -269,9 +269,8 @@ export default function CreatorsPage() {
           <div className="rounded-2xl bg-white border border-stone-100 shadow-sm p-6">
             <h3 className="font-bold text-[#1a1a1a] mb-1">Over {fmt(BESPOKE_FROM)} followers</h3>
             <p className="text-sm text-[#585858] leading-relaxed">
-              We quote a rate rather than publish one.{" "}
               <a href="mailto:info@barkfind.com?subject=Creator%20programme" className="text-[#B74217] font-semibold hover:underline">Get in touch</a>{" "}
-              and we can work out something that suits you.
+              and we will have a chat about what works for you.
             </p>
           </div>
         </div>
@@ -285,18 +284,18 @@ export default function CreatorsPage() {
           first post uses up all of its code, you move up a tier for the next one.
         </p>
         <p>
-          Payment is monthly in arrears, by bank transfer, against the previous month's paying subscribers.
-          Apple's 14 day trial means a post on the 1st produces its first paying subscribers around the
-          15th, and the month settles about four weeks after the post.
+          You are paid once a month, by bank transfer, for the previous month's paying subscribers, so each
+          payment lands after the month it covers. Because Apple runs a 14 day trial, a post on the 1st brings
+          its first paying subscribers around the 15th, and that month is settled about four weeks later.
         </p>
         <EarningsCalculator />
       </Section>
 
       <Section title="How it is counted">
         <p>
-          Apple counts every redemption of your code and reports it to us. We will send you that figure with
-          each payment. There is no tracking of your followers, no cookies on our site and nothing collected
-          about who they are. The code is the whole mechanism.
+          Apple counts every time someone uses your code and tells us the number. We will send you that figure
+          with each payment. There is no tracking of your followers, no cookies on our site and nothing
+          collected about who they are. The code is the whole mechanism.
         </p>
       </Section>
 
@@ -337,7 +336,7 @@ export default function CreatorsPage() {
         <p>
           Founding creator credit on our site when the programme goes public. Early access to new features
           before they go live, and a direct line to the person building it. A say in what gets built next,
-          because we value your outreach.
+          because you hear from dog owners we do not.
         </p>
         <p>
           Assets on request: the app icon, screenshots, a short description in our words and the correct
@@ -376,67 +375,68 @@ export default function CreatorsPage() {
         <div className="max-w-3xl mx-auto px-6 py-14 text-[#444] leading-relaxed">
           <p className="text-sm font-bold uppercase tracking-widest text-[#B74217] mb-2">Terms</p>
           <h2 className="font-serif text-2xl md:text-3xl text-[#1a1a1a] mb-4">The terms</h2>
-          <p className="mb-6">The short version of the agreement, written so it can be read in two minutes.</p>
+          <p className="mb-6">The short version, written so you can read it in two minutes.</p>
           <ol className="flex flex-col gap-4 list-decimal pl-6 marker:font-bold marker:text-[#1a1a1a]">
             <li>
-              Payment is per confirmed subscriber: someone who redeems your code, completes the free trial and
-              pays for the first year. The rate depends on your tier, set out under "How you are paid" above:
-              £{TIERS[0].fee} for accounts under {fmt(TIERS[0].maxFollowers)} followers, £{TIERS[1].fee} from{" "}
-              {fmt(TIERS[1].minFollowers)} to {fmt(BESPOKE_FROM)}, and agreed in writing above that. Apple's
-              report of redemptions is the count we both use. Downloads, trial starts, cancellations during the
-              trial and refunds do not count.
+              You are paid for each person who uses your code, finishes the free trial and pays for their first
+              year. What you get per person depends on your tier, set out under "How you are paid" above:{" "}
+              £{TIERS[0].fee} under {fmt(TIERS[0].maxFollowers)} followers, £{TIERS[1].fee} from{" "}
+              {fmt(TIERS[1].minFollowers)} to {fmt(BESPOKE_FROM)}, and a figure we agree in writing above that.
+              We both go by Apple's count of code uses. Downloads, trial starts, cancellations during the trial
+              and refunds do not count.
             </li>
             <li>
-              Payment is made monthly, in arrears, by bank transfer, within 14 days of the end of each month.
-              The first-post guarantee is paid with the first monthly payment.
+              You are paid each month by bank transfer, within 14 days of the month ending, for the month just
+              gone. Your first-post guarantee comes with that first payment.
             </li>
             <li>
-              Your code carries a redemption cap, {TIERS[0].cap} or {TIERS[1].cap} depending on your tier. Once
-              it is reached, further redemptions are not possible until we raise it, which we will do together,
-              in writing. If your first post reaches its cap, your next code is issued at the tier above.
+              Each code works for a set number of people, {TIERS[0].cap} or {TIERS[1].cap} depending on your
+              tier. Once it is used up it stops, until we raise the limit together, in writing. If your first
+              post uses up its code, your next one starts at the tier above.
             </li>
             <li>
-              Your tier is set by the larger of your TikTok and Instagram follower counts on the day your code
-              is issued, as shown on your public profile, and does not change while that code is live. We may
-              ask for a screenshot of the count.
+              Your tier comes from whichever is higher, your TikTok or Instagram following, on the day your code
+              is issued and as shown on your public profile. It stays the same while that code is live. We might
+              ask for a screenshot of the number.
             </li>
             <li>
-              You receive BarkFind Premium free while you are part of the programme. It ends when the
-              arrangement ends.
+              BarkFind Premium is free for you while you are in the programme, and stops when you leave it.
             </li>
             <li>
-              We can pause, change or withdraw a code with {NOTICE_DAYS} days' notice, for example if the price,
-              the discount or the programme changes. Subscribers who redeemed before the change are still paid
+              We can pause, change or stop a code by telling you {NOTICE_DAYS} days ahead, for instance if the
+              price, the discount or the programme changes. Anyone who used it before the change is still paid
               for.
             </li>
             <li>
-              We can withdraw a code immediately, without notice, if it is posted on a coupon or discount site,
-              used for self-referral, shared in exchange for payment, or promoted with claims we have asked you
-              not to make. Subscribers from that activity are not paid for.
+              We can stop a code straight away, with no notice, if it turns up on a coupon or discount site, is
+              used to sign yourself up, is sold, or is promoted with claims we have asked you not to make. We do
+              not pay for subscribers who come from that.
             </li>
             <li>
-              Every post mentioning BarkFind must carry an ad label, per the CAP Code. You are responsible for
-              your posts complying with UK advertising law.
+              Every post that mentions BarkFind needs an ad label, as the CAP Code requires. Keeping your posts
+              within UK advertising law is down to you.
             </li>
             <li>
-              Either of us can end the arrangement with {NOTICE_DAYS} days' notice. Confirmed subscribers up to
-              the end date are still paid for.
+              Either of us can end things by giving the other {NOTICE_DAYS} days' notice. Everyone who paid up
+              to that end date is still paid for.
             </li>
             <li>
-              You are not an employee, agent or partner of BarkFind Ltd. You are responsible for your own tax.
+              You are not employed by BarkFind Ltd, and not our agent or partner. Your own tax is yours to sort
+              out.
             </li>
             <li>
-              We will not use your name, handle, image or content in our marketing without asking first. You may
-              use our name, icon and screenshots as supplied, for posts about BarkFind, and for nothing else.
+              We will not put your name, handle, image or posts in our marketing without asking you first. You
+              are welcome to use our name, icon and screenshots as we supply them, for posts about BarkFind and
+              nothing else.
             </li>
             <li>
               No exclusivity either way. You can work with other apps; we can work with other creators.
             </li>
             <li>
-              We may update these terms. If we do, the new version applies to redemptions after the date shown
-              below, and we will tell you before it changes.
+              We might update these terms. If we do, the new version covers code uses after the date shown
+              below, and we will tell you before anything changes.
             </li>
-            <li>English law applies.</li>
+            <li>If a dispute ever comes up, English law applies.</li>
           </ol>
           <p className="text-[#585858] mt-6">Version 2, 27 September 2026.</p>
         </div>
