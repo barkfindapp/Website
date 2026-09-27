@@ -52,15 +52,15 @@ function EarningsCalculator() {
   };
 
   return (
-    <div className="rounded-2xl px-6 py-5 border bg-[#FAEFD1] border-[#B74217]/20 shadow-sm">
+    <div className="rounded-2xl px-6 py-5 border bg-white border-stone-100 shadow-sm">
       <div className="flex items-center gap-3 mb-1">
         <span className="text-xs font-bold uppercase tracking-widest text-[#B74217]">Your earnings</span>
         <span className="w-1.5 h-1.5 rounded-full bg-[#B74217]" />
       </div>
 
-      {/* Tier tabs: the tab is the tier. Filled segmented control drawn from the
-          pricing-page palette: active is a solid teal pill, others white pills
-          on the cream card. Each is a keyboard-reachable button. */}
+      {/* Tier tabs: the tab is the tier. Filled segmented control: active is a
+          solid teal pill, inactive are outlined pills that read on the white
+          card. Each is a keyboard-reachable button. */}
       <div role="tablist" aria-label="Follower tier" className="flex flex-wrap gap-2 mt-3">
         {tabLabels.map((label, i) => (
           <button
@@ -72,7 +72,7 @@ function EarningsCalculator() {
             className={`px-4 py-2 rounded-full text-sm font-semibold transition-colors ${
               tab === i
                 ? "bg-teal text-white shadow-sm"
-                : "bg-white text-ink/70 hover:text-ink border border-[#B74217]/10"
+                : "bg-white text-ink/70 hover:text-ink border border-stone-200"
             }`}
           >
             {label}
