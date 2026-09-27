@@ -279,7 +279,7 @@ function SectionNav() {
   const elsRef = useRef<{ id: string; el: HTMLElement }[]>([]);
 
   useEffect(() => {
-    const SHORT: Record<string, string> = { "Dog friendly, done differently": "Dog friendly" };
+    const SHORT: Record<string, string> = { "Dog friendly, done differently": "Welcome" };
     const heads = Array.from(document.querySelectorAll<HTMLHeadingElement>("main h2"));
     const built = heads.map((h) => {
       const text = (h.textContent || "").trim();
