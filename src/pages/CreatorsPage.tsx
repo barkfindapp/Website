@@ -318,7 +318,7 @@ function SectionNav() {
   return (
     <nav
       aria-label="Skip to section"
-      className="hidden xl:flex fixed top-1/2 -translate-y-1/2 z-30 flex-col max-h-[72vh] overflow-y-auto"
+      className="hidden xl:block fixed top-1/2 -translate-y-1/2 z-30 max-h-[72vh] overflow-y-auto rounded-xl border border-stone-200 bg-white/95 backdrop-blur-sm shadow-sm p-2"
       style={{ left: "max(1.5rem, calc((100vw - 48rem) / 2 - 13.5rem))", width: "12rem" }}
     >
       <ul className="flex flex-col border-l border-stone-200 text-sm">
