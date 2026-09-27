@@ -366,9 +366,11 @@ export default function CreatorsPage() {
 
       <Section title="How you can help">
         <p>
-          BarkFind exists because "dog friendly" is a guess, and a bad guess costs an afternoon. We built it to
-          be honest about where dogs are actually welcome, and to be built by the people who use it. That is the
-          whole idea, and it is what we are asking you to help with.
+          We built BarkFind for people who take the dog everywhere and are tired of finding out at the door.
+          That includes the dogs who need a bit more thought: the reactive ones, the anxious ones, the ones who
+          are fine with people and not with other dogs. Knowing a place is genuinely good for your dog, not just
+          tolerant of dogs in general, is the difference between a good afternoon and a short one. That is what
+          we are asking you to help with.
         </p>
         <p>
           We are not looking for a lot of creators. We are looking for the right ones: people who already take
