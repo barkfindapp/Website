@@ -58,26 +58,30 @@ function EarningsCalculator() {
         <span className="w-1.5 h-1.5 rounded-full bg-[#B74217]" />
       </div>
 
-      {/* Tier tabs: the tab is the tier. Filled segmented control: active is a
-          solid teal pill, inactive are outlined pills that read on the white
-          card. Each is a keyboard-reachable button. */}
+      {/* Tier tabs: the tab is the tier. Filled segmented control, one brand
+          colour per tier so the active pill differs by tab; inactive are
+          outlined pills that read on the white card. Each is keyboard-reachable. */}
       <div role="tablist" aria-label="Follower tier" className="flex flex-wrap gap-2 mt-3">
-        {tabLabels.map((label, i) => (
-          <button
-            key={label}
-            type="button"
-            role="tab"
-            aria-selected={tab === i}
-            onClick={() => selectTab(i)}
-            className={`px-4 py-2 rounded-full text-sm font-semibold transition-colors ${
-              tab === i
-                ? "bg-teal text-white shadow-sm"
-                : "bg-white text-ink/70 hover:text-ink border border-stone-200"
-            }`}
-          >
-            {label}
-          </button>
-        ))}
+        {tabLabels.map((label, i) => {
+          // Under 10,000 -> nature green, 10,000-30,000 -> rust, Over 30,000 -> teal.
+          const activeFill = ["bg-nature", "bg-rust", "bg-teal"][i] ?? "bg-teal";
+          return (
+            <button
+              key={label}
+              type="button"
+              role="tab"
+              aria-selected={tab === i}
+              onClick={() => selectTab(i)}
+              className={`px-4 py-2 rounded-full text-sm font-semibold transition-colors ${
+                tab === i
+                  ? `${activeFill} text-white shadow-sm`
+                  : "bg-white text-ink/70 hover:text-ink border border-stone-200"
+              }`}
+            >
+              {label}
+            </button>
+          );
+        })}
       </div>
 
       {tier ? (
