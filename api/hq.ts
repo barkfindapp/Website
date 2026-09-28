@@ -11,8 +11,10 @@ import { requireAdmin } from './_lib/admin-auth.js';
 const DB_URL = process.env.SUPABASE_DB_URL!;
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
-// Same fallback model as /api/admin-ai.
-const HQ_MODEL = process.env.HQ_MODEL || 'claude-haiku-4-5-20251001';
+// The model comes from public.app_config (key claude_model_fast), shared with the
+// edge functions, so switching models is one SQL update. Read only. Falls back to
+// the same model as /api/admin-ai if the read fails or returns nothing usable.
+const FALLBACK_MODEL = 'claude-haiku-4-5-20251001';
 const MAX_TOKENS = 800;
 
 const pool = new Pool({ connectionString: DB_URL, ssl: { rejectUnauthorized: false }, max: 3 });
@@ -42,6 +44,17 @@ async function one(sql: string, params: unknown[] = []) {
   const r = await pool.query(sql, params);
   return r.rows[0];
 }
+async function claudeModel() {
+  try {
+    const row = await one("select value from public.app_config where key = 'claude_model_fast'");
+    const v = typeof row?.value === 'string' ? row.value.trim() : '';
+    if (/^[a-z0-9.-]{1,80}$/.test(v)) return v;
+  } catch (e: any) {
+    console.error('hq app_config read failed', e?.message);
+  }
+  return FALLBACK_MODEL;
+}
+
 const snapshot = async () => (await one('select public.hq_snapshot() as s')).s;
 const queue = async () => (await one('select public.hq_queue() as q')).q;
 
@@ -77,13 +90,14 @@ async function emailMetrics() {
 
 async function claude(operation: string, prompt: string, userId: string) {
   if (!ANTHROPIC_API_KEY) throw new HttpError(503, 'Claude is not configured on the server.');
-  const price = priceFor(HQ_MODEL);
-  if (!price) throw new HttpError(500, 'HQ_MODEL has no unit price set, so the call was not made.');
+  const model = await claudeModel();
+  const price = priceFor(model);
+  if (!price) throw new HttpError(500, 'The configured Claude model has no unit price set, so the call was not made.');
 
   const r = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: { 'x-api-key': ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
-    body: JSON.stringify({ model: HQ_MODEL, max_tokens: MAX_TOKENS, messages: [{ role: 'user', content: prompt }] }),
+    body: JSON.stringify({ model, max_tokens: MAX_TOKENS, messages: [{ role: 'user', content: prompt }] }),
   });
   const msg: any = await r.json().catch(() => null);
   if (r.status === 429) throw new HttpError(429, 'Too many questions in a short time. Try again in a minute.');
