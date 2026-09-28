@@ -23,6 +23,7 @@ const pool = new Pool({ connectionString: DB_URL, ssl: { rejectUnauthorized: fal
 const ACTIONS = new Set([
   'approve_review', 'reject_review', 'reply_ticket', 'set_ticket_status', 'note_ticket',
   'user_report', 'location_report', 'outreach_save', 'outreach_log', 'outreach_delete',
+  'renewal_done', 'renewal_save',
 ]);
 
 // Anthropic list prices, USD per million tokens [input, output]. Checked by Josh

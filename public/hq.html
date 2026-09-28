@@ -229,9 +229,6 @@ footer .mono{color:rgba(255,255,255,.75)}
 
 /* two-tap confirm stays amber, including the hover state iOS keeps after a tap */
 .btn.confirm,.btn.confirm:hover{background:var(--warn);border-color:var(--warn);color:#fff;opacity:1}
-/* hero wave, as on the website */
-.band .wave{position:absolute;left:0;right:0;bottom:-1px;line-height:0;z-index:0}
-.band .wave svg{display:block;width:100%;height:auto}
 .sr{position:absolute!important;left:-9999px!important}
 .signout{background:none;border:0;padding:0;color:rgba(255,255,255,.75);font:inherit;text-decoration:underline;text-underline-offset:3px}
 .signout:hover{color:#fff}
@@ -315,7 +312,6 @@ footer .mono{color:rgba(255,255,255,.75)}
       <span class="lab"><b id="daysLab">days to launch</b>App Store release, Tue 13 Oct 2026</span>
     </div>
   </div>
-  <div class="wave" aria-hidden="true"><svg viewBox="0 0 1440 40" fill="none" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none"><path d="M0 40L60 34C120 28 240 16 360 13.3C480 10.7 600 17.3 720 21.3C840 25.3 960 26.7 1080 24C1200 21.3 1320 14.7 1380 11.3L1440 8V40H1380C1320 40 1200 40 1080 40C960 40 840 40 720 40C600 40 480 40 360 40C240 40 120 40 60 40H0Z" fill="white"/></svg></div>
 </section>
 
 <div class="strip">
@@ -379,7 +375,7 @@ footer .mono{color:rgba(255,255,255,.75)}
         <h3>Renewals and deadlines <small>Deadlines</small></h3>
         <div class="hero"><span class="v" id="r-next">–</span><span class="u" id="r-next-lab">days to the next one</span></div>
         <div class="stack" id="r-list" style="gap:0"></div>
-        <p class="note">You get an alert at each reminder point and if anything goes overdue.</p>
+        <p class="note">You get an alert at each reminder point and if anything goes overdue. Marking a yearly item done rolls it on a year.</p>
       </article>
 
       <article class="panel" id="p-email">
@@ -569,7 +565,7 @@ footer .mono{color:rgba(255,255,255,.75)}
     var up=s.uptime||{};Object.keys(up).forEach(function(k){if(up[k]&&up[k].ok===false)items.push(["crit","Uptime check failing: "+k,"Last answer "+(up[k].status||"none")+". 24-hour availability "+(up[k].availability_24h==null?"–":up[k].availability_24h+"%")+".","https://supabase.com/dashboard/project/"+PROJECT,"Investigate"])});
     var rn=s.renewals||{};
     (rn.upcoming||[]).forEach(function(r){if(r.days<0)items.push(["crit","Overdue: "+r.item,"Was due "+day(r.due_date)+".",r.url||"#today","Open"]);else if(r.days<=14)items.push([r.days<=7?"warn":"info",(r.days===0?"Due today: ":"Due in "+r.days+" day"+(r.days===1?"":"s")+": ")+r.item,day(r.due_date)+". "+(r.notes||""),r.url||"#today","Open"])});
-    if((rn.needs_date||[]).length)items.push(["info",rn.needs_date.length+" renewal date"+(rn.needs_date.length>1?"s":"")+" still to find",rn.needs_date.map(function(x){return x.item}).join(", ")+". Add their dates so reminders can fire.","#today","Add dates"]);
+    if((rn.needs_date||[]).length)items.push(["info",rn.needs_date.length+" renewal date"+(rn.needs_date.length>1?"s":"")+" still to find",rn.needs_date.map(function(x){return x.item}).join(", ")+". Add them in the Renewals panel so reminders can fire.","#today","Add dates"]);
     var od=(s.outreach&&s.outreach.due)||[];
     if(od.length)items.push(["warn",od.length+" outreach follow-up"+(od.length>1?"s":"")+" due",od.slice(0,4).map(function(o){return o.name}).join(", ")+(od.length>4?" and more":"")+".","#outreach","Open outreach"]);
     var ow=(s.outreach&&s.outreach.owed)||[];
@@ -699,7 +695,7 @@ footer .mono{color:rgba(255,255,255,.75)}
       .catch(function(e){state.errors.queue=errCopy(e,"Supabase");renderAct();renderOutreach()});
   }
     function act(action,args){
-    var allowed=["approve_review","reject_review","reply_ticket","set_ticket_status","note_ticket","user_report","location_report","outreach_save","outreach_log","outreach_delete"];
+    var allowed=["renewal_done","renewal_save","approve_review","reject_review","reply_ticket","set_ticket_status","note_ticket","user_report","location_report","outreach_save","outreach_log","outreach_delete"];
     if(allowed.indexOf(action)<0)return Promise.reject({message:"Not an allowed action"});
     return api("action",{action:action,args:args}).then(function(r){return r.data});
   }
@@ -776,16 +772,23 @@ footer .mono{color:rgba(255,255,255,.75)}
       .catch(function(e){card.querySelectorAll("button").forEach(function(x){x.disabled=false});note(card,false,errCopy(e,"Supabase"))});
   });
 
-  // ---------- renewals (read only on this page) ----------
+  // ---------- renewals ----------
   function renderRenewals(){
     var rn=(state.snap&&state.snap.renewals)||{},up=rn.upcoming||[],nd=rn.needs_date||[],el=$("r-list");
     var nxt=up.filter(function(r){return r.days>=0})[0];
     $("r-next").textContent=nxt?nxt.days:"–";$("r-next-lab").textContent=nxt?(nxt.days===1?"day":"days")+" to "+nxt.item.toLowerCase():"nothing dated yet";
     var h=up.map(function(r){var cls=r.days<0?"crit":r.days<=7?"warn":r.days<=30?"info":"";
-      return '<div class="card" style="border:0;border-top:1px solid var(--line);border-radius:0;padding:10px 0;gap:6px;box-shadow:none"><div class="row" style="justify-content:space-between"><span class="title" style="font-size:14px">'+esc(r.item)+'</span><span class="tag '+cls+'">'+esc(r.days<0?"overdue":r.days+"d")+'</span></div><div class="meta"><span>'+esc(day(r.due_date))+'</span><span>'+esc(r.recurs==="yearly"?"yearly":"one-off")+'</span>'+(r.url?'<a href="'+esc(r.url)+'" target="_blank" rel="noopener">open</a>':'')+'</div></div>'}).join("");
-    h+=nd.map(function(r){return '<div class="card" style="border:0;border-top:1px solid var(--line);border-radius:0;padding:10px 0;gap:6px;box-shadow:none"><div class="row" style="justify-content:space-between"><span class="title" style="font-size:14px">'+esc(r.item)+'</span><span class="tag">no date</span></div>'+(r.notes?'<div class="note">'+esc(r.notes)+'</div>':'')+(r.url?'<div class="meta"><a href="'+esc(r.url)+'" target="_blank" rel="noopener">find it</a></div>':'')+'</div>'}).join("");
+      return '<div class="card" data-rid="'+esc(r.id)+'" style="border:0;border-top:1px solid var(--line);border-radius:0;padding:10px 0;gap:6px;box-shadow:none"><div class="row" style="justify-content:space-between"><span class="title" style="font-size:14px">'+esc(r.item)+'</span><span class="tag '+cls+'">'+esc(r.days<0?"overdue":r.days+"d")+'</span></div><div class="meta"><span>'+esc(day(r.due_date))+'</span><span>'+esc(r.recurs==="yearly"?"yearly":"one-off")+'</span>'+(r.url?'<a href="'+esc(r.url)+'" target="_blank" rel="noopener">open</a>':'')+'</div><div class="row"><button class="btn small" data-rdo="done" data-confirm="Confirm done">Mark done</button></div></div>'}).join("");
+    h+=nd.map(function(r){return '<div class="card" data-rid="'+esc(r.id)+'" style="border:0;border-top:1px solid var(--line);border-radius:0;padding:10px 0;gap:6px;box-shadow:none"><div class="row" style="justify-content:space-between"><span class="title" style="font-size:14px">'+esc(r.item)+'</span><span class="tag">no date</span></div>'+(r.notes?'<div class="note">'+esc(r.notes)+'</div>':'')+'<div class="row"><label class="note" for="rd-'+esc(r.id)+'">Due</label><input type="date" id="rd-'+esc(r.id)+'" style="width:auto;flex:1"><button class="btn small" data-rdo="date">Save date</button>'+(r.url?'<a class="btn small" href="'+esc(r.url)+'" target="_blank" rel="noopener">Find it</a>':'')+'</div></div>'}).join("");
     el.innerHTML=h||'<div class="empty">Nothing tracked yet.</div>';
   }
+  $("r-list").addEventListener("click",function(ev){
+    var b=ev.target.closest("button[data-rdo]");if(!b)return;var card=b.closest("[data-rid]"),id=card.dataset.rid,call;
+    if(b.dataset.rdo==="date"){var v=card.querySelector('input[type=date]').value;if(!v){note(card,false,"Pick the date first.");return}call=act("renewal_save",{id:id,due_date:v})}
+    else{if(!armed(b))return;call=act("renewal_done",{id:id})}
+    b.disabled=true;
+    call.then(function(r){note(card,r.ok,r.message);setTimeout(function(){api("snapshot").then(function(r){state.snap=r.data;render()}).catch(function(){})},700)}).catch(function(e){b.disabled=false;note(card,false,errCopy(e,"Supabase"))});
+  });
 
   // ---------- outreach ----------
   var outFilter="all";
