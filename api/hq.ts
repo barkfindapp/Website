@@ -1,12 +1,14 @@
 // /api/hq - server side of BarkFind HQ (public/hq.html).
 // Flow: browser sends the user's Supabase access token + { op, args }. We run the
-// shared admin gate, then call one fixed operation. The browser never sends SQL:
-// every query below is a constant with bound parameters. All the logic lives in
-// the Supabase functions hq_snapshot(), hq_queue() and hq_action(); this file
-// only calls them, reads Resend's metrics and runs the Claude features.
+// shared admin gate, require a second sign-in step (aal2), then call one op from
+// the OPS whitelist. Each op validates its own args; anything else is a 400. The
+// browser never sends SQL: every query is a constant with bound parameters, and
+// table names come only from fixed maps in this file. Every write runs in one
+// transaction with its admin_audit row (see _lib/hq-core.ts).
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { Pool } from 'pg';
+import { Pool, type PoolClient } from 'pg';
 import { requireAdmin } from './_lib/admin-auth.js';
+import { HttpError, bad, obj, only, uuid, str, oneOf, date, bool, scrubEmails, writeTx, toTrash } from './_lib/hq-core.js';
 
 const DB_URL = process.env.SUPABASE_DB_URL!;
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
@@ -19,12 +21,67 @@ const MAX_TOKENS = 800;
 
 const pool = new Pool({ connectionString: DB_URL, ssl: { rejectUnauthorized: false }, max: 3 });
 
-// Must match the whitelist inside public.hq_action().
-const ACTIONS = new Set([
-  'approve_review', 'reject_review', 'reply_ticket', 'set_ticket_status', 'note_ticket',
-  'user_report', 'location_report', 'outreach_save', 'outreach_log', 'outreach_delete',
-  'renewal_done', 'renewal_save',
-]);
+// ---------- hq_action: whitelist, argument shapes and the row each one touches ----------
+// Names must match the whitelist inside public.hq_action(). table and idKey say which
+// row to copy into admin_audit.before/after; the table names never come from the request.
+const KINDS = ['creator', 'venue', 'press', 'partner', 'other'] as const;
+const OUT_STATUSES = ['to_contact', 'contacted', 'replied', 'agreed', 'live', 'declined', 'parked'] as const;
+type ActionSpec = { table: string; idKey: string; label: string; args: (a: Record<string, unknown>) => Record<string, unknown> };
+const ACTIONS: Record<string, ActionSpec> = {
+  approve_review: { table: 'reviews', idKey: 'id', label: 'Approved review', args: (a) => ({ id: uuid(only(a, ['id']).id) }) },
+  reject_review: { table: 'reviews', idKey: 'id', label: 'Rejected review', args: (a) => ({ id: uuid(only(a, ['id']).id) }) },
+  reply_ticket: {
+    table: 'support_tickets', idKey: 'ticket_id', label: 'Replied to ticket',
+    args: (a) => (only(a, ['ticket_id', 'body', 'resolve']), { ticket_id: uuid(a.ticket_id), body: str(a.body, 10000, { min: 1 }), resolve: bool(a.resolve, { optional: true }) }),
+  },
+  set_ticket_status: {
+    table: 'support_tickets', idKey: 'ticket_id', label: 'Changed ticket status',
+    args: (a) => (only(a, ['ticket_id', 'status']), { ticket_id: uuid(a.ticket_id), status: oneOf(a.status, ['open', 'in_progress', 'resolved']) }),
+  },
+  note_ticket: {
+    table: 'support_tickets', idKey: 'ticket_id', label: 'Added ticket note',
+    args: (a) => (only(a, ['ticket_id', 'body']), { ticket_id: uuid(a.ticket_id), body: str(a.body, 5000, { min: 1 }) }),
+  },
+  user_report: {
+    table: 'user_reports', idKey: 'id', label: 'Handled user report',
+    args: (a) => (only(a, ['id', 'status']), { id: uuid(a.id), status: oneOf(a.status, ['actioned', 'dismissed']) }),
+  },
+  location_report: {
+    table: 'location_reports', idKey: 'id', label: 'Handled place report',
+    args: (a) => (only(a, ['id', 'status']), { id: uuid(a.id), status: oneOf(a.status, ['actioned', 'dismissed']) }),
+  },
+  outreach_save: {
+    table: 'hq_outreach', idKey: 'id', label: 'Saved outreach contact',
+    args: (a) => {
+      only(a, ['id', 'name', 'org', 'kind', 'status', 'handle', 'email', 'phone', 'next_follow_up', 'next_action', 'owed', 'notes']);
+      const o: Record<string, unknown> = {
+        name: str(a.name, 200, { min: 1 }), org: str(a.org, 200, { optional: true }),
+        kind: oneOf(a.kind, KINDS, { optional: true }) || 'creator', status: oneOf(a.status, OUT_STATUSES, { optional: true }) || 'to_contact',
+        handle: str(a.handle, 200, { optional: true }), email: str(a.email, 200, { optional: true }), phone: str(a.phone, 60, { optional: true }),
+        next_follow_up: date(a.next_follow_up, { optional: true }), next_action: str(a.next_action, 500, { optional: true }),
+        owed: str(a.owed, 500, { optional: true }), notes: str(a.notes, 5000, { optional: true }),
+      };
+      if (a.id !== undefined && a.id !== '') o.id = uuid(a.id);
+      return o;
+    },
+  },
+  outreach_log: {
+    table: 'hq_outreach', idKey: 'id', label: 'Logged outreach contact',
+    args: (a) => {
+      only(a, ['id', 'note', 'status', 'next_follow_up']);
+      const o: Record<string, unknown> = { id: uuid(a.id), note: str(a.note, 2000, { min: 1 }), next_follow_up: date(a.next_follow_up, { optional: true }) };
+      const st = oneOf(a.status, OUT_STATUSES, { optional: true });
+      if (st) o.status = st;
+      return o;
+    },
+  },
+  outreach_delete: { table: 'hq_outreach', idKey: 'id', label: 'Removed outreach contact', args: (a) => ({ id: uuid(only(a, ['id']).id) }) },
+  renewal_done: { table: 'hq_renewals', idKey: 'id', label: 'Marked renewal done', args: (a) => ({ id: uuid(only(a, ['id']).id) }) },
+  renewal_save: {
+    table: 'hq_renewals', idKey: 'id', label: 'Saved renewal date',
+    args: (a) => (only(a, ['id', 'due_date']), { id: uuid(a.id), due_date: date(a.due_date) }),
+  },
+};
 
 // Anthropic list prices, USD per million tokens [input, output]. Checked by Josh
 // against Anthropic's model page on 28 September 2026. Keyed by model ID without
@@ -35,10 +92,6 @@ const PRICES: Record<string, [number, number]> = {
 };
 function priceFor(model: string) {
   return PRICES[model.replace(/-\d{8}$/, '')] || null;
-}
-
-class HttpError extends Error {
-  constructor(public status: number, message: string) { super(message); }
 }
 
 async function one(sql: string, params: unknown[] = []) {
@@ -141,72 +194,106 @@ function outreachPrompt(o: any) {
   return "Draft a short message from Josh, the solo founder of BarkFind (a UK iOS app for finding places that are genuinely good with dogs, built around his reactive Vizsla, Mylo; launches on the App Store on 13 October 2026), to this contact. Use the next action as the purpose of the message. Write it so it reads as Josh wrote it himself: plain, warm, specific, short, no hype. UK English, no em dashes, no exclamation marks, no rhetorical questions, no dog puns, no emoji. For a creator, treat them as an owner with an audience rather than as an influencer. For a venue, lead with something true and specific about them. For press, lead with the local story. Sign off 'Josh'. If it is an email, give a subject line first.\n\nCONTACT (JSON):\n" + JSON.stringify({ name: o.name, org: o.org, type: o.kind, status: o.status, handle: o.handle, next_action: o.next_action, owed: o.owed, notes: o.notes, history: (o.log || []).slice(0, 5) });
 }
 
-function idArg(args: any) {
-  const id = args && args.id;
-  if ((typeof id !== 'string' && typeof id !== 'number') || String(id).length > 64) throw new HttpError(400, 'A record id is needed.');
-  return String(id);
+// Reads one row as JSON from a table named in ACTIONS (never from the request).
+async function rowOf(c: PoolClient, table: string, id: string) {
+  const r = await c.query(`select to_jsonb(t) as r from public.${table} t where t.id = $1`, [id]);
+  return r.rows[0]?.r ?? null;
 }
+
+// Runs one hq_action inside a write transaction: rate limit, row before and after,
+// hq_trash copy for a delete, and the audit row hq_action writes gets the signed-in
+// user, a short human line and the before/after.
+async function runAction(userId: string, action: string, rawArgs: unknown) {
+  const spec = ACTIONS[action];
+  if (!spec) throw bad();
+  const a = spec.args(obj(rawArgs));
+  const id = (a[spec.idKey] as string | undefined) || null;
+  return writeTx(pool, userId, async (c) => {
+    const before = id ? await rowOf(c, spec.table, id) : null;
+    if (id && !before) throw new HttpError(404, 'That record no longer exists.');
+    const r = (await c.query('select public.hq_action($1, $2::jsonb) as r', [action, JSON.stringify(a)])).rows[0].r;
+    const newId = id || (r && typeof r.id === 'string' ? r.id : null);
+    const after = newId ? await rowOf(c, spec.table, newId) : null;
+    if (action === 'outreach_delete' && id && before) await toTrash(c, userId, spec.table, id, before);
+    // hq_action inserted its own audit row in this transaction (same now()); complete it.
+    await c.query(
+      "update public.admin_audit set actor_user_id = $1, detail = $2, before = $3::jsonb, after = $4::jsonb where actor = 'hq' and actor_user_id is null and created_at = now()",
+      [userId, spec.label, before === null ? null : JSON.stringify(before), after === null ? null : JSON.stringify(after)],
+    );
+    return r;
+  });
+}
+
+// Reads the aal claim from a token requireAdmin has already verified with Supabase.
+function tokenAal(req: VercelRequest): string | null {
+  try {
+    const token = String(req.headers.authorization || '').replace(/^Bearer\s+/i, '');
+    const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64url').toString('utf8'));
+    return typeof payload.aal === 'string' ? payload.aal : null;
+  } catch { return null; }
+}
+
+// ---------- ops whitelist ----------
+type Ctx = { userId: string };
+const noArgs = (a: Record<string, unknown>) => only(a, []);
+const OPS: Record<string, (args: Record<string, unknown>, ctx: Ctx) => Promise<unknown>> = {
+  snapshot: async (a) => (noArgs(a), { data: await snapshot() }),
+  queue: async (a) => (noArgs(a), { data: await queue() }),
+  history: async (a) => (noArgs(a), { data: await history() }),
+  email_metrics: async (a) => (noArgs(a), { data: await emailMetrics() }),
+
+  action: async (a, ctx) => {
+    only(a, ['action', 'args']);
+    if (typeof a.action !== 'string' || !ACTIONS[a.action]) throw bad();
+    return { data: await runAction(ctx.userId, a.action, a.args) };
+  },
+
+  // Ralphy sees snapshot totals only, with any email address removed.
+  ask: async (a, ctx) => {
+    only(a, ['question']);
+    const q = str(a.question, 1000, { min: 1 });
+    const snap = scrubEmails(await snapshot());
+    let email: unknown = null;
+    try { email = await emailMetrics(); } catch { email = null; }
+    return claude('hq_ask', askPrompt({ snapshot: snap, email_30d: email }, q), ctx.userId);
+  },
+
+  // Drafts send only the one ticket or contact being drafted, with email addresses removed.
+  draft_ticket: async (a, ctx) => {
+    const id = uuid(only(a, ['id']).id);
+    const t = ((await queue())?.tickets || []).find((x: any) => String(x.id) === id);
+    if (!t) throw new HttpError(404, 'That ticket is no longer open.');
+    return claude('hq_draft_ticket', ticketPrompt(scrubEmails(t)), ctx.userId);
+  },
+  draft_outreach: async (a, ctx) => {
+    const id = uuid(only(a, ['id']).id);
+    const o = ((await queue())?.outreach || []).find((x: any) => String(x.id) === id);
+    if (!o) throw new HttpError(404, 'That person is no longer in the list.');
+    return claude('hq_draft_outreach', outreachPrompt(scrubEmails(o)), ctx.userId);
+  },
+};
 
 // ---------- handler ----------
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Cache-Control', 'no-store');
   res.setHeader('X-Robots-Tag', 'noindex, nofollow');
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('Referrer-Policy', 'no-referrer');
   if (req.method !== 'POST') return res.status(405).json({ error: 'POST only.' });
   try {
     const gate = await requireAdmin(req, pool);
     if (!gate.ok) return res.status(gate.status).json({ error: gate.status === 401 ? 'Not signed in.' : 'Not authorised.' });
+    // Second sign-in step, checked here on the server for every op.
+    if (tokenAal(req) !== 'aal2') return res.status(401).json({ error: 'Enter your 6-digit code', code: 'mfa' });
 
-    const body = (req.body && typeof req.body === 'object') ? req.body : {};
-    const op = body.op;
-    const args = (body.args && typeof body.args === 'object') ? body.args : {};
-
-    switch (op) {
-      case 'snapshot':
-        return res.status(200).json({ data: await snapshot() });
-      case 'queue':
-        return res.status(200).json({ data: await queue() });
-      case 'history':
-        return res.status(200).json({ data: await history() });
-      case 'email_metrics':
-        return res.status(200).json({ data: await emailMetrics() });
-
-      case 'action': {
-        const action = args.action;
-        if (typeof action !== 'string' || !ACTIONS.has(action)) return res.status(400).json({ error: 'Not an allowed action.' });
-        const a = (args.args && typeof args.args === 'object' && !Array.isArray(args.args)) ? args.args : null;
-        if (!a) return res.status(400).json({ error: 'Action details are missing.' });
-        const row = await one('select public.hq_action($1, $2::jsonb) as r', [action, JSON.stringify(a)]);
-        return res.status(200).json({ data: row.r });
-      }
-
-      case 'ask': {
-        const q = typeof args.question === 'string' ? args.question.trim() : '';
-        if (!q) return res.status(400).json({ error: 'Type a question first.' });
-        if (q.length > 1000) return res.status(400).json({ error: 'That question is too long.' });
-        const snap = await snapshot();
-        let email: unknown = null;
-        try { email = await emailMetrics(); } catch { email = null; }
-        return res.status(200).json(await claude('hq_ask', askPrompt({ snapshot: snap, email_30d: email }, q), gate.userId));
-      }
-
-      case 'draft_ticket': {
-        const id = idArg(args);
-        const t = ((await queue())?.tickets || []).find((x: any) => String(x.id) === id);
-        if (!t) return res.status(404).json({ error: 'That ticket is no longer open.' });
-        return res.status(200).json(await claude('hq_draft_ticket', ticketPrompt(t), gate.userId));
-      }
-
-      case 'draft_outreach': {
-        const id = idArg(args);
-        const o = ((await queue())?.outreach || []).find((x: any) => String(x.id) === id);
-        if (!o) return res.status(404).json({ error: 'That person is no longer in the list.' });
-        return res.status(200).json(await claude('hq_draft_outreach', outreachPrompt(o), gate.userId));
-      }
-
-      default:
-        return res.status(400).json({ error: 'Unknown operation.' });
-    }
+    const body = obj(req.body);
+    only(body, ['op', 'args']);
+    const run = typeof body.op === 'string' && Object.prototype.hasOwnProperty.call(OPS, body.op) ? OPS[body.op] : null;
+    if (!run) throw bad();
+    const args = body.args === undefined ? {} : obj(body.args);
+    return res.status(200).json(await run(args, { userId: gate.userId }));
   } catch (e: any) {
     if (e instanceof HttpError) return res.status(e.status).json({ error: e.message });
     console.error('hq', e?.message || e);

@@ -250,6 +250,10 @@ footer .mono{color:rgba(255,255,255,.75)}
 .gate .title{font:800 17px/1.35 var(--sans);color:var(--fg)}
 .gate .note{text-align:left}
 .gate #gMsg{text-align:center}
+.mfa-qr{width:200px;height:200px;align-self:center;background:#fff;border:1px solid var(--line);border-radius:12px;padding:8px}
+.mfa-key{font:700 14px/1.4 var(--mono);letter-spacing:.06em;word-break:break-all;color:var(--ink);background:#FAFAF9;border:1px solid var(--line);border-radius:12px;padding:10px 12px;user-select:all;-webkit-user-select:all}
+.gate input.code{letter-spacing:.35em;text-align:center;font-weight:800;font-size:20px}
+.gate .row .btn{flex:1 1 auto}
 </style>
 </head>
 <body>
@@ -273,6 +277,25 @@ footer .mono{color:rgba(255,255,255,.75)}
           <p class="note" style="margin:0">HQ is for BarkFind admins. Sign in with an admin account instead.</p>
           <div class="row"><button class="btn" type="button" id="gOut">Sign out</button></div>
         </div>
+        <form id="mfaSetup" class="stack" hidden autocomplete="off">
+          <div class="title">Add a second sign-in step</div>
+          <p class="note" style="margin:0">Scan this with your authenticator app. On this iPhone, tap Open in authenticator app instead.</p>
+          <img id="mfaQr" class="mfa-qr" alt="QR code for your authenticator app">
+          <a class="btn" id="mfaLink" href="#">Open in authenticator app</a>
+          <p class="note" style="margin:0">Or type this key into the app:</p>
+          <div class="mfa-key" id="mfaSecret"></div>
+          <label>Enter the 6-digit code<input class="code" id="mfaSetupCode" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]*" maxlength="6" required></label>
+          <button class="btn primary" type="submit" id="mfaSetupBtn">Verify</button>
+          <div class="row"><button class="btn" type="button" data-signout>Sign out</button></div>
+        </form>
+        <form id="mfaCode" class="stack" hidden autocomplete="off">
+          <div class="title">Enter the 6-digit code</div>
+          <p class="note" style="margin:0">From your authenticator app.</p>
+          <label>6-digit code<input class="code" id="mfaCodeIn" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]*" maxlength="6" required></label>
+          <button class="btn primary" type="submit" id="mfaCodeBtn">Verify</button>
+          <p class="note" style="margin:0">Lost your phone? The authenticator can be removed in the Supabase dashboard: Authentication, Users, your account, Multi-factor authentication factors. Then sign in again to set up a new one.</p>
+          <div class="row"><button class="btn" type="button" data-signout>Sign out</button></div>
+        </form>
         <div class="note" id="gMsg">Checking sign-in.</div>
       </div>
     </div>
@@ -509,6 +532,7 @@ footer .mono{color:rgba(255,255,255,.75)}
     return fetch("/api/hq",{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+tok},body:JSON.stringify({op:op,args:args||{}})})
       .catch(function(){throw {code:"network",message:"The server did not answer. Check your connection and try again."}})
       .then(function(r){return r.json().catch(function(){return null}).then(function(j){
+        if(r.status===401&&j&&j.code==="mfa"){window.hqMfa&&window.hqMfa();throw {code:"mfa",message:"Enter your 6-digit code"}}
         if(r.status===401){window.hqGate&&window.hqGate("signin");throw {code:"auth",message:"Your session has ended. Sign in again."}}
         if(r.status===403){window.hqGate&&window.hqGate("denied");throw {code:"denied",message:"This account does not have access."}}
         if(!r.ok||!j)throw {code:"http",message:(j&&j.error)||"The server did not answer. Try again."};
@@ -947,10 +971,11 @@ footer .mono{color:rgba(255,255,255,.75)}
   var SUPA_URL="https://kwwnwniyijeuorpbyvmn.supabase.co";
   var SUPA_KEY="sb_publishable_-EWszMqW22vM4kNYHeq7xQ_JXMsX4MR";
   var sb=window.supabase?window.supabase.createClient(SUPA_URL,SUPA_KEY):null;
-  // mode: signin, denied, checking or app. Signed out, only the sign-in form shows.
+  // mode: signin, denied, checking, mfa-setup, mfa-code or app. Signed out, only the sign-in form shows.
   function gate(mode,msg){
     $("gate").hidden=mode==="app";$("app").hidden=mode!=="app";
     $("signIn").hidden=mode!=="signin";$("noAccess").hidden=mode!=="denied";$("gHead").hidden=mode==="denied";
+    $("mfaSetup").hidden=mode!=="mfa-setup";$("mfaCode").hidden=mode!=="mfa-code";
     $("gMsg").textContent=msg||"";$("gMsg").hidden=!msg;
     if(mode!=="app")ready=false;
     if(mode==="signin"){$("gBtn").disabled=false}
@@ -963,7 +988,7 @@ footer .mono{color:rgba(255,255,255,.75)}
     if(ready||checking)return;
     checking=true;gate("checking","Checking access.");
     api("history").then(function(r){state.history=r.data||[];ready=true;gate("app");load()})
-      .catch(function(e){if(e.code!=="denied"&&e.code!=="auth")gate("signin",e.message)})
+      .catch(function(e){if(e.code!=="denied"&&e.code!=="auth"&&e.code!=="mfa")gate("signin",e.message)})
       .then(function(){checking=false});
   }
   if(!sb){gate("signin","The sign-in library did not load. Check your connection and reload the page.");$("gBtn").disabled=true}
@@ -984,6 +1009,46 @@ footer .mono{color:rgba(255,255,255,.75)}
     function signOut(){sb.auth.signOut().catch(function(){}).then(function(){location.replace("/hq")})}
     $("gOut").addEventListener("click",signOut);
     $("signOut").addEventListener("click",signOut);
+    document.querySelectorAll("[data-signout]").forEach(function(b){b.addEventListener("click",signOut)});
+
+    // ---------- second sign-in step (TOTP). The server refuses every op without aal2. ----------
+    var mfaFactor=null, mfaBusy=false;
+    function mfaStart(){
+      if(mfaBusy)return;mfaBusy=true;ready=false;
+      gate("checking","Checking your second sign-in step.");
+      sb.auth.mfa.listFactors().then(function(r){
+        if(r.error)throw r.error;
+        var all=(r.data&&r.data.all)||[];
+        var verified=all.filter(function(f){return f.factor_type==="totp"&&f.status==="verified"})[0];
+        if(verified){mfaFactor=verified.id;gate("mfa-code");setTimeout(function(){$("mfaCodeIn").focus()},50);return}
+        // No verified authenticator yet: clear any half-finished setup, then start a fresh one.
+        var stale=all.filter(function(f){return f.factor_type==="totp"&&f.status!=="verified"});
+        return Promise.all(stale.map(function(f){return sb.auth.mfa.unenroll({factorId:f.id})})).then(function(){
+          return sb.auth.mfa.enroll({factorType:"totp",friendlyName:"BarkFind HQ"});
+        }).then(function(e){
+          if(e.error)throw e.error;
+          mfaFactor=e.data.id;
+          $("mfaQr").src=qrSrc(e.data.totp.qr_code);$("mfaSecret").textContent=e.data.totp.secret;$("mfaLink").href=e.data.totp.uri;
+          gate("mfa-setup");
+        });
+      }).catch(function(e){gate("signin",(e&&e.message)||"The second sign-in step did not load. Try again.")})
+        .then(function(){mfaBusy=false});
+    }
+    // Supabase returns the QR as an unencoded SVG data URL, which some browsers will not draw. Re-encode it.
+    function qrSrc(q){q=String(q||"");var i=q.indexOf(",");if(/^data:image\/svg\+xml/.test(q)&&!/;base64,/.test(q)&&i>0){var svg=q.slice(i+1);try{svg=decodeURIComponent(svg)}catch(e){}return "data:image/svg+xml;charset=utf-8,"+encodeURIComponent(svg)}return q}
+    window.hqMfa=mfaStart;
+    function mfaVerify(input,btn){
+      var code=(input.value||"").replace(/\D/g,"");
+      if(code.length!==6){$("gMsg").hidden=false;$("gMsg").textContent="Enter the 6-digit code";return}
+      btn.disabled=true;$("gMsg").hidden=false;$("gMsg").textContent="Checking the code.";
+      sb.auth.mfa.challengeAndVerify({factorId:mfaFactor,code:code}).then(function(r){
+        if(r.error){$("gMsg").textContent="That code did not work. Check the app and try the new code.";input.value="";input.focus();return}
+        input.value="";$("gMsg").hidden=true;
+        return sb.auth.getSession().then(function(s){checking=false;enter(s.data&&s.data.session)});
+      }).catch(function(){$("gMsg").textContent="That code did not work. Try again."}).then(function(){btn.disabled=false});
+    }
+    $("mfaSetup").addEventListener("submit",function(ev){ev.preventDefault();mfaVerify($("mfaSetupCode"),$("mfaSetupBtn"))});
+    $("mfaCode").addEventListener("submit",function(ev){ev.preventDefault();mfaVerify($("mfaCodeIn"),$("mfaCodeBtn"))});
   }
 })();
 </script>
