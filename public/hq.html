@@ -8,214 +8,320 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="BarkFind HQ">
-<meta name="theme-color" content="#2F291E">
+<meta name="theme-color" content="#FAEFD1">
 <link rel="apple-touch-icon" href="/admin-icon-180.png">
 <link rel="icon" type="image/png" href="/admin-icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Nunito:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 <style>
+/* BarkFind HQ, styled to match www.barkfind.com: cream and white, terracotta accents,
+   DM Serif Display headings, Nunito text, pill buttons, rounded-2xl white cards. */
 :root{
-  --bg:#F3EFE7; --surface:#FFFFFF; --well:#EAE4D8; --fg:#2F291E; --fg2:#5B5346; --mute:#877E71; --line:#DDD5C7;
-  --brand:#B74217; --brand-soft:#F2DED4;
-  --ok:#2F7F7B; --ok-soft:#DCEBE9; --warn:#A86E14; --warn-soft:#F4E6CB; --crit:#A2262A; --crit-soft:#F5D9D8; --info:#4E5F86; --info-soft:#E1E5EF;
-  --band:#2F291E; --band-fg:#F3EFE7; --band-mute:#B9AE9C;
+  --cream:#FAEFD1; --cream-2:#F5E8C8; --bg:#FFFFFF; --surface:#FFFFFF; --well:#F5F5F4;
+  --fg:#1a1a1a; --text:#212121; --fg2:#585858; --mute:#8a857c; --line:#EFE9DF; --line-2:#e7e5e4; --ink:#2F291E;
+  --brand:#B74217; --brand-soft:rgba(183,66,23,.08); --brand-line:rgba(183,66,23,.15); --teal:#4FA4A1; --teal-dark:#3B8C89; --teal-soft:rgba(79,164,161,.12);
+  --ok:#2E7D4F; --ok-soft:#E6F2EA; --warn:#A8670E; --warn-soft:#FBEBCB; --crit:#B3261E; --crit-soft:#F9E0DC; --info:#B74217; --info-soft:#FBE9E1;
+  --shadow:0 1px 2px rgba(120,113,108,.06),0 1px 3px rgba(120,113,108,.08);
+  --shadow-brand:0 6px 18px -6px rgba(183,66,23,.35);
+  --serif:"DM Serif Display",Georgia,serif; --sans:Nunito,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  --mono:ui-monospace,SFMono-Regular,Menlo,monospace;
   color-scheme:light;
 }
-@media (prefers-color-scheme:dark){
-  :root:not([data-theme="light"]){
-    --bg:#191611; --surface:#221E18; --well:#2A251D; --fg:#EDE6D9; --fg2:#BDB3A2; --mute:#8F8676; --line:#383126;
-    --brand:#E0703F; --brand-soft:#3A2419;
-    --ok:#62B5AF; --ok-soft:#1B2E2C; --warn:#D9A24A; --warn-soft:#33270F; --crit:#E0676A; --crit-soft:#3A1C1D; --info:#98A8D2; --info-soft:#232838;
-    --band:#0F0D0A; --band-fg:#EDE6D9; --band-mute:#978D7C;
-    color-scheme:dark;
-  }
-}
-:root[data-theme="dark"]{
-  --bg:#191611; --surface:#221E18; --well:#2A251D; --fg:#EDE6D9; --fg2:#BDB3A2; --mute:#8F8676; --line:#383126;
-  --brand:#E0703F; --brand-soft:#3A2419;
-  --ok:#62B5AF; --ok-soft:#1B2E2C; --warn:#D9A24A; --warn-soft:#33270F; --crit:#E0676A; --crit-soft:#3A1C1D; --info:#98A8D2; --info-soft:#232838;
-  --band:#0F0D0A; --band-fg:#EDE6D9; --band-mute:#978D7C;
-  color-scheme:dark;
-}
 *{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.5 "IBM Plex Sans",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;-webkit-font-smoothing:antialiased}
-.mono,.num{font-family:"IBM Plex Mono",ui-monospace,Menlo,monospace;font-variant-numeric:tabular-nums}
+html{background:var(--bg)}
+body{margin:0;background:var(--bg);color:var(--text);font:500 15px/1.55 var(--sans);-webkit-font-smoothing:antialiased}
+.num{font-variant-numeric:tabular-nums lining-nums}
+.mono{font-family:var(--mono);font-size:.9em}
 a{color:inherit}
 .wrap{max-width:1080px;margin:0 auto;padding-inline:16px}
-
-/* band */
-.band{background:var(--band);color:var(--band-fg)}
-.band .wrap{display:flex;flex-wrap:wrap;gap:18px 28px;align-items:flex-end;justify-content:space-between;padding-block:26px 22px}
-.brand{display:flex;flex-direction:column;gap:4px}
-.brand .eyebrow{font:500 11px/1 "IBM Plex Mono",monospace;letter-spacing:.14em;text-transform:uppercase;color:var(--band-mute)}
-.brand h1{margin:0;font:800 clamp(30px,5.4vw,44px)/1 Archivo,sans-serif;letter-spacing:-.025em}
-.brand h1 span{color:var(--brand)}
-.countdown{display:flex;align-items:baseline;gap:10px}
-.countdown .big{font:700 clamp(40px,7vw,58px)/.9 Archivo,sans-serif;letter-spacing:-.03em;font-variant-numeric:tabular-nums}
-.countdown .lab{font-size:13px;color:var(--band-mute);line-height:1.3}
-.countdown .lab b{color:var(--band-fg);font-weight:600;display:block}
-
-/* status strip */
-.strip{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);border-bottom:1px solid var(--line)}
-.strip .wrap{display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px;padding-block:11px}
-.pill{display:inline-flex;align-items:center;gap:7px;font:600 12.5px/1 "IBM Plex Sans",sans-serif;padding:6px 10px;border-radius:999px;border:1px solid transparent}
-.pill i{width:8px;height:8px;border-radius:50%;background:currentColor;display:block}
-.pill.ok{color:var(--ok);background:var(--ok-soft)} .pill.warn{color:var(--warn);background:var(--warn-soft)} .pill.crit{color:var(--crit);background:var(--crit-soft)} .pill.idle{color:var(--mute);background:var(--well)}
-.fresh{font-size:12.5px;color:var(--mute);flex:1;min-width:160px}
 button{font:inherit;cursor:pointer}
-.btn{font:600 13px/1 "IBM Plex Sans",sans-serif;padding:9px 13px;border-radius:8px;border:1px solid var(--line);background:var(--surface);color:var(--fg)}
-.btn:hover{border-color:var(--fg2)}
-.btn:focus-visible,input:focus-visible,a:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+
+/* top bar, as on the website */
+.topbar{position:sticky;top:0;z-index:20;background:rgba(250,239,209,.85);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);border-bottom:1px solid var(--brand-line)}
+.topbar .wrap{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:60px}
+.logo{display:flex;align-items:center;gap:10px;text-decoration:none}
+.logo img{height:32px;width:auto;display:block}
+.logo .hq{font:800 11px/1 var(--sans);letter-spacing:.12em;text-transform:uppercase;color:#fff;background:var(--brand);padding:5px 9px;border-radius:999px}
+.topbar .right{display:flex;align-items:center;gap:10px}
+
+/* hero, as on the website */
+.band{background:linear-gradient(180deg,#FAEFD1 0%,#FDF7E8 60%,#FFFFFF 100%);position:relative;overflow:hidden}
+.band .wrap{position:relative;z-index:1;display:flex;flex-wrap:wrap;gap:18px 32px;align-items:flex-end;justify-content:space-between;padding-block:30px 46px}
+.brand{display:flex;flex-direction:column;gap:10px}
+.eyebrow{font:800 12px/1 var(--sans);letter-spacing:.1em;text-transform:uppercase;color:var(--brand)}
+.brand h1{margin:0;font:400 clamp(38px,7vw,58px)/1.05 var(--serif);letter-spacing:-.01em;color:var(--fg)}
+.brand h1 em{color:var(--brand);font-style:italic}
+.brand p{margin:0;color:var(--fg2);font-size:15.5px;max-width:46ch}
+.countdown{display:flex;align-items:center;gap:14px;background:#fff;box-shadow:var(--shadow);border:1px solid var(--line);border-radius:20px;padding:14px 20px}
+.countdown .big{font:400 clamp(40px,7vw,54px)/.95 var(--serif);color:var(--brand);font-variant-numeric:lining-nums}
+.countdown .lab{font-size:13.5px;color:var(--fg2);line-height:1.35}
+.countdown .lab b{color:var(--fg);font-weight:800;display:block;font-size:14.5px}
+
+/* status strip and tabs */
+.strip{position:sticky;top:61px;z-index:15;background:rgba(255,255,255,.94);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+.strip .wrap{display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px;padding-block:10px}
+.strip .wrap + .wrap{padding-block:0 12px}
+.pill{display:inline-flex;align-items:center;gap:7px;font:700 12.5px/1 var(--sans);padding:7px 12px;border-radius:999px}
+.pill i{width:8px;height:8px;border-radius:50%;background:currentColor;display:block}
+.pill.ok{color:var(--ok);background:var(--ok-soft)} .pill.warn{color:var(--warn);background:var(--warn-soft)} .pill.crit{color:var(--crit);background:var(--crit-soft)} .pill.idle{color:var(--fg2);background:var(--well)}
+.fresh{font-size:13px;color:var(--mute);flex:1;min-width:160px}
+.tabs{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+.tabs::-webkit-scrollbar{display:none}
+.tabs button{font:700 14px/1 var(--sans);padding:10px 16px;border:1px solid var(--line-2);border-radius:999px;background:#fff;color:var(--fg2);white-space:nowrap;transition:background .15s,color .15s,border-color .15s}
+.tabs button:hover{color:var(--brand)}
+.tabs button[aria-selected="true"]{background:var(--brand);border-color:var(--brand);color:#fff;box-shadow:0 2px 6px -2px rgba(183,66,23,.45)}
+.tabs button .count{display:inline-block;min-width:20px;margin-left:7px;padding:2px 6px;border-radius:999px;background:var(--well);color:var(--fg2);font:800 11px/1.3 var(--sans);text-align:center;font-variant-numeric:tabular-nums}
+.tabs button[aria-selected="true"] .count{background:rgba(255,255,255,.25);color:#fff}
+.tabs button .count.hot{background:var(--brand);color:#fff}
+.tabs button[aria-selected="true"] .count.hot{background:#fff;color:var(--brand)}
+[data-tab][hidden]{display:none!important}
+
+/* buttons, as on the website */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;font:700 14px/1 var(--sans);padding:11px 18px;border-radius:999px;border:2px solid var(--brand-line);background:var(--surface);color:var(--brand);transition:border-color .15s,background .15s,opacity .15s}
+.btn:hover{border-color:var(--brand);background:var(--brand-soft)}
+.btn:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible,a:focus-visible,summary:focus-visible{outline:none;box-shadow:0 0 0 3px rgba(183,66,23,.25)}
+a.btn{text-decoration:none}
 .btn[disabled]{opacity:.5;cursor:default}
-.btn.primary{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+.btn.primary{background:var(--brand);border-color:var(--brand);color:#fff;box-shadow:var(--shadow-brand)}
+.btn.primary:hover{opacity:.9;background:var(--brand)}
+.btn.ok{background:var(--teal);border-color:var(--teal);color:#fff}
+.btn.ok:hover{background:var(--teal-dark);border-color:var(--teal-dark)}
+.btn.danger{color:var(--crit);border-color:rgba(179,38,30,.3);background:var(--surface)}
+.btn.danger:hover{border-color:var(--crit);background:var(--crit-soft)}
+.btn.confirm{background:var(--warn);border-color:var(--warn);color:#fff}
+.btn.small{padding:8px 14px;font-size:13px}
 
-main.wrap{padding-block:26px 64px;display:flex;flex-direction:column;gap:34px}
-h2.sec{margin:0 0 12px;font:700 13px/1 "IBM Plex Mono",monospace;letter-spacing:.12em;text-transform:uppercase;color:var(--fg2);display:flex;align-items:center;gap:10px}
-h2.sec::after{content:"";flex:1;height:1px;background:var(--line)}
+main.wrap{padding-block:18px 0;display:flex;flex-direction:column;gap:40px}
+h2.sec{margin:0 0 14px;font:400 26px/1.15 var(--serif);color:var(--fg);display:flex;align-items:center;gap:12px}
+h2.sec::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--brand);flex:none}
 
-/* attention */
-.attn{display:flex;flex-direction:column;gap:8px;margin:0;padding:0;list-style:none}
-.attn li{display:grid;grid-template-columns:4px 1fr auto;gap:0 14px;background:var(--surface);border:1px solid var(--line);border-radius:10px;overflow:hidden;align-items:stretch}
-.attn .stripe{background:var(--mute)}
-.attn li.crit .stripe{background:var(--crit)} .attn li.warn .stripe{background:var(--warn)} .attn li.info .stripe{background:var(--info)} .attn li.ok .stripe{background:var(--ok)}
-.attn .body{padding:12px 0}
-.attn .t{font-weight:600;line-height:1.35}
-.attn .d{font-size:13.5px;color:var(--fg2);margin-top:2px}
-.attn .go{align-self:center;padding-right:14px;font-size:13px;font-weight:600;color:var(--brand);text-decoration:none;white-space:nowrap}
-.attn .go:hover{text-decoration:underline}
-.empty{padding:16px;border:1px dashed var(--line);border-radius:10px;color:var(--fg2);font-size:14px}
+/* needs you */
+.attn{display:flex;flex-direction:column;gap:10px;margin:0;padding:0;list-style:none}
+.attn li{display:grid;grid-template-columns:4px 1fr auto;gap:0 16px;background:var(--surface);border:1px solid var(--line);border-radius:16px;overflow:hidden;align-items:stretch;box-shadow:var(--shadow)}
+.attn .stripe{background:var(--line-2)}
+.attn li.crit .stripe{background:var(--crit)} .attn li.warn .stripe{background:var(--warn)} .attn li.info .stripe{background:var(--brand)} .attn li.ok .stripe{background:var(--ok)}
+.attn .body{padding:14px 0}
+.attn .t{font-weight:800;line-height:1.35;color:var(--fg)}
+.attn .d{font-size:14px;color:var(--fg2);margin-top:3px}
+.attn .go{align-self:center;margin-right:16px;font:700 13px/1 var(--sans);color:var(--brand);text-decoration:none;white-space:nowrap;padding:9px 14px;border-radius:999px;background:var(--brand-soft)}
+.attn .go:hover{background:rgba(183,66,23,.14)}
+.empty{padding:18px;border:2px dashed var(--line-2);border-radius:16px;color:var(--fg2);font-size:14px;background:#FAFAF9}
 
-/* panels */
-.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px}
-.panel{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px 18px 14px;display:flex;flex-direction:column;gap:10px;min-width:0}
-.panel h3{margin:0;font:700 17px/1.2 Archivo,sans-serif;letter-spacing:-.01em;display:flex;justify-content:space-between;gap:8px;align-items:baseline}
-.panel h3 small{font:500 11.5px/1 "IBM Plex Mono",monospace;color:var(--mute);letter-spacing:.04em}
+/* panels, as the website's feature cards */
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:20px 22px 18px;display:flex;flex-direction:column;gap:12px;min-width:0;box-shadow:var(--shadow)}
+.panel h3{margin:0;font:800 16px/1.25 var(--sans);color:var(--fg);display:flex;flex-direction:column-reverse;gap:6px}
+.panel h3 small{font:800 11px/1 var(--sans);letter-spacing:.1em;text-transform:uppercase;color:var(--brand)}
 .hero{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
-.hero .v{font:700 36px/1 Archivo,sans-serif;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
-.hero .u{font-size:13px;color:var(--fg2)}
+.hero .v{font:400 42px/1 var(--serif);color:var(--fg);font-variant-numeric:lining-nums}
+.hero .u{font-size:13.5px;color:var(--fg2)}
 dl.kv{margin:0;display:grid;grid-template-columns:1fr auto;gap:0}
-dl.kv dt,dl.kv dd{padding:7px 0;border-top:1px solid var(--line);font-size:14px}
+dl.kv dt,dl.kv dd{padding:8px 0;border-top:1px solid var(--line);font-size:14px}
 dl.kv dt{color:var(--fg2)}
-dl.kv dd{margin:0;text-align:right;font-family:"IBM Plex Mono",monospace;font-variant-numeric:tabular-nums;font-size:13.5px}
-dd .flag{display:inline-block;margin-left:6px;font:600 10.5px/1 "IBM Plex Sans",sans-serif;padding:3px 6px;border-radius:5px;vertical-align:1px}
+dl.kv dd{margin:0;text-align:right;font-weight:700;color:var(--fg);font-variant-numeric:tabular-nums}
+dd .flag{display:inline-block;margin-left:6px;font:800 10.5px/1 var(--sans);padding:4px 7px;border-radius:999px;vertical-align:1px}
 .flag.warn{color:var(--warn);background:var(--warn-soft)} .flag.crit{color:var(--crit);background:var(--crit-soft)} .flag.ok{color:var(--ok);background:var(--ok-soft)}
-.note{font-size:12.5px;color:var(--mute);line-height:1.45}
+.note{font-size:13px;color:var(--mute);line-height:1.5}
 .panel.off{opacity:.62}
-.panel .err{font-size:13px;color:var(--warn);background:var(--warn-soft);padding:8px 10px;border-radius:8px}
+.panel .err{font-size:13px;color:var(--warn);background:var(--warn-soft);padding:9px 12px;border-radius:12px}
 svg.spark{width:100%;height:46px;display:block}
 
-/* ask */
-.ask{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px 18px;display:flex;flex-direction:column;gap:12px}
-.ask form{display:flex;gap:8px;flex-wrap:wrap}
-.ask input{flex:1 1 260px;min-width:0;font:inherit;padding:10px 12px;border-radius:8px;border:1px solid var(--line);background:var(--bg);color:var(--fg)}
-.chips{display:flex;flex-wrap:wrap;gap:6px}
-.chip{font-size:12.5px;padding:6px 10px;border-radius:999px;border:1px solid var(--line);background:var(--bg);color:var(--fg2)}
-.chip:hover{color:var(--fg);border-color:var(--fg2)}
-.answer{white-space:pre-wrap;font-size:14.5px;line-height:1.6;max-width:72ch;color:var(--fg)}
+/* ask HQ, styled like the website's "Try saying" box */
+.ask{background:var(--surface);border:1px solid var(--line);box-shadow:var(--shadow);border-radius:20px;padding:20px 22px;display:flex;flex-direction:column;gap:14px}
+.ask form{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.ask input{flex:1 1 260px;min-width:0;font:500 15px/1.2 var(--sans);padding:13px 18px;border-radius:999px;border:1px solid var(--line-2);background:#FAFAF9;color:var(--ink)}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{font:700 13px/1.2 var(--sans);padding:8px 14px;border-radius:999px;border:1px solid var(--line-2);background:#fff;color:var(--fg2);transition:color .15s,background .15s}
+.chip:hover{color:var(--brand);border-color:var(--brand-line)}
+.answer{white-space:pre-wrap;font-size:15px;line-height:1.65;max-width:72ch;color:var(--fg);background:#FAFAF9;border-radius:16px;padding:16px 18px;border:1px solid var(--line)}
 .answer:empty{display:none}
 
 /* consoles */
-.consoles{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:18px 22px}
-.consoles h4{margin:0 0 6px;font:600 11.5px/1 "IBM Plex Mono",monospace;letter-spacing:.1em;text-transform:uppercase;color:var(--mute)}
+.consoles{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:16px}
+.consoles > div{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:18px 20px 10px;box-shadow:var(--shadow)}
+.consoles h4{margin:0 0 8px;font:800 11.5px/1 var(--sans);letter-spacing:.1em;text-transform:uppercase;color:var(--brand)}
 .consoles ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
-.consoles a{display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-top:1px solid var(--line);text-decoration:none;font-size:14px}
-.consoles a span{color:var(--mute);font-size:12.5px;text-align:right}
+.consoles a{display:flex;justify-content:space-between;gap:10px;padding:10px 0;border-top:1px solid var(--line);text-decoration:none;font-size:14.5px;font-weight:700}
+.consoles ul li:first-child a{border-top:0}
+.consoles a span{color:var(--mute);font-size:12.5px;font-weight:500;text-align:right}
 .consoles a:hover{color:var(--brand)}
-/* tabs */
-.tabs{display:flex;gap:4px;overflow-x:auto;scrollbar-width:none;padding-block:0 0}
-.tabs button{font:600 13.5px/1 "IBM Plex Sans",sans-serif;padding:10px 14px;border:0;border-bottom:2px solid transparent;background:none;color:var(--fg2);white-space:nowrap}
-.tabs button[aria-selected="true"]{color:var(--fg);border-bottom-color:var(--brand)}
-.tabs button .count{display:inline-block;min-width:18px;margin-left:6px;padding:2px 5px;border-radius:9px;background:var(--well);color:var(--fg2);font:600 11px/1.2 "IBM Plex Mono",monospace;text-align:center}
-.tabs button .count.hot{background:var(--warn-soft);color:var(--warn)}
-[data-tab][hidden]{display:none!important}
 
-/* act cards */
-.stack{display:flex;flex-direction:column;gap:10px}
-.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px 16px;display:flex;flex-direction:column;gap:8px;min-width:0}
-.card.flagged{border-color:var(--crit)}
+/* act and outreach cards */
+.stack{display:flex;flex-direction:column;gap:12px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:16px 18px;display:flex;flex-direction:column;gap:10px;min-width:0;box-shadow:var(--shadow)}
+.card.flagged{border-color:rgba(179,38,30,.45);box-shadow:0 0 0 3px var(--crit-soft)}
 .card .meta{font-size:12.5px;color:var(--mute);display:flex;flex-wrap:wrap;gap:4px 12px}
-.card .title{font-weight:600;line-height:1.35}
-.card .text{white-space:pre-wrap;font-size:14.5px;line-height:1.55;max-width:72ch;overflow-wrap:anywhere}
-.card .prior{font-size:13px;color:var(--fg2);border-left:2px solid var(--line);padding-left:10px;white-space:pre-wrap}
+.card .title{font-weight:800;line-height:1.35;color:var(--fg)}
+.card .text{white-space:pre-wrap;font-size:14.5px;line-height:1.6;max-width:72ch;overflow-wrap:anywhere}
+.card .prior{font-size:13.5px;color:var(--fg2);border-left:3px solid var(--brand-line);padding-left:12px;white-space:pre-wrap}
 .row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
-.btn.ok{background:var(--ok);border-color:var(--ok);color:var(--surface)}
-.btn.danger{color:var(--crit);border-color:var(--crit)}
-.btn.confirm{background:var(--warn);border-color:var(--warn);color:var(--surface)}
-.btn.small{padding:7px 10px;font-size:12.5px}
-textarea,select,.card input[type=text],.card input[type=date],.card input[type=email]{font:inherit;font-size:14px;padding:9px 11px;border-radius:8px;border:1px solid var(--line);background:var(--bg);color:var(--fg);width:100%}
-textarea{min-height:110px;resize:vertical;line-height:1.5}
-.msg{font-size:13px;padding:7px 10px;border-radius:8px}
+textarea,select,.card input[type=text],.card input[type=date],.card input[type=email]{font:500 14.5px/1.4 var(--sans);padding:11px 14px;border-radius:12px;border:1px solid var(--line-2);background:#fff;color:var(--ink);width:100%}
+textarea{min-height:110px;resize:vertical;line-height:1.55}
+.msg{font-size:13.5px;padding:9px 12px;border-radius:12px;font-weight:600}
 .msg.good{background:var(--ok-soft);color:var(--ok)} .msg.bad{background:var(--crit-soft);color:var(--crit)}
-.subhead{display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin:6px 0 2px}
-.subhead h3{margin:0;font:700 16px/1.2 Archivo,sans-serif}
+.subhead{display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin:10px 0 2px}
+.subhead h3{margin:0;font:400 22px/1.2 var(--serif);color:var(--fg)}
 .subhead span{font-size:12.5px;color:var(--mute)}
-.tag{font:600 11px/1 "IBM Plex Sans",sans-serif;padding:4px 7px;border-radius:6px;background:var(--well);color:var(--fg2);text-transform:capitalize}
-.tag.warn{background:var(--warn-soft);color:var(--warn)} .tag.crit{background:var(--crit-soft);color:var(--crit)} .tag.ok{background:var(--ok-soft);color:var(--ok)} .tag.info{background:var(--info-soft);color:var(--info)}
-.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px}
-.grid2 label{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--mute)}
+.tag{font:800 11px/1 var(--sans);padding:5px 9px;border-radius:999px;background:var(--well);color:var(--fg2);text-transform:capitalize}
+.tag.warn{background:var(--warn-soft);color:var(--warn)} .tag.crit{background:var(--crit-soft);color:var(--crit)} .tag.ok{background:var(--teal-soft);color:var(--teal-dark)} .tag.info{background:var(--info-soft);color:var(--info)}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px}
+.grid2 label{display:flex;flex-direction:column;gap:5px;font-size:12px;font-weight:700;color:var(--fg2)}
 details.card summary{cursor:pointer;list-style:none;display:grid;grid-template-columns:1fr auto;gap:4px 12px;align-items:start}
 details.card summary::-webkit-details-marker{display:none}
-.due{font:600 12.5px/1 "IBM Plex Mono",monospace;color:var(--fg2);white-space:nowrap}
+.due{font:800 12.5px/1 var(--sans);color:var(--fg2);white-space:nowrap;font-variant-numeric:tabular-nums}
 .due.over{color:var(--crit)} .due.today{color:var(--warn)}
-.filter{display:flex;flex-wrap:wrap;gap:6px}
-.filter button[aria-pressed="true"]{background:var(--fg);color:var(--bg);border-color:var(--fg)}
-.feed{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
-.feed li{display:grid;grid-template-columns:auto 1fr auto;gap:10px;padding:8px 0;border-top:1px solid var(--line);font-size:13.5px;align-items:baseline}
-.feed .when{font:500 12px/1 "IBM Plex Mono",monospace;color:var(--mute);white-space:nowrap}
-footer{font-size:12.5px;color:var(--mute);border-top:1px solid var(--line);padding-top:14px;line-height:1.55}
-@media (max-width:520px){.attn li{grid-template-columns:4px 1fr}.attn .go{grid-column:2;padding:0 0 12px}}
+.filter{display:flex;flex-wrap:wrap;gap:8px}
+.filter button[aria-pressed="true"]{background:var(--brand);color:#fff}
+.feed{list-style:none;margin:0;padding:4px 18px;display:flex;flex-direction:column;background:var(--surface);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow)}
+.feed li{display:grid;grid-template-columns:auto 1fr auto;gap:12px;padding:11px 0;border-top:1px solid var(--line);font-size:14px;align-items:baseline}
+.feed li:first-child{border-top:0}
+.feed .when{font:700 12px/1 var(--sans);color:var(--mute);white-space:nowrap;font-variant-numeric:tabular-nums}
+/* Ralphy: prompt block in the hero, avatar, read-aloud */
+.rav{width:36px;height:36px;border-radius:50%;background:var(--brand);color:#fff;display:inline-flex;align-items:center;justify-content:center;flex:none;font:400 19px/1 var(--serif);padding-top:2px}
+.mini{display:flex;align-items:center;gap:8px;background:#fff;border:1px solid var(--line-2);border-radius:999px;padding:6px 6px 6px 6px;box-shadow:var(--shadow);max-width:520px;margin-top:6px}
+.mini input{flex:1;min-width:0;border:0;background:transparent;font:600 15px/1.2 var(--sans);color:var(--ink);padding:8px 4px}
+.mini input:focus-visible{box-shadow:none}
+.mini:focus-within{border-color:var(--brand-line);box-shadow:0 0 0 3px rgba(183,66,23,.15)}
+.mini .btn{padding:10px 16px}
+.mini-links{display:flex;flex-wrap:wrap;gap:8px;margin-top:2px}
+.mini-links button{font:700 12.5px/1 var(--sans);border:0;background:none;color:var(--brand);padding:6px 2px;text-decoration:underline;text-underline-offset:3px;text-decoration-color:var(--brand-line)}
+.mini-ans{background:#fff;border:1px solid var(--line);border-radius:16px;padding:14px 16px;box-shadow:var(--shadow);max-width:560px;display:flex;flex-direction:column;gap:10px}
+.mini-ans[hidden]{display:none}
+.mini-ans .who,.ask .who{display:flex;align-items:center;gap:8px;font:800 13px/1 var(--sans);color:var(--fg)}
+.mini-ans .rav,.ask .who .rav{width:26px;height:26px;font-size:15px}
+.mini-ans .txt{white-space:pre-wrap;font-size:15px;line-height:1.6;color:var(--fg)}
+.speak{font:700 12.5px/1 var(--sans);border:1px solid var(--line-2);background:#fff;color:var(--fg2);border-radius:999px;padding:7px 12px;display:inline-flex;align-items:center;gap:6px;align-self:flex-start}
+.speak:hover{color:var(--brand);border-color:var(--brand-line)}
+.speak[aria-pressed="true"]{background:var(--brand);border-color:var(--brand);color:#fff}
+section.cta .answer-wrap{background:#fff;border-radius:16px;padding:14px 16px;display:flex;flex-direction:column;gap:10px;color:var(--fg)}
+section.cta .answer-wrap[hidden]{display:none}
+section.cta .answer-wrap .answer{padding:0;background:none}
+/* full-width bands, as the website's call to action and footer */
+.bleed{width:100vw;margin-left:calc(50% - 50vw);margin-right:calc(50% - 50vw)}
+.bleed > .inner{max-width:1080px;margin:0 auto;padding-inline:16px}
+section.cta{background:radial-gradient(60% 80% at 85% 10%,rgba(255,255,255,.08) 0%,rgba(255,255,255,0) 60%),radial-gradient(50% 70% at 5% 95%,rgba(255,255,255,.07) 0%,rgba(255,255,255,0) 60%),#A3431F;color:#fff;padding-block:44px 48px;margin-block:8px}
+section.cta h2.sec{color:#fff;justify-content:center;font-size:34px;text-align:center}
+section.cta h2.sec::before{display:none}
+section.cta .ask{background:none;border:0;box-shadow:none;padding:0;max-width:640px;margin:0 auto;align-items:stretch}
+section.cta .note{color:rgba(255,255,255,.8);text-align:center;font-size:14.5px}
+section.cta .ask form{justify-content:center}
+section.cta .ask input{background:#fff;border-color:#fff;padding:14px 20px}
+section.cta .btn.primary{background:#2F291E;border-color:#2F291E;box-shadow:none;padding:14px 24px}
+section.cta .btn.primary:hover{opacity:.9;background:#2F291E}
+section.cta .chips{justify-content:center}
+section.cta .chip{background:rgba(255,255,255,.1);border-color:rgba(255,255,255,.35);color:#fff}
+section.cta .chip:hover{background:rgba(255,255,255,.2);border-color:#fff;color:#fff}
+section.cta .answer{background:#fff;color:var(--fg);border:0;max-width:none}
+footer.bleed{background:#1a1a1a;color:rgba(255,255,255,.5);font-size:13px;line-height:1.65;padding-block:40px 44px;margin-top:40px}
+footer .flogo{height:28px;width:auto;display:block;opacity:.8;margin-bottom:16px}
+footer .mono{color:rgba(255,255,255,.75)}
+@media (max-width:520px){
+  .attn li{grid-template-columns:4px 1fr}.attn .go{grid-column:2;justify-self:start;margin:0 0 14px}
+  .band .wrap{padding-block:22px 40px}
+  .countdown{width:100%}
+  .strip{top:61px}
+  h2.sec{font-size:24px}
+  section.cta h2.sec{font-size:28px}
+  section.cta{padding-block:34px 38px}
+}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
-/* sign-in gate */
+
+/* two-tap confirm stays amber, including the hover state iOS keeps after a tap */
+.btn.confirm,.btn.confirm:hover{background:var(--warn);border-color:var(--warn);color:#fff;opacity:1}
+/* hero wave, as on the website */
+.band .wave{position:absolute;left:0;right:0;bottom:-1px;line-height:0;z-index:0}
+.band .wave svg{display:block;width:100%;height:auto}
+.sr{position:absolute!important;left:-9999px!important}
+.signout{background:none;border:0;padding:0;color:rgba(255,255,255,.75);font:inherit;text-decoration:underline;text-underline-offset:3px}
+.signout:hover{color:#fff}
+
+/* sign-in and no-access screens, as the website's email capture */
 .gate[hidden],.gate [hidden],#app[hidden]{display:none!important}
-.gate main.wrap{max-width:440px}
+.gate-band{position:relative;overflow:hidden;background:linear-gradient(180deg,#FAEFD1 0%,#FDF7E8 60%,#FFFFFF 100%);padding:48px 16px 64px;min-height:calc(100vh - 61px)}
+.gate-inner{position:relative;z-index:1;max-width:420px;margin:0 auto;display:flex;flex-direction:column;align-items:center;gap:14px;text-align:center}
+.gate-h{margin:0;font:400 clamp(36px,9vw,48px)/1.08 var(--serif);color:var(--fg);letter-spacing:-.01em}
+.gate-h em{color:var(--brand);font-style:italic}
+.gate-card{width:100%;background:#fff;border:1px solid var(--line);border-radius:20px;box-shadow:var(--shadow);padding:22px;display:flex;flex-direction:column;gap:14px;text-align:left;margin-top:8px}
 .gate form{display:flex;flex-direction:column;gap:12px}
-.gate label{display:flex;flex-direction:column;gap:5px;font-size:13px;color:var(--fg2)}
-.gate input{font:inherit;font-size:16px;padding:10px 12px;border-radius:8px;border:1px solid var(--line);background:var(--bg);color:var(--fg);width:100%}
-.gate .btn{padding:12px 14px;font-size:14px}
-.signout{background:none;border:0;padding:0;color:var(--brand);font:inherit;text-decoration:underline}
+.gate label{display:flex;flex-direction:column;gap:6px;font:700 13px/1.2 var(--sans);color:var(--fg2)}
+.gate input{font:500 16px/1.2 var(--sans);padding:14px 20px;border-radius:999px;border:1px solid var(--line-2);background:#FAFAF9;color:var(--ink);width:100%}
+.gate .btn.primary{width:100%;padding:15px 20px;font-size:15px;margin-top:4px}
+.gate .title{font:800 17px/1.35 var(--sans);color:var(--fg)}
+.gate .note{text-align:left}
+.gate #gMsg{text-align:center}
 </style>
 </head>
 <body>
 
 <div class="gate" id="gate">
-  <header class="band"><div class="wrap"><div class="brand"><span class="eyebrow">BarkFind Ltd · operations</span><h1>BarkFind <span>HQ</span></h1></div></div></header>
-  <main class="wrap">
-    <div class="card">
-      <form id="signIn" hidden>
-        <label>Email<input type="email" id="gEmail" autocomplete="username" required></label>
-        <label>Password<input type="password" id="gPass" autocomplete="current-password" required></label>
-        <button class="btn primary" type="submit" id="gBtn">Sign in</button>
-      </form>
-      <div class="stack" id="noAccess" hidden>
-        <div class="title">This account does not have access</div>
-        <p class="note" style="margin:0">HQ is for BarkFind admins. Sign in with an admin account instead.</p>
-        <div class="row"><button class="btn" type="button" id="gOut">Sign out</button></div>
+  <header class="topbar"><div class="wrap">
+    <span class="logo"><img src="/barkfind-logo-rust.png" alt="BarkFind"><span class="hq">HQ</span></span>
+  </div></header>
+  <section class="gate-band">
+    <div class="gate-inner">
+      <span class="eyebrow">BarkFind Ltd · Operations</span>
+      <h1 class="gate-h" id="gHead">Sign in to <em>HQ</em></h1>
+      <div class="gate-card">
+        <form id="signIn" hidden>
+          <label>Email<input type="email" id="gEmail" autocomplete="username" required></label>
+          <label>Password<input type="password" id="gPass" autocomplete="current-password" required></label>
+          <button class="btn primary" type="submit" id="gBtn">Sign in</button>
+        </form>
+        <div class="stack" id="noAccess" hidden>
+          <div class="title">This account does not have access</div>
+          <p class="note" style="margin:0">HQ is for BarkFind admins. Sign in with an admin account instead.</p>
+          <div class="row"><button class="btn" type="button" id="gOut">Sign out</button></div>
+        </div>
+        <div class="note" id="gMsg">Checking sign-in.</div>
       </div>
-      <div class="note" id="gMsg">Checking sign-in.</div>
     </div>
-  </main>
+  </section>
 </div>
 
 <div id="app" hidden>
-<header class="band">
+<header class="topbar">
+  <div class="wrap">
+    <a class="logo" href="https://www.barkfind.com/" target="_blank" rel="noopener"><img src="/barkfind-logo-rust.png" alt="BarkFind"><span class="hq">HQ</span></a>
+    <div class="right"><span class="pill idle" id="statusPill"><i></i><span id="statusText">Connecting</span></span></div>
+  </div>
+</header>
+
+<section class="band">
   <div class="wrap">
     <div class="brand">
-      <span class="eyebrow">BarkFind Ltd · operations</span>
-      <h1>BarkFind <span>HQ</span></h1>
+      <span class="eyebrow">BarkFind Ltd · Operations</span>
+      <h1>BarkFind <em>HQ</em></h1>
+      <p>Everything that needs you today, in one place.</p>
+      <form class="mini" id="miniForm" autocomplete="off">
+        <span class="rav" aria-hidden="true">R</span>
+        <label for="miniInput" class="sr">Ask Ralphy</label>
+        <input id="miniInput" name="q" placeholder="Hey Ralphy, what's on today?" enterkeyhint="send">
+        <button class="btn primary small" id="miniBtn" type="submit">Ask</button>
+      </form>
+      <div class="mini-links" id="miniLinks">
+        <button type="button" data-q="today">What's on today?</button>
+        <button type="button" data-q="Anything urgent right now?">Anything urgent?</button>
+        <button type="button" data-q="Are we ready for 13 October?">Ready for launch?</button>
+      </div>
+      <div class="mini-ans" id="miniAns" hidden aria-live="polite">
+        <div class="who"><span class="rav">R</span>Ralphy</div>
+        <div class="txt" id="miniTxt"></div>
+        <button type="button" class="speak" data-for="miniTxt" aria-pressed="false">Read it to me</button>
+      </div>
     </div>
     <div class="countdown" id="countdown">
       <span class="big num" id="daysBig">–</span>
       <span class="lab"><b id="daysLab">days to launch</b>App Store release, Tue 13 Oct 2026</span>
     </div>
   </div>
-</header>
+  <div class="wave" aria-hidden="true"><svg viewBox="0 0 1440 40" fill="none" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none"><path d="M0 40L60 34C120 28 240 16 360 13.3C480 10.7 600 17.3 720 21.3C840 25.3 960 26.7 1080 24C1200 21.3 1320 14.7 1380 11.3L1440 8V40H1380C1320 40 1200 40 1080 40C960 40 840 40 720 40C600 40 480 40 360 40C240 40 120 40 60 40H0Z" fill="white"/></svg></div>
+</section>
 
 <div class="strip">
   <div class="wrap">
-    <span class="pill idle" id="statusPill"><i></i><span id="statusText">Connecting</span></span>
     <span class="fresh" id="fresh">Live data loads from Supabase and Resend.</span>
-    <button class="btn" id="refresh" type="button">Refresh</button>
+    <button class="btn small" id="refresh" type="button">Refresh</button>
   </div>
   <div class="wrap"><nav class="tabs" role="tablist" aria-label="HQ sections">
     <button role="tab" id="t-today" aria-selected="true" data-go="today">Today</button>
@@ -236,41 +342,48 @@ footer{font-size:12.5px;color:var(--mute);border-top:1px solid var(--line);paddi
     <h2 class="sec" id="h-now">The business today</h2>
     <div class="grid">
       <article class="panel" id="p-customers">
-        <h3>Customers <small>auth.users</small></h3>
+        <h3>Customers <small>People</small></h3>
         <div class="hero"><span class="v" id="c-real">–</span><span class="u">signed-up accounts</span></div>
         <dl class="kv" id="c-kv"></dl>
         <svg class="spark" id="c-spark" viewBox="0 0 300 46" preserveAspectRatio="none" aria-hidden="true"></svg>
       </article>
 
       <article class="panel" id="p-money">
-        <h3>Revenue <small>RevenueCat + subscriptions</small></h3>
+        <h3>Revenue <small>Money in</small></h3>
         <div class="hero"><span class="v" id="m-active">–</span><span class="u">paying on the App Store</span></div>
         <dl class="kv" id="m-kv"></dl>
         <p class="note" id="m-note">RevenueCat revenue totals include sandbox purchases until launch, so they are not real money yet.</p>
       </article>
 
       <article class="panel" id="p-costs">
-        <h3>Running costs <small>this month</small></h3>
+        <h3>Running costs <small>Money out · this month</small></h3>
         <div class="hero"><span class="v" id="k-total">–</span><span class="u">metered API spend, USD</span></div>
         <dl class="kv" id="k-kv"></dl>
         <p class="note">Google figures come from google_spend_this_month, which applies the free allowance per SKU and adds VAT. Anthropic is BarkFind's own meter; reconcile it against the Anthropic console before quoting it. Fixed subscriptions (Lovable, Supabase plan, Apple, domains) are in the HQ doc cost register.</p>
       </article>
 
       <article class="panel" id="p-support">
-        <h3>Customer service <small>queues</small></h3>
+        <h3>Customer service <small>Support</small></h3>
         <div class="hero"><span class="v" id="s-open">–</span><span class="u">items waiting for a person</span></div>
         <dl class="kv" id="s-kv"></dl>
         <p class="note" id="s-note">Tickets are answered from barkfind.com/admin, which replies through send-support-reply. App Store reviews appear here once the App Store Connect API key is added.</p>
       </article>
 
       <article class="panel" id="p-health">
-        <h3>System health <small>last 24 hours</small></h3>
+        <h3>System health <small>Health · last 24 hours</small></h3>
         <div class="hero"><span class="v" id="h-state">–</span><span class="u" id="h-sub">scheduled jobs</span></div>
         <dl class="kv" id="h-kv"></dl>
       </article>
 
+      <article class="panel" id="p-renewals">
+        <h3>Renewals and deadlines <small>Deadlines</small></h3>
+        <div class="hero"><span class="v" id="r-next">–</span><span class="u" id="r-next-lab">days to the next one</span></div>
+        <div class="stack" id="r-list" style="gap:0"></div>
+        <p class="note">You get an alert at each reminder point and if anything goes overdue.</p>
+      </article>
+
       <article class="panel" id="p-email">
-        <h3>Email delivery <small>Resend, last 30 days</small></h3>
+        <h3>Email delivery <small>Email · last 30 days</small></h3>
         <div class="hero"><span class="v" id="e-rate">–</span><span class="u">delivered</span></div>
         <dl class="kv" id="e-kv"></dl>
         <p class="note">Test accounts must use info+something@barkfind.com. Any other plus-address hard bounces and Resend suppresses it for good.</p>
@@ -278,23 +391,23 @@ footer{font-size:12.5px;color:var(--mute);border-top:1px solid var(--line);paddi
     </div>
   </section>
 
-  <section aria-labelledby="h-ask">
-    <h2 class="sec" id="h-ask">Ask HQ</h2>
+  <section class="cta bleed" aria-labelledby="h-ask"><div class="inner">
+    <h2 class="sec" id="h-ask">Ask Ralphy</h2>
     <div class="ask">
       <form id="askForm">
-        <label for="askInput" class="note" style="flex-basis:100%">Questions are answered from the snapshot on this page. For anything deeper, open a chat in the BarkFind project.</label>
-        <input id="askInput" name="q" autocomplete="off" placeholder="What should I do before 9am?">
+        <label for="askInput" class="note" style="flex-basis:100%">Ralphy answers from the live numbers on this page, and can read his answer aloud. For anything deeper, open a chat in the BarkFind project.</label>
+        <input id="askInput" name="q" autocomplete="off" placeholder="Hey Ralphy, what should I do before 9am?">
         <button class="btn primary" id="askBtn" type="submit">Ask</button>
       </form>
       <div class="chips" id="chips">
-        <button type="button" class="chip">What needs doing today?</button>
+        <button type="button" class="chip" data-q="today">What's on today?</button>
         <button type="button" class="chip">Are we ready for 13 October?</button>
         <button type="button" class="chip">Where is money going this month?</button>
         <button type="button" class="chip">Draft a reply for the open support items</button>
       </div>
-      <div class="answer" id="answer" aria-live="polite"></div>
+      <div class="answer-wrap" id="answerWrap" hidden><div class="who"><span class="rav">R</span>Ralphy</div><div class="answer" id="answer" aria-live="polite"></div><button type="button" class="speak" data-for="answer" aria-pressed="false">Read it to me</button></div>
     </div>
-  </section>
+  </div></section>
 
   <section aria-labelledby="h-feed">
     <h2 class="sec" id="h-feed">Recent alerts</h2>
@@ -354,11 +467,12 @@ footer{font-size:12.5px;color:var(--mute);border-top:1px solid var(--line);paddi
   </section>
  </div>
 
-  <footer>
+  <footer class="bleed"><div class="inner">
+    <img class="flogo" src="/barkfind-logo-white.png" alt="BarkFind">
     Everything above comes from one database function, <span class="mono">public.hq_snapshot()</span>, plus Resend's own metrics. A copy is saved every morning at 05:50 UTC into <span class="mono">hq_snapshots</span>, which is what the trend line and the morning brief compare against. The narrative (decisions, open issues, how things fit together) lives in <span class="mono">claude/BARKFIND-HQ.md</span> in the Claude project.
     <br><span id="whoami"></span> <button class="signout" type="button" id="signOut">Sign out</button>
-  </footer>
-</main>
+  </div></footer>
+</main></main>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.112.1/dist/umd/supabase.js"></script>
@@ -415,15 +529,15 @@ footer{font-size:12.5px;color:var(--mute);border-top:1px solid var(--line);paddi
   }
 
   function spark(el,vals){
-    if(!vals||vals.length<2){el.innerHTML='<text x="0" y="30" fill="var(--mute)" font-size="11" font-family="IBM Plex Mono,monospace">Trend line appears after the second daily snapshot</text>';return}
+    if(!vals||vals.length<2){el.innerHTML='<text x="0" y="30" fill="var(--mute)" font-size="11" font-family="Nunito,sans-serif">Trend line appears after the second daily snapshot</text>';return}
     var W=300,H=46,pad=5,min=Math.min.apply(null,vals),max=Math.max.apply(null,vals);if(max===min){max=min+1}
     var pts=vals.map(function(v,i){return [pad+(W-2*pad)*i/(vals.length-1), H-pad-(H-2*pad)*(v-min)/(max-min)]});
     var line=pts.map(function(p,i){return (i?"L":"M")+p[0].toFixed(1)+" "+p[1].toFixed(1)}).join(" ");
     var area=line+" L"+pts[pts.length-1][0].toFixed(1)+" "+(H-pad)+" L"+pts[0][0].toFixed(1)+" "+(H-pad)+" Z";
     var last=pts[pts.length-1];
     el.innerHTML='<line x1="0" x2="300" y1="'+(H-pad)+'" y2="'+(H-pad)+'" stroke="var(--line)" stroke-width="1"/>'+
-      '<path d="'+area+'" fill="var(--ok-soft)"/><path d="'+line+'" fill="none" stroke="var(--ok)" stroke-width="1.8" vector-effect="non-scaling-stroke"/>'+
-      '<circle cx="'+last[0]+'" cy="'+last[1]+'" r="3" fill="var(--ok)"/>';
+      '<path d="'+area+'" fill="var(--teal-soft)"/><path d="'+line+'" fill="none" stroke="var(--teal)" stroke-width="2" vector-effect="non-scaling-stroke"/>'+
+      '<circle cx="'+last[0]+'" cy="'+last[1]+'" r="3.5" fill="var(--teal)"/>';
   }
 
   function attention(){
@@ -453,6 +567,9 @@ footer{font-size:12.5px;color:var(--mute);border-top:1px solid var(--line);paddi
     if(!as.configured)items.push(["info","App Store reviews are not connected yet","Create an App Store Connect API key and add it to Supabase as ASC_KEY_ID, ASC_ISSUER_ID and ASC_PRIVATE_KEY. The asc-sync function and its schedule are already in place. Steps in the HQ doc, section 7.","https://appstoreconnect.apple.com/access/integrations/api","Create key"]);
     if(co.content_drafts>0)items.push(["info",co.content_drafts+" content draft(s) waiting for review","From generate-content. Nothing publishes until you approve it.","https://www.barkfind.com/admin","Review drafts"]);
     var up=s.uptime||{};Object.keys(up).forEach(function(k){if(up[k]&&up[k].ok===false)items.push(["crit","Uptime check failing: "+k,"Last answer "+(up[k].status||"none")+". 24-hour availability "+(up[k].availability_24h==null?"–":up[k].availability_24h+"%")+".","https://supabase.com/dashboard/project/"+PROJECT,"Investigate"])});
+    var rn=s.renewals||{};
+    (rn.upcoming||[]).forEach(function(r){if(r.days<0)items.push(["crit","Overdue: "+r.item,"Was due "+day(r.due_date)+".",r.url||"#today","Open"]);else if(r.days<=14)items.push([r.days<=7?"warn":"info",(r.days===0?"Due today: ":"Due in "+r.days+" day"+(r.days===1?"":"s")+": ")+r.item,day(r.due_date)+". "+(r.notes||""),r.url||"#today","Open"])});
+    if((rn.needs_date||[]).length)items.push(["info",rn.needs_date.length+" renewal date"+(rn.needs_date.length>1?"s":"")+" still to find",rn.needs_date.map(function(x){return x.item}).join(", ")+". Add their dates so reminders can fire.","#today","Add dates"]);
     var od=(s.outreach&&s.outreach.due)||[];
     if(od.length)items.push(["warn",od.length+" outreach follow-up"+(od.length>1?"s":"")+" due",od.slice(0,4).map(function(o){return o.name}).join(", ")+(od.length>4?" and more":"")+".","#outreach","Open outreach"]);
     var ow=(s.outreach&&s.outreach.owed)||[];
@@ -544,6 +661,7 @@ footer{font-size:12.5px;color:var(--mute);border-top:1px solid var(--line);paddi
         ["Accounts banned",n(u.banned)]
       ].concat(Object.keys(s.uptime||{}).map(function(k){var x=s.uptime[k]||{};return ["Uptime: "+k,(x.availability_24h==null?"checking":x.availability_24h+"% in 24h"),x.ok===false?["crit","down"]:x.ok?["ok","up"]:null]})));
       renderFeed();
+      renderRenewals();
       $("fresh").textContent="Snapshot taken "+new Date(s.taken_at).toLocaleString("en-GB",{hour:"2-digit",minute:"2-digit",day:"numeric",month:"short"})+". Refresh pulls a new one.";
     }
 
@@ -658,6 +776,17 @@ footer{font-size:12.5px;color:var(--mute);border-top:1px solid var(--line);paddi
       .catch(function(e){card.querySelectorAll("button").forEach(function(x){x.disabled=false});note(card,false,errCopy(e,"Supabase"))});
   });
 
+  // ---------- renewals (read only on this page) ----------
+  function renderRenewals(){
+    var rn=(state.snap&&state.snap.renewals)||{},up=rn.upcoming||[],nd=rn.needs_date||[],el=$("r-list");
+    var nxt=up.filter(function(r){return r.days>=0})[0];
+    $("r-next").textContent=nxt?nxt.days:"–";$("r-next-lab").textContent=nxt?(nxt.days===1?"day":"days")+" to "+nxt.item.toLowerCase():"nothing dated yet";
+    var h=up.map(function(r){var cls=r.days<0?"crit":r.days<=7?"warn":r.days<=30?"info":"";
+      return '<div class="card" style="border:0;border-top:1px solid var(--line);border-radius:0;padding:10px 0;gap:6px;box-shadow:none"><div class="row" style="justify-content:space-between"><span class="title" style="font-size:14px">'+esc(r.item)+'</span><span class="tag '+cls+'">'+esc(r.days<0?"overdue":r.days+"d")+'</span></div><div class="meta"><span>'+esc(day(r.due_date))+'</span><span>'+esc(r.recurs==="yearly"?"yearly":"one-off")+'</span>'+(r.url?'<a href="'+esc(r.url)+'" target="_blank" rel="noopener">open</a>':'')+'</div></div>'}).join("");
+    h+=nd.map(function(r){return '<div class="card" style="border:0;border-top:1px solid var(--line);border-radius:0;padding:10px 0;gap:6px;box-shadow:none"><div class="row" style="justify-content:space-between"><span class="title" style="font-size:14px">'+esc(r.item)+'</span><span class="tag">no date</span></div>'+(r.notes?'<div class="note">'+esc(r.notes)+'</div>':'')+(r.url?'<div class="meta"><a href="'+esc(r.url)+'" target="_blank" rel="noopener">find it</a></div>':'')+'</div>'}).join("");
+    el.innerHTML=h||'<div class="empty">Nothing tracked yet.</div>';
+  }
+
   // ---------- outreach ----------
   var outFilter="all";
   var today=new Date();today.setHours(0,0,0,0);
@@ -750,18 +879,39 @@ footer{font-size:12.5px;color:var(--mute);border-top:1px solid var(--line);paddi
 
   $("refresh").addEventListener("click",load);
 
-  // Ask HQ
-  function ask(q){
-    q=(q||"").trim();if(!q)return;
-    var out=$("answer");
-    $("askBtn").disabled=true;out.textContent="Thinking…";
+  // Ask Ralphy (hero block and the band both use the ask op)
+  var TODAY_Q="Hey Ralphy, what's on today? Give me a short rundown I could listen to: what needs me first, anything urgent, what is due this week, and one number worth knowing.";
+  var busy=false;
+  function ask(q,outId){
+    q=(q||"").trim();if(!q||busy)return;
+    if(q==="today")q=TODAY_Q;
+    var out=$(outId||"answer"), box=outId==="miniTxt"?$("miniAns"):$("answerWrap");
+    box.hidden=false;
+    stopSpeaking();
+    busy=true;$("askBtn").disabled=true;$("miniBtn").disabled=true;out.textContent="Ralphy is having a look…";
     api("ask",{question:q})
       .then(function(r){out.textContent=r.text+(r.truncated?"\n\n(Answer cut short.)":"")+(r.metered===false?"\n\n(The cost of this answer was not recorded in api_usage.)":"")})
       .catch(function(e){out.textContent=(e&&e.message)||"No answer came back. Try again."})
-      .then(function(){$("askBtn").disabled=false});
+      .then(function(){busy=false;$("askBtn").disabled=false;$("miniBtn").disabled=false});
   }
-  $("askForm").addEventListener("submit",function(ev){ev.preventDefault();ask($("askInput").value)});
-  $("chips").addEventListener("click",function(ev){var b=ev.target.closest(".chip");if(!b)return;$("askInput").value=b.textContent;ask(b.textContent)});
+  // Read aloud with the phone's own voice, British English where available. No service, no cost.
+  function stopSpeaking(){try{if(window.speechSynthesis)speechSynthesis.cancel()}catch(e){}document.querySelectorAll(".speak").forEach(function(b){b.setAttribute("aria-pressed","false");b.textContent="Read it to me"})}
+  function pickVoice(){try{var v=speechSynthesis.getVoices()||[];return v.filter(function(x){return /en-GB/i.test(x.lang)&&/Daniel|Arthur|Oliver|Male/i.test(x.name)})[0]||v.filter(function(x){return /en-GB/i.test(x.lang)})[0]||null}catch(e){return null}}
+  document.addEventListener("click",function(ev){
+    var b=ev.target.closest(".speak");if(!b)return;
+    if(!window.speechSynthesis||!window.SpeechSynthesisUtterance){b.textContent="Reading aloud is not available here";return}
+    if(b.getAttribute("aria-pressed")==="true"){stopSpeaking();return}
+    var t=($(b.dataset.for).textContent||"").trim();if(!t||/^Ralphy is having a look/.test(t))return;
+    stopSpeaking();
+    var u=new SpeechSynthesisUtterance(t.replace(/[*#_`]/g,""));u.lang="en-GB";u.rate=1.02;var v=pickVoice();if(v)u.voice=v;
+    u.onend=u.onerror=function(){b.setAttribute("aria-pressed","false");b.textContent="Read it to me"};
+    b.setAttribute("aria-pressed","true");b.textContent="Stop";
+    speechSynthesis.speak(u);
+  });
+  $("askForm").addEventListener("submit",function(ev){ev.preventDefault();ask($("askInput").value,"answer")});
+  $("chips").addEventListener("click",function(ev){var b=ev.target.closest(".chip");if(!b)return;$("askInput").value=b.textContent;ask(b.dataset.q||b.textContent,"answer")});
+  $("miniForm").addEventListener("submit",function(ev){ev.preventDefault();ask($("miniInput").value,"miniTxt")});
+  $("miniLinks").addEventListener("click",function(ev){var b=ev.target.closest("button[data-q]");if(!b)return;$("miniInput").value=b.textContent;ask(b.dataset.q,"miniTxt")});
 
   // ---------- sign-in (same supabase-js email and password flow as admin.html) ----------
   var SUPA_URL="https://kwwnwniyijeuorpbyvmn.supabase.co";
@@ -770,7 +920,7 @@ footer{font-size:12.5px;color:var(--mute);border-top:1px solid var(--line);paddi
   // mode: signin, denied, checking or app. Signed out, only the sign-in form shows.
   function gate(mode,msg){
     $("gate").hidden=mode==="app";$("app").hidden=mode!=="app";
-    $("signIn").hidden=mode!=="signin";$("noAccess").hidden=mode!=="denied";
+    $("signIn").hidden=mode!=="signin";$("noAccess").hidden=mode!=="denied";$("gHead").hidden=mode==="denied";
     $("gMsg").textContent=msg||"";$("gMsg").hidden=!msg;
     if(mode!=="app")ready=false;
     if(mode==="signin"){$("gBtn").disabled=false}
