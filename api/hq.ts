@@ -6,7 +6,6 @@
 // only calls them, reads Resend's metrics and runs the Claude features.
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { Pool } from 'pg';
-import Anthropic from '@anthropic-ai/sdk';
 import { requireAdmin } from './_lib/admin-auth.js';
 
 const DB_URL = process.env.SUPABASE_DB_URL!;
@@ -24,17 +23,12 @@ const ACTIONS = new Set([
   'user_report', 'location_report', 'outreach_save', 'outreach_log', 'outreach_delete',
 ]);
 
-// Anthropic list prices, USD per million tokens [input, output], taken from
-// Anthropic's model table on 28 September 2026. Check against
-// https://www.anthropic.com/pricing before relying on the cost figures.
-// Keyed by model ID without any date suffix. No prompt caching is used here,
-// so input and output are the only token classes billed.
+// Anthropic list prices, USD per million tokens [input, output]. Checked by Josh
+// against Anthropic's model page on 28 September 2026. Keyed by model ID without
+// any date suffix. No prompt caching is used, so input and output are the only
+// token classes billed. A model missing here is refused rather than guessed at.
 const PRICES: Record<string, [number, number]> = {
   'claude-haiku-4-5': [1, 5],
-  'claude-sonnet-5': [2, 10],
-  'claude-sonnet-4-6': [3, 15],
-  'claude-opus-5': [5, 25],
-  'claude-opus-5-5': [4, 20],
 };
 function priceFor(model: string) {
   return PRICES[model.replace(/-\d{8}$/, '')] || null;
@@ -86,31 +80,26 @@ async function claude(operation: string, prompt: string, userId: string) {
   const price = priceFor(HQ_MODEL);
   if (!price) throw new HttpError(500, 'HQ_MODEL has no unit price set, so the call was not made.');
 
-  const client = new Anthropic({ apiKey: ANTHROPIC_API_KEY });
-  let msg: Anthropic.Message;
-  try {
-    msg = await client.messages.create({
-      model: HQ_MODEL,
-      max_tokens: MAX_TOKENS,
-      messages: [{ role: 'user', content: prompt }],
-    });
-  } catch (e) {
-    if (e instanceof Anthropic.RateLimitError) throw new HttpError(429, 'Too many questions in a short time. Try again in a minute.');
-    if (e instanceof Anthropic.APIError) {
-      console.error('hq anthropic', e.status, e.message);
-      throw new HttpError(502, 'No answer came back. Try again.');
-    }
-    throw e;
+  const r = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: { 'x-api-key': ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
+    body: JSON.stringify({ model: HQ_MODEL, max_tokens: MAX_TOKENS, messages: [{ role: 'user', content: prompt }] }),
+  });
+  const msg: any = await r.json().catch(() => null);
+  if (r.status === 429) throw new HttpError(429, 'Too many questions in a short time. Try again in a minute.');
+  if (!r.ok || !msg || !msg.usage) {
+    console.error('hq anthropic', r.status, JSON.stringify(msg).slice(0, 300));
+    throw new HttpError(502, 'No answer came back. Try again.');
   }
 
   // Meter the call so it shows in HQ's Anthropic cost figures.
-  const inTok = msg.usage.input_tokens, outTok = msg.usage.output_tokens;
+  const inTok = Number(msg.usage.input_tokens) || 0, outTok = Number(msg.usage.output_tokens) || 0;
   const cost = (inTok * price[0] + outTok * price[1]) / 1e6;
   let metered = true;
   try {
     await pool.query(
-      "insert into public.api_usage (provider, operation, units, cost_usd, meta, user_id) values ('anthropic', $1, $2, $3, $4::jsonb, $5)",
-      [operation, inTok + outTok, cost.toFixed(6), JSON.stringify({ model: msg.model, input_tokens: inTok, output_tokens: outTok }), userId],
+      "insert into public.api_usage (provider, operation, units, cost_usd, meta, user_id) values ('anthropic', $1, 1, $2, $3::jsonb, $4)",
+      [operation, cost.toFixed(6), JSON.stringify({ model: msg.model, input_tokens: inTok, output_tokens: outTok }), userId],
     );
   } catch (e: any) {
     metered = false;
@@ -118,7 +107,7 @@ async function claude(operation: string, prompt: string, userId: string) {
   }
 
   if (msg.stop_reason === 'refusal') throw new HttpError(502, 'No answer came back. Try again.');
-  const text = msg.content.map((b) => (b.type === 'text' ? b.text : '')).join('').trim();
+  const text = (msg.content || []).map((b: any) => (b.type === 'text' ? b.text : '')).join('').trim();
   if (!text) throw new HttpError(502, 'No answer came back. Try again.');
   return { text, truncated: msg.stop_reason === 'max_tokens', metered };
 }
