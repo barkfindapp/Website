@@ -103,6 +103,10 @@ h2.sec::before{content:"";width:8px;height:8px;border-radius:50%;background:var(
 .attn li.crit .stripe{background:var(--crit)} .attn li.warn .stripe{background:var(--warn)} .attn li.info .stripe{background:var(--brand)} .attn li.ok .stripe{background:var(--ok)}
 .attn .body{padding:14px 0}
 .attn .t{font-weight:800;line-height:1.35;color:var(--fg)}
+.attn .body{min-width:0}
+.cronerr{margin-top:8px}
+.cronerr .when{font:700 12px/1.3 var(--sans);color:var(--mute)}
+.cronerr pre{margin:4px 0 0;font:500 12.5px/1.5 var(--mono);white-space:pre-wrap;overflow-wrap:anywhere;background:#FAFAF9;border:1px solid var(--line);border-radius:10px;padding:8px 10px;color:var(--fg)}
 .attn .d{font-size:14px;color:var(--fg2);margin-top:3px}
 .attn .go{align-self:center;margin-right:16px;font:700 13px/1 var(--sans);color:var(--brand);text-decoration:none;white-space:nowrap;padding:9px 14px;border-radius:999px;background:var(--brand-soft)}
 .attn .go:hover{background:rgba(183,66,23,.14)}
@@ -372,6 +376,7 @@ footer .mono{color:rgba(255,255,255,.75)}
         <h3>System health <small>Health · last 24 hours</small></h3>
         <div class="hero"><span class="v" id="h-state">–</span><span class="u" id="h-sub">scheduled jobs</span></div>
         <dl class="kv" id="h-kv"></dl>
+        <div id="h-fail"></div>
       </article>
 
       <article class="panel" id="p-renewals">
@@ -539,14 +544,18 @@ footer .mono{color:rgba(255,255,255,.75)}
       '<circle cx="'+last[0]+'" cy="'+last[1]+'" r="3.5" fill="var(--teal)"/>';
   }
 
+  // Failed cron runs as returned by hq_snapshot().health.cron_failures_24h: when, then the error text as is.
+  function cronErrs(list){
+    return (list||[]).map(function(f){return '<div class="cronerr"><div class="when">Failed '+esc(when(f.failed_at))+'</div><pre>'+esc(String(f.error||"").replace(/\s+$/,""))+'</pre></div>'}).join("");
+  }
   function attention(){
     var s=state.snap, items=[];
     if(!s){return items}
     var q=s.queues||{}, h=s.health||{}, c=s.costs||{}, co=s.content||{}, g=s.growth||{};
     if(q.csae_escalations>0)items.push(["crit",q.csae_escalations+" review(s) flagged for child-safety or harm","Deal with these before anything else. The review is held and not public.","https://www.barkfind.com/admin","Open moderation"]);
-    var failed=h.cron_failed_24h||{};Object.keys(failed).forEach(function(job){
-      var d=job==="cleanup-search-logs"?"This job calls an edge function that is not deployed, so it fails every night at 03:00. Either deploy cleanup-search-logs or unschedule the job.":"Check the job's run history in Supabase.";
-      items.push(["crit","Scheduled job failing: "+job, failed[job]+" failure(s) in the last 24 hours. "+d,"https://supabase.com/dashboard/project/"+PROJECT+"/integrations/cron/jobs","Open cron"]);
+    // Count from cron_failed_24h; the error text is exactly what Postgres returned (cron_failures_24h).
+    var failed=h.cron_failed_24h||{}, fails=h.cron_failures_24h||[];Object.keys(failed).forEach(function(job){
+      items.push(["crit","Scheduled job failing: "+job, failed[job]+" failure(s) in the last 24 hours.","https://supabase.com/dashboard/project/"+PROJECT+"/integrations/cron/jobs","Open cron",fails.filter(function(f){return f.job===job}).slice(0,1)]);
     });
     if(q.support_open>0){var ah=ageH(q.support_oldest_open);items.push([ah>24?"crit":"warn",q.support_open+" support ticket(s) open","Oldest waiting "+ageTxt(ah)+".","https://www.barkfind.com/admin","Reply"])}
     if(q.privacy_open>0){var ph=ageH(q.privacy_oldest_open);items.push([ph>48?"crit":"warn",q.privacy_open+" privacy request(s) open","Oldest waiting "+ageTxt(ph)+". UK GDPR allows one month; the house rule is 48 hours.","https://www.barkfind.com/admin","Process"])}
@@ -587,7 +596,7 @@ footer .mono{color:rgba(255,255,255,.75)}
       pill.className="pill "+(crit?"crit":warn?"warn":"ok");
       txt.textContent=crit?crit+" urgent, "+warn+" to do":warn?warn+" to do":"All clear";
       var ul=$("attn");
-      ul.innerHTML=items.length?items.map(function(i){return '<li class="'+i[0]+'"><span class="stripe"></span><div class="body"><div class="t">'+esc(i[1])+'</div><div class="d">'+esc(i[2])+'</div></div><a class="go" href="'+esc(i[3])+'" target="_blank" rel="noopener">'+esc(i[4])+' →</a></li>'}).join(""):'<li class="ok"><span class="stripe"></span><div class="body"><div class="t">Nothing is waiting on you</div><div class="d">Queues are empty and every scheduled job ran cleanly in the last 24 hours.</div></div></li>';
+      ul.innerHTML=items.length?items.map(function(i){return '<li class="'+i[0]+'"><span class="stripe"></span><div class="body"><div class="t">'+esc(i[1])+'</div><div class="d">'+esc(i[2])+'</div>'+cronErrs(i[5])+'</div><a class="go" href="'+esc(i[3])+'" target="_blank" rel="noopener">'+esc(i[4])+' →</a></li>'}).join(""):'<li class="ok"><span class="stripe"></span><div class="body"><div class="t">Nothing is waiting on you</div><div class="d">Queues are empty and every scheduled job ran cleanly in the last 24 hours.</div></div></li>';
     }
     if(state.errors.snap){
       $("attn").innerHTML='<li class="warn"><span class="stripe"></span><div class="body"><div class="t">Live data is not loading</div><div class="d">'+esc(state.errors.snap)+'</div></div></li>';
@@ -652,6 +661,8 @@ footer .mono{color:rgba(255,255,255,.75)}
       $("h-state").textContent=fk.length?fk.length+" failing":"Clean";
       $("h-state").style.color=fk.length?"var(--crit)":"var(--ok)";
       $("h-sub").textContent="of "+n(h.cron_active_jobs)+" scheduled jobs";
+      var cf=h.cron_failures_24h||[];
+      $("h-fail").innerHTML=cf.length?'<div class="note" style="margin:4px 0 0">Recent failures</div>'+cf.map(function(f){return '<div class="cronerr"><div class="when">'+esc(f.job)+' · '+esc(when(f.failed_at))+'</div><pre>'+esc(String(f.error||"").replace(/\s+$/,""))+'</pre></div>'}).join(""):"";
       kv($("h-kv"),[
         ["Failed job runs",fk.length?fk.map(function(k){return k+" ×"+failed[k]}).join(", "):"none",fk.length?["crit","fix"]:["ok","ok"]],
         ["Outbound calls without a 2xx reply",n(h.http_non2xx_24h),h.http_non2xx_24h>0?["warn","check"]:null],
