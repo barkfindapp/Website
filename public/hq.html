@@ -1,0 +1,811 @@
+<!DOCTYPE html><html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>BarkFind HQ</title>
+<meta name="robots" content="noindex, nofollow">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="BarkFind HQ">
+<meta name="theme-color" content="#2F291E">
+<link rel="apple-touch-icon" href="/admin-icon-180.png">
+<link rel="icon" type="image/png" href="/admin-icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+:root{
+  --bg:#F3EFE7; --surface:#FFFFFF; --well:#EAE4D8; --fg:#2F291E; --fg2:#5B5346; --mute:#877E71; --line:#DDD5C7;
+  --brand:#B74217; --brand-soft:#F2DED4;
+  --ok:#2F7F7B; --ok-soft:#DCEBE9; --warn:#A86E14; --warn-soft:#F4E6CB; --crit:#A2262A; --crit-soft:#F5D9D8; --info:#4E5F86; --info-soft:#E1E5EF;
+  --band:#2F291E; --band-fg:#F3EFE7; --band-mute:#B9AE9C;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#191611; --surface:#221E18; --well:#2A251D; --fg:#EDE6D9; --fg2:#BDB3A2; --mute:#8F8676; --line:#383126;
+    --brand:#E0703F; --brand-soft:#3A2419;
+    --ok:#62B5AF; --ok-soft:#1B2E2C; --warn:#D9A24A; --warn-soft:#33270F; --crit:#E0676A; --crit-soft:#3A1C1D; --info:#98A8D2; --info-soft:#232838;
+    --band:#0F0D0A; --band-fg:#EDE6D9; --band-mute:#978D7C;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#191611; --surface:#221E18; --well:#2A251D; --fg:#EDE6D9; --fg2:#BDB3A2; --mute:#8F8676; --line:#383126;
+  --brand:#E0703F; --brand-soft:#3A2419;
+  --ok:#62B5AF; --ok-soft:#1B2E2C; --warn:#D9A24A; --warn-soft:#33270F; --crit:#E0676A; --crit-soft:#3A1C1D; --info:#98A8D2; --info-soft:#232838;
+  --band:#0F0D0A; --band-fg:#EDE6D9; --band-mute:#978D7C;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.5 "IBM Plex Sans",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;-webkit-font-smoothing:antialiased}
+.mono,.num{font-family:"IBM Plex Mono",ui-monospace,Menlo,monospace;font-variant-numeric:tabular-nums}
+a{color:inherit}
+.wrap{max-width:1080px;margin:0 auto;padding-inline:16px}
+
+/* band */
+.band{background:var(--band);color:var(--band-fg)}
+.band .wrap{display:flex;flex-wrap:wrap;gap:18px 28px;align-items:flex-end;justify-content:space-between;padding-block:26px 22px}
+.brand{display:flex;flex-direction:column;gap:4px}
+.brand .eyebrow{font:500 11px/1 "IBM Plex Mono",monospace;letter-spacing:.14em;text-transform:uppercase;color:var(--band-mute)}
+.brand h1{margin:0;font:800 clamp(30px,5.4vw,44px)/1 Archivo,sans-serif;letter-spacing:-.025em}
+.brand h1 span{color:var(--brand)}
+.countdown{display:flex;align-items:baseline;gap:10px}
+.countdown .big{font:700 clamp(40px,7vw,58px)/.9 Archivo,sans-serif;letter-spacing:-.03em;font-variant-numeric:tabular-nums}
+.countdown .lab{font-size:13px;color:var(--band-mute);line-height:1.3}
+.countdown .lab b{color:var(--band-fg);font-weight:600;display:block}
+
+/* status strip */
+.strip{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);border-bottom:1px solid var(--line)}
+.strip .wrap{display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px;padding-block:11px}
+.pill{display:inline-flex;align-items:center;gap:7px;font:600 12.5px/1 "IBM Plex Sans",sans-serif;padding:6px 10px;border-radius:999px;border:1px solid transparent}
+.pill i{width:8px;height:8px;border-radius:50%;background:currentColor;display:block}
+.pill.ok{color:var(--ok);background:var(--ok-soft)} .pill.warn{color:var(--warn);background:var(--warn-soft)} .pill.crit{color:var(--crit);background:var(--crit-soft)} .pill.idle{color:var(--mute);background:var(--well)}
+.fresh{font-size:12.5px;color:var(--mute);flex:1;min-width:160px}
+button{font:inherit;cursor:pointer}
+.btn{font:600 13px/1 "IBM Plex Sans",sans-serif;padding:9px 13px;border-radius:8px;border:1px solid var(--line);background:var(--surface);color:var(--fg)}
+.btn:hover{border-color:var(--fg2)}
+.btn:focus-visible,input:focus-visible,a:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+.btn[disabled]{opacity:.5;cursor:default}
+.btn.primary{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+
+main.wrap{padding-block:26px 64px;display:flex;flex-direction:column;gap:34px}
+h2.sec{margin:0 0 12px;font:700 13px/1 "IBM Plex Mono",monospace;letter-spacing:.12em;text-transform:uppercase;color:var(--fg2);display:flex;align-items:center;gap:10px}
+h2.sec::after{content:"";flex:1;height:1px;background:var(--line)}
+
+/* attention */
+.attn{display:flex;flex-direction:column;gap:8px;margin:0;padding:0;list-style:none}
+.attn li{display:grid;grid-template-columns:4px 1fr auto;gap:0 14px;background:var(--surface);border:1px solid var(--line);border-radius:10px;overflow:hidden;align-items:stretch}
+.attn .stripe{background:var(--mute)}
+.attn li.crit .stripe{background:var(--crit)} .attn li.warn .stripe{background:var(--warn)} .attn li.info .stripe{background:var(--info)} .attn li.ok .stripe{background:var(--ok)}
+.attn .body{padding:12px 0}
+.attn .t{font-weight:600;line-height:1.35}
+.attn .d{font-size:13.5px;color:var(--fg2);margin-top:2px}
+.attn .go{align-self:center;padding-right:14px;font-size:13px;font-weight:600;color:var(--brand);text-decoration:none;white-space:nowrap}
+.attn .go:hover{text-decoration:underline}
+.empty{padding:16px;border:1px dashed var(--line);border-radius:10px;color:var(--fg2);font-size:14px}
+
+/* panels */
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px 18px 14px;display:flex;flex-direction:column;gap:10px;min-width:0}
+.panel h3{margin:0;font:700 17px/1.2 Archivo,sans-serif;letter-spacing:-.01em;display:flex;justify-content:space-between;gap:8px;align-items:baseline}
+.panel h3 small{font:500 11.5px/1 "IBM Plex Mono",monospace;color:var(--mute);letter-spacing:.04em}
+.hero{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.hero .v{font:700 36px/1 Archivo,sans-serif;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.hero .u{font-size:13px;color:var(--fg2)}
+dl.kv{margin:0;display:grid;grid-template-columns:1fr auto;gap:0}
+dl.kv dt,dl.kv dd{padding:7px 0;border-top:1px solid var(--line);font-size:14px}
+dl.kv dt{color:var(--fg2)}
+dl.kv dd{margin:0;text-align:right;font-family:"IBM Plex Mono",monospace;font-variant-numeric:tabular-nums;font-size:13.5px}
+dd .flag{display:inline-block;margin-left:6px;font:600 10.5px/1 "IBM Plex Sans",sans-serif;padding:3px 6px;border-radius:5px;vertical-align:1px}
+.flag.warn{color:var(--warn);background:var(--warn-soft)} .flag.crit{color:var(--crit);background:var(--crit-soft)} .flag.ok{color:var(--ok);background:var(--ok-soft)}
+.note{font-size:12.5px;color:var(--mute);line-height:1.45}
+.panel.off{opacity:.62}
+.panel .err{font-size:13px;color:var(--warn);background:var(--warn-soft);padding:8px 10px;border-radius:8px}
+svg.spark{width:100%;height:46px;display:block}
+
+/* ask */
+.ask{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px 18px;display:flex;flex-direction:column;gap:12px}
+.ask form{display:flex;gap:8px;flex-wrap:wrap}
+.ask input{flex:1 1 260px;min-width:0;font:inherit;padding:10px 12px;border-radius:8px;border:1px solid var(--line);background:var(--bg);color:var(--fg)}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{font-size:12.5px;padding:6px 10px;border-radius:999px;border:1px solid var(--line);background:var(--bg);color:var(--fg2)}
+.chip:hover{color:var(--fg);border-color:var(--fg2)}
+.answer{white-space:pre-wrap;font-size:14.5px;line-height:1.6;max-width:72ch;color:var(--fg)}
+.answer:empty{display:none}
+
+/* consoles */
+.consoles{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:18px 22px}
+.consoles h4{margin:0 0 6px;font:600 11.5px/1 "IBM Plex Mono",monospace;letter-spacing:.1em;text-transform:uppercase;color:var(--mute)}
+.consoles ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
+.consoles a{display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-top:1px solid var(--line);text-decoration:none;font-size:14px}
+.consoles a span{color:var(--mute);font-size:12.5px;text-align:right}
+.consoles a:hover{color:var(--brand)}
+/* tabs */
+.tabs{display:flex;gap:4px;overflow-x:auto;scrollbar-width:none;padding-block:0 0}
+.tabs button{font:600 13.5px/1 "IBM Plex Sans",sans-serif;padding:10px 14px;border:0;border-bottom:2px solid transparent;background:none;color:var(--fg2);white-space:nowrap}
+.tabs button[aria-selected="true"]{color:var(--fg);border-bottom-color:var(--brand)}
+.tabs button .count{display:inline-block;min-width:18px;margin-left:6px;padding:2px 5px;border-radius:9px;background:var(--well);color:var(--fg2);font:600 11px/1.2 "IBM Plex Mono",monospace;text-align:center}
+.tabs button .count.hot{background:var(--warn-soft);color:var(--warn)}
+[data-tab][hidden]{display:none!important}
+
+/* act cards */
+.stack{display:flex;flex-direction:column;gap:10px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px 16px;display:flex;flex-direction:column;gap:8px;min-width:0}
+.card.flagged{border-color:var(--crit)}
+.card .meta{font-size:12.5px;color:var(--mute);display:flex;flex-wrap:wrap;gap:4px 12px}
+.card .title{font-weight:600;line-height:1.35}
+.card .text{white-space:pre-wrap;font-size:14.5px;line-height:1.55;max-width:72ch;overflow-wrap:anywhere}
+.card .prior{font-size:13px;color:var(--fg2);border-left:2px solid var(--line);padding-left:10px;white-space:pre-wrap}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.btn.ok{background:var(--ok);border-color:var(--ok);color:var(--surface)}
+.btn.danger{color:var(--crit);border-color:var(--crit)}
+.btn.confirm{background:var(--warn);border-color:var(--warn);color:var(--surface)}
+.btn.small{padding:7px 10px;font-size:12.5px}
+textarea,select,.card input[type=text],.card input[type=date],.card input[type=email]{font:inherit;font-size:14px;padding:9px 11px;border-radius:8px;border:1px solid var(--line);background:var(--bg);color:var(--fg);width:100%}
+textarea{min-height:110px;resize:vertical;line-height:1.5}
+.msg{font-size:13px;padding:7px 10px;border-radius:8px}
+.msg.good{background:var(--ok-soft);color:var(--ok)} .msg.bad{background:var(--crit-soft);color:var(--crit)}
+.subhead{display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin:6px 0 2px}
+.subhead h3{margin:0;font:700 16px/1.2 Archivo,sans-serif}
+.subhead span{font-size:12.5px;color:var(--mute)}
+.tag{font:600 11px/1 "IBM Plex Sans",sans-serif;padding:4px 7px;border-radius:6px;background:var(--well);color:var(--fg2);text-transform:capitalize}
+.tag.warn{background:var(--warn-soft);color:var(--warn)} .tag.crit{background:var(--crit-soft);color:var(--crit)} .tag.ok{background:var(--ok-soft);color:var(--ok)} .tag.info{background:var(--info-soft);color:var(--info)}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px}
+.grid2 label{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--mute)}
+details.card summary{cursor:pointer;list-style:none;display:grid;grid-template-columns:1fr auto;gap:4px 12px;align-items:start}
+details.card summary::-webkit-details-marker{display:none}
+.due{font:600 12.5px/1 "IBM Plex Mono",monospace;color:var(--fg2);white-space:nowrap}
+.due.over{color:var(--crit)} .due.today{color:var(--warn)}
+.filter{display:flex;flex-wrap:wrap;gap:6px}
+.filter button[aria-pressed="true"]{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+.feed{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
+.feed li{display:grid;grid-template-columns:auto 1fr auto;gap:10px;padding:8px 0;border-top:1px solid var(--line);font-size:13.5px;align-items:baseline}
+.feed .when{font:500 12px/1 "IBM Plex Mono",monospace;color:var(--mute);white-space:nowrap}
+footer{font-size:12.5px;color:var(--mute);border-top:1px solid var(--line);padding-top:14px;line-height:1.55}
+@media (max-width:520px){.attn li{grid-template-columns:4px 1fr}.attn .go{grid-column:2;padding:0 0 12px}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+/* sign-in gate */
+.gate[hidden],.gate [hidden],#app[hidden]{display:none!important}
+.gate main.wrap{max-width:440px}
+.gate form{display:flex;flex-direction:column;gap:12px}
+.gate label{display:flex;flex-direction:column;gap:5px;font-size:13px;color:var(--fg2)}
+.gate input{font:inherit;font-size:16px;padding:10px 12px;border-radius:8px;border:1px solid var(--line);background:var(--bg);color:var(--fg);width:100%}
+.gate .btn{padding:12px 14px;font-size:14px}
+.signout{background:none;border:0;padding:0;color:var(--brand);font:inherit;text-decoration:underline}
+</style>
+</head>
+<body>
+
+<div class="gate" id="gate">
+  <header class="band"><div class="wrap"><div class="brand"><span class="eyebrow">BarkFind Ltd · operations</span><h1>BarkFind <span>HQ</span></h1></div></div></header>
+  <main class="wrap">
+    <div class="card">
+      <form id="signIn" hidden>
+        <label>Email<input type="email" id="gEmail" autocomplete="username" required></label>
+        <label>Password<input type="password" id="gPass" autocomplete="current-password" required></label>
+        <button class="btn primary" type="submit" id="gBtn">Sign in</button>
+      </form>
+      <div class="stack" id="noAccess" hidden>
+        <div class="title">This account does not have access</div>
+        <p class="note" style="margin:0">HQ is for BarkFind admins. Sign in with an admin account instead.</p>
+        <div class="row"><button class="btn" type="button" id="gOut">Sign out</button></div>
+      </div>
+      <div class="note" id="gMsg">Checking sign-in.</div>
+    </div>
+  </main>
+</div>
+
+<div id="app" hidden>
+<header class="band">
+  <div class="wrap">
+    <div class="brand">
+      <span class="eyebrow">BarkFind Ltd · operations</span>
+      <h1>BarkFind <span>HQ</span></h1>
+    </div>
+    <div class="countdown" id="countdown">
+      <span class="big num" id="daysBig">–</span>
+      <span class="lab"><b id="daysLab">days to launch</b>App Store release, Tue 13 Oct 2026</span>
+    </div>
+  </div>
+</header>
+
+<div class="strip">
+  <div class="wrap">
+    <span class="pill idle" id="statusPill"><i></i><span id="statusText">Connecting</span></span>
+    <span class="fresh" id="fresh">Live data loads from Supabase and Resend.</span>
+    <button class="btn" id="refresh" type="button">Refresh</button>
+  </div>
+  <div class="wrap"><nav class="tabs" role="tablist" aria-label="HQ sections">
+    <button role="tab" id="t-today" aria-selected="true" data-go="today">Today</button>
+    <button role="tab" id="t-act" aria-selected="false" data-go="act">Act<span class="count" id="actCount">0</span></button>
+    <button role="tab" id="t-outreach" aria-selected="false" data-go="outreach">Outreach<span class="count" id="outCount">0</span></button>
+    <button role="tab" id="t-consoles" aria-selected="false" data-go="consoles">Consoles</button>
+  </nav></div>
+</div>
+
+<main class="wrap">
+ <div data-tab="today" class="stack" style="gap:34px">
+  <section aria-labelledby="h-attn">
+    <h2 class="sec" id="h-attn">Needs you</h2>
+    <ul class="attn" id="attn"><li class="info"><span class="stripe"></span><div class="body"><div class="t">Loading the latest snapshot</div><div class="d">Reads public.hq_snapshot().</div></div></li></ul>
+  </section>
+
+  <section aria-labelledby="h-now">
+    <h2 class="sec" id="h-now">The business today</h2>
+    <div class="grid">
+      <article class="panel" id="p-customers">
+        <h3>Customers <small>auth.users</small></h3>
+        <div class="hero"><span class="v" id="c-real">–</span><span class="u">signed-up accounts</span></div>
+        <dl class="kv" id="c-kv"></dl>
+        <svg class="spark" id="c-spark" viewBox="0 0 300 46" preserveAspectRatio="none" aria-hidden="true"></svg>
+      </article>
+
+      <article class="panel" id="p-money">
+        <h3>Revenue <small>RevenueCat + subscriptions</small></h3>
+        <div class="hero"><span class="v" id="m-active">–</span><span class="u">paying on the App Store</span></div>
+        <dl class="kv" id="m-kv"></dl>
+        <p class="note" id="m-note">RevenueCat revenue totals include sandbox purchases until launch, so they are not real money yet.</p>
+      </article>
+
+      <article class="panel" id="p-costs">
+        <h3>Running costs <small>this month</small></h3>
+        <div class="hero"><span class="v" id="k-total">–</span><span class="u">metered API spend, USD</span></div>
+        <dl class="kv" id="k-kv"></dl>
+        <p class="note">Google figures come from google_spend_this_month, which applies the free allowance per SKU and adds VAT. Anthropic is BarkFind's own meter; reconcile it against the Anthropic console before quoting it. Fixed subscriptions (Lovable, Supabase plan, Apple, domains) are in the HQ doc cost register.</p>
+      </article>
+
+      <article class="panel" id="p-support">
+        <h3>Customer service <small>queues</small></h3>
+        <div class="hero"><span class="v" id="s-open">–</span><span class="u">items waiting for a person</span></div>
+        <dl class="kv" id="s-kv"></dl>
+        <p class="note" id="s-note">Tickets are answered from barkfind.com/admin, which replies through send-support-reply. App Store reviews appear here once the App Store Connect API key is added.</p>
+      </article>
+
+      <article class="panel" id="p-health">
+        <h3>System health <small>last 24 hours</small></h3>
+        <div class="hero"><span class="v" id="h-state">–</span><span class="u" id="h-sub">scheduled jobs</span></div>
+        <dl class="kv" id="h-kv"></dl>
+      </article>
+
+      <article class="panel" id="p-email">
+        <h3>Email delivery <small>Resend, last 30 days</small></h3>
+        <div class="hero"><span class="v" id="e-rate">–</span><span class="u">delivered</span></div>
+        <dl class="kv" id="e-kv"></dl>
+        <p class="note">Test accounts must use info+something@barkfind.com. Any other plus-address hard bounces and Resend suppresses it for good.</p>
+      </article>
+    </div>
+  </section>
+
+  <section aria-labelledby="h-ask">
+    <h2 class="sec" id="h-ask">Ask HQ</h2>
+    <div class="ask">
+      <form id="askForm">
+        <label for="askInput" class="note" style="flex-basis:100%">Questions are answered from the snapshot on this page. For anything deeper, open a chat in the BarkFind project.</label>
+        <input id="askInput" name="q" autocomplete="off" placeholder="What should I do before 9am?">
+        <button class="btn primary" id="askBtn" type="submit">Ask</button>
+      </form>
+      <div class="chips" id="chips">
+        <button type="button" class="chip">What needs doing today?</button>
+        <button type="button" class="chip">Are we ready for 13 October?</button>
+        <button type="button" class="chip">Where is money going this month?</button>
+        <button type="button" class="chip">Draft a reply for the open support items</button>
+      </div>
+      <div class="answer" id="answer" aria-live="polite"></div>
+    </div>
+  </section>
+
+  <section aria-labelledby="h-feed">
+    <h2 class="sec" id="h-feed">Recent alerts</h2>
+    <ul class="feed" id="feed"><li><span class="when">–</span><span>Alerts sent to info@barkfind.com, Slack and your phone appear here.</span><span></span></li></ul>
+  </section>
+ </div>
+
+ <div data-tab="act" class="stack" hidden>
+  <p class="note" style="margin:0">Every action here asks you to confirm first, runs through <span class="mono">public.hq_action()</span> and is recorded in admin_audit. Bans, business claim verification and new listings stay in the admin console.</p>
+  <div class="stack" id="actBody"><div class="empty">Loading the queues.</div></div>
+ </div>
+
+ <div data-tab="outreach" class="stack" hidden>
+  <div class="row" style="justify-content:space-between">
+    <div class="filter" id="outFilter">
+      <button class="chip" data-k="all" aria-pressed="true">All</button>
+      <button class="chip" data-k="due" aria-pressed="false">Due</button>
+      <button class="chip" data-k="creator" aria-pressed="false">Creators</button>
+      <button class="chip" data-k="venue" aria-pressed="false">Venues</button>
+      <button class="chip" data-k="press" aria-pressed="false">Press</button>
+      <button class="chip" data-k="partner" aria-pressed="false">Partners</button>
+    </div>
+    <button class="btn" id="outAdd" type="button">Add person</button>
+  </div>
+  <div id="outNew"></div>
+  <div class="stack" id="outBody"><div class="empty">Loading outreach.</div></div>
+ </div>
+
+ <div data-tab="consoles" hidden>
+  <section aria-labelledby="h-con">
+    <h2 class="sec" id="h-con">Every console, one tap</h2>
+    <div class="consoles">
+      <div><h4>App and data</h4><ul>
+        <li><a href="https://supabase.com/dashboard/project/kwwnwniyijeuorpbyvmn" target="_blank" rel="noopener">Supabase <span>database, functions, logs</span></a></li>
+        <li><a href="https://www.barkfind.com/admin" target="_blank" rel="noopener">Admin console <span>moderation, support, bans</span></a></li>
+        <li><a href="https://lovable.dev/projects" target="_blank" rel="noopener">Lovable <span>app front end</span></a></li>
+        <li><a href="https://github.com/barkfindapp" target="_blank" rel="noopener">GitHub <span>app and website repos</span></a></li>
+        <li><a href="https://vercel.com/dashboard" target="_blank" rel="noopener">Vercel <span>barkfind.com deploys</span></a></li>
+      </ul></div>
+      <div><h4>Stores and money</h4><ul>
+        <li><a href="https://appstoreconnect.apple.com/apps/6782144377/distribution" target="_blank" rel="noopener">App Store Connect <span>build 12, release</span></a></li>
+        <li><a href="https://app.revenuecat.com" target="_blank" rel="noopener">RevenueCat <span>subscribers, charts</span></a></li>
+        <li><a href="https://play.google.com/console" target="_blank" rel="noopener">Play Console <span>Android, awaiting verification</span></a></li>
+        <li><a href="https://developer.apple.com/account" target="_blank" rel="noopener">Apple Developer <span>keys, certificates</span></a></li>
+      </ul></div>
+      <div><h4>Spend</h4><ul>
+        <li><a href="https://console.cloud.google.com/billing" target="_blank" rel="noopener">Google Cloud billing <span>£100 budget alert</span></a></li>
+        <li><a href="https://console.cloud.google.com/apis/dashboard" target="_blank" rel="noopener">Google APIs <span>quotas, keys</span></a></li>
+        <li><a href="https://console.anthropic.com" target="_blank" rel="noopener">Anthropic console <span>API usage, billing</span></a></li>
+      </ul></div>
+      <div><h4>Messaging</h4><ul>
+        <li><a href="https://resend.com/emails" target="_blank" rel="noopener">Resend <span>sent mail, audiences</span></a></li>
+        <li><a href="https://dashboard.onesignal.com/apps/4e730b66-a022-4881-b44d-448a3511c92d" target="_blank" rel="noopener">OneSignal <span>push delivery</span></a></li>
+        <li><a href="https://claude.ai/artifact/XA3rADMyPan3mGsE4cUMpE" target="_blank" rel="noopener">Launch Runway <span>pre-launch checklist</span></a></li>
+      </ul></div>
+    </div>
+  </section>
+ </div>
+
+  <footer>
+    Everything above comes from one database function, <span class="mono">public.hq_snapshot()</span>, plus Resend's own metrics. A copy is saved every morning at 05:50 UTC into <span class="mono">hq_snapshots</span>, which is what the trend line and the morning brief compare against. The narrative (decisions, open issues, how things fit together) lives in <span class="mono">claude/BARKFIND-HQ.md</span> in the Claude project.
+    <br><span id="whoami"></span> <button class="signout" type="button" id="signOut">Sign out</button>
+  </footer>
+</main>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.112.1/dist/umd/supabase.js"></script>
+<script>
+(function(){
+  var PROJECT="kwwnwniyijeuorpbyvmn";
+  var LAUNCH=new Date("2026-10-13T00:00:00Z");
+  var state={snap:null,history:[],email:null,errors:{},loadedAt:null};
+  var ready=false;
+  var $=function(id){return document.getElementById(id)};
+
+  function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
+  function n(v){v=Number(v||0);return v.toLocaleString("en-GB")}
+  function usd(v){return "$"+Number(v||0).toFixed(2)}
+  function ageH(ts){if(!ts)return null;return (Date.now()-new Date(ts).getTime())/36e5}
+  function ageTxt(h){if(h==null)return "";return h>=48?Math.round(h/24)+" days":Math.max(1,Math.round(h))+" hours"}
+
+  function days(){
+    var d=Math.ceil((LAUNCH.getTime()-Date.now())/864e5);
+    if(d>0){$("daysBig").textContent=d;$("daysLab").textContent=d===1?"day to launch":"days to launch"}
+    else if(d===0){$("daysBig").textContent="Today";$("daysLab").textContent="launch day"}
+    else{$("daysBig").textContent=-d;$("daysLab").textContent="days since launch"}
+  }
+  days();
+
+  // Every read and write goes through /api/hq as a named operation. The browser never sends SQL.
+  // The token comes from the session supabase-js keeps in localStorage (same approach as admin.html).
+  function accessToken(){
+    try{for(var i=0;i<localStorage.length;i++){var k=localStorage.key(i);if(k&&/^sb-.*-auth-token$/.test(k)){var v=JSON.parse(localStorage.getItem(k)||"null");if(v){if(v.access_token)return v.access_token;if(v.currentSession&&v.currentSession.access_token)return v.currentSession.access_token}}}}catch(e){}
+    return null;
+  }
+  function api(op,args){
+    var tok=accessToken();
+    if(!tok){window.hqGate&&window.hqGate("signin");return Promise.reject({code:"auth",message:"You are signed out. Sign in again."})}
+    return fetch("/api/hq",{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+tok},body:JSON.stringify({op:op,args:args||{}})})
+      .catch(function(){throw {code:"network",message:"The server did not answer. Check your connection and try again."}})
+      .then(function(r){return r.json().catch(function(){return null}).then(function(j){
+        if(r.status===401){window.hqGate&&window.hqGate("signin");throw {code:"auth",message:"Your session has ended. Sign in again."}}
+        if(r.status===403){window.hqGate&&window.hqGate("denied");throw {code:"denied",message:"This account does not have access."}}
+        if(!r.ok||!j)throw {code:"http",message:(j&&j.error)||"The server did not answer. Try again."};
+        return j;
+      })});
+  }
+
+  function errCopy(e,server){
+    return (e&&e.message)||server+" could not load. Try Refresh in a minute.";
+  }
+
+  function kv(el,rows){
+    el.innerHTML=rows.map(function(r){
+      var f=r[2]?'<span class="flag '+r[2][0]+'">'+esc(r[2][1])+'</span>':"";
+      return "<dt>"+esc(r[0])+"</dt><dd>"+esc(r[1])+f+"</dd>";
+    }).join("");
+  }
+
+  function spark(el,vals){
+    if(!vals||vals.length<2){el.innerHTML='<text x="0" y="30" fill="var(--mute)" font-size="11" font-family="IBM Plex Mono,monospace">Trend line appears after the second daily snapshot</text>';return}
+    var W=300,H=46,pad=5,min=Math.min.apply(null,vals),max=Math.max.apply(null,vals);if(max===min){max=min+1}
+    var pts=vals.map(function(v,i){return [pad+(W-2*pad)*i/(vals.length-1), H-pad-(H-2*pad)*(v-min)/(max-min)]});
+    var line=pts.map(function(p,i){return (i?"L":"M")+p[0].toFixed(1)+" "+p[1].toFixed(1)}).join(" ");
+    var area=line+" L"+pts[pts.length-1][0].toFixed(1)+" "+(H-pad)+" L"+pts[0][0].toFixed(1)+" "+(H-pad)+" Z";
+    var last=pts[pts.length-1];
+    el.innerHTML='<line x1="0" x2="300" y1="'+(H-pad)+'" y2="'+(H-pad)+'" stroke="var(--line)" stroke-width="1"/>'+
+      '<path d="'+area+'" fill="var(--ok-soft)"/><path d="'+line+'" fill="none" stroke="var(--ok)" stroke-width="1.8" vector-effect="non-scaling-stroke"/>'+
+      '<circle cx="'+last[0]+'" cy="'+last[1]+'" r="3" fill="var(--ok)"/>';
+  }
+
+  function attention(){
+    var s=state.snap, items=[];
+    if(!s){return items}
+    var q=s.queues||{}, h=s.health||{}, c=s.costs||{}, co=s.content||{}, g=s.growth||{};
+    if(q.csae_escalations>0)items.push(["crit",q.csae_escalations+" review(s) flagged for child-safety or harm","Deal with these before anything else. The review is held and not public.","https://www.barkfind.com/admin","Open moderation"]);
+    var failed=h.cron_failed_24h||{};Object.keys(failed).forEach(function(job){
+      var d=job==="cleanup-search-logs"?"This job calls an edge function that is not deployed, so it fails every night at 03:00. Either deploy cleanup-search-logs or unschedule the job.":"Check the job's run history in Supabase.";
+      items.push(["crit","Scheduled job failing: "+job, failed[job]+" failure(s) in the last 24 hours. "+d,"https://supabase.com/dashboard/project/"+PROJECT+"/integrations/cron/jobs","Open cron"]);
+    });
+    if(q.support_open>0){var ah=ageH(q.support_oldest_open);items.push([ah>24?"crit":"warn",q.support_open+" support ticket(s) open","Oldest waiting "+ageTxt(ah)+".","https://www.barkfind.com/admin","Reply"])}
+    if(q.privacy_open>0){var ph=ageH(q.privacy_oldest_open);items.push([ph>48?"crit":"warn",q.privacy_open+" privacy request(s) open","Oldest waiting "+ageTxt(ph)+". UK GDPR allows one month; the house rule is 48 hours.","https://www.barkfind.com/admin","Process"])}
+    if(q.reviews_pending>0){var rh=ageH(q.reviews_pending_oldest);items.push([rh>24?"warn":"info",q.reviews_pending+" review(s) waiting for approval","Oldest "+ageTxt(rh)+". Approving in a batch sends one push per review.","https://www.barkfind.com/admin","Moderate"])}
+    if(q.user_reports_pending>0)items.push(["warn",q.user_reports_pending+" user report(s) pending","Someone reported another user or a review.","https://www.barkfind.com/admin","Review"]);
+    if(q.location_reports_open>0)items.push(["warn",q.location_reports_open+" place report(s) open","A user says a listing is wrong.","https://www.barkfind.com/admin","Review"]);
+    if(q.business_claims_pending>0)items.push(["warn",q.business_claims_pending+" business claim(s) pending","A venue wants to manage its listing.","https://www.barkfind.com/admin","Verify"]);
+    if(q.listing_submissions_pending>0)items.push(["info",q.listing_submissions_pending+" suggested place(s) waiting","Users have suggested new listings.","https://www.barkfind.com/admin","Review"]);
+    if(q.treat_claims_pending>0)items.push(["warn",q.treat_claims_pending+" treat claim(s) stuck pending","A pending claim locks the user's points until it is confirmed or failed. The 15-minute sweep should clear these.","https://supabase.com/dashboard/project/"+PROJECT+"/editor","Inspect"]);
+    if(h.revenuecat_sync_age_minutes>90)items.push(["warn","RevenueCat data is "+h.revenuecat_sync_age_minutes+" minutes old","The hourly revenuecat-sync job may be failing.","https://supabase.com/dashboard/project/"+PROJECT+"/functions","Check function"]);
+    if(Number(c.google_month_usd_inc_vat)>50)items.push(["warn","Google spend is "+usd(c.google_month_usd_inc_vat)+" inc VAT this month","Budget alert is £100. Check google_spend_this_month before quoting a figure.","https://console.cloud.google.com/billing","Open billing"]);
+    if(state.email&&state.email.bounce_rate>5)items.push(["info","Email bounce rate "+state.email.bounce_rate.toFixed(1)+"%",state.email.bounced+" of "+state.email.sent+" emails bounced in 30 days. On volumes this small one bad address does it, but check it is not a real customer.","https://resend.com/emails","Open Resend"]);
+    var as=s.app_store||{};
+    if(as.low_ratings_unanswered_30d>0)items.push(["warn",as.low_ratings_unanswered_30d+" App Store review(s) of 3 stars or fewer without a reply","A public reply often turns these around. Reply in App Store Connect, Ratings and Reviews.","https://appstoreconnect.apple.com/apps/6782144377/distribution/activity/ios/ratingsResponses","Reply"]);
+    else if(as.reviews_unanswered_30d>0)items.push(["info",as.reviews_unanswered_30d+" App Store review(s) without a reply","From the last 30 days.","https://appstoreconnect.apple.com/apps/6782144377/distribution/activity/ios/ratingsResponses","Open"]);
+    if(as.errors&&Object.keys(as.errors).length)items.push(["warn","App Store Connect sync reported an error",JSON.stringify(as.errors).slice(0,220),"https://supabase.com/dashboard/project/"+PROJECT+"/functions","Check asc-sync"]);
+    if(!as.configured)items.push(["info","App Store reviews are not connected yet","Create an App Store Connect API key and add it to Supabase as ASC_KEY_ID, ASC_ISSUER_ID and ASC_PRIVATE_KEY. The asc-sync function and its schedule are already in place. Steps in the HQ doc, section 7.","https://appstoreconnect.apple.com/access/integrations/api","Create key"]);
+    if(co.content_drafts>0)items.push(["info",co.content_drafts+" content draft(s) waiting for review","From generate-content. Nothing publishes until you approve it.","https://www.barkfind.com/admin","Review drafts"]);
+    var up=s.uptime||{};Object.keys(up).forEach(function(k){if(up[k]&&up[k].ok===false)items.push(["crit","Uptime check failing: "+k,"Last answer "+(up[k].status||"none")+". 24-hour availability "+(up[k].availability_24h==null?"–":up[k].availability_24h+"%")+".","https://supabase.com/dashboard/project/"+PROJECT,"Investigate"])});
+    var od=(s.outreach&&s.outreach.due)||[];
+    if(od.length)items.push(["warn",od.length+" outreach follow-up"+(od.length>1?"s":"")+" due",od.slice(0,4).map(function(o){return o.name}).join(", ")+(od.length>4?" and more":"")+".","#outreach","Open outreach"]);
+    var ow=(s.outreach&&s.outreach.owed)||[];
+    if(ow.length)items.push(["info","You owe "+ow.length+" "+(ow.length>1?"people":"person")+" something",ow.map(function(o){return o.name+": "+o.owed}).join(". ")+".","#outreach","Open outreach"]);
+    var order={crit:0,warn:1,info:2};items.sort(function(a,b){return order[a[0]]-order[b[0]]});
+    return items;
+  }
+
+  function render(){
+    var s=state.snap;
+    var items=attention();
+    var pill=$("statusPill"),txt=$("statusText");
+    if(!s){pill.className="pill idle"}
+    else{
+      var crit=items.filter(function(i){return i[0]==="crit"}).length, warn=items.filter(function(i){return i[0]==="warn"}).length;
+      pill.className="pill "+(crit?"crit":warn?"warn":"ok");
+      txt.textContent=crit?crit+" urgent, "+warn+" to do":warn?warn+" to do":"All clear";
+      var ul=$("attn");
+      ul.innerHTML=items.length?items.map(function(i){return '<li class="'+i[0]+'"><span class="stripe"></span><div class="body"><div class="t">'+esc(i[1])+'</div><div class="d">'+esc(i[2])+'</div></div><a class="go" href="'+esc(i[3])+'" target="_blank" rel="noopener">'+esc(i[4])+' →</a></li>'}).join(""):'<li class="ok"><span class="stripe"></span><div class="body"><div class="t">Nothing is waiting on you</div><div class="d">Queues are empty and every scheduled job ran cleanly in the last 24 hours.</div></div></li>';
+    }
+    if(state.errors.snap){
+      $("attn").innerHTML='<li class="warn"><span class="stripe"></span><div class="body"><div class="t">Live data is not loading</div><div class="d">'+esc(state.errors.snap)+'</div></div></li>';
+      pill.className="pill idle";txt.textContent="Offline";
+    }
+
+    if(s){
+      var u=s.users||{}, sub=s.subscriptions||{}, rc=(sub.revenuecat||{}).metrics||{}, c=s.costs||{}, q=s.queues||{}, h=s.health||{}, co=s.content||{}, g=s.growth||{};
+      $("c-real").textContent=n(u.real_total);
+      kv($("c-kv"),[
+        ["New accounts, 24 hours",n(u.real_new_24h)],
+        ["New accounts, 7 days",n(u.real_new_7d)],
+        ["Active in the app, 7 days",n(u.active_7d)],
+        ["Guests browsing, total",n(u.guests_total)],
+        ["Dog profiles",n(u.dog_profiles)],
+        ["Early access list",n(g.early_access_active)+(g.early_access_new_7d?" (+"+g.early_access_new_7d+" this week)":"")],
+        ["Places on the map",n(co.locations_visible)],
+        ["Approved reviews",n(co.reviews_approved)]
+      ]);
+      spark($("c-spark"),state.history.map(function(r){return Number(r.real||0)}));
+
+      $("m-active").textContent=n(sub.store_active);
+      kv($("m-kv"),[
+        ["Production subscribers (RevenueCat)",n(rc.production_active)],
+        ["On a free trial",n(sub.store_trial)],
+        ["Cancelled, still entitled",n(sub.store_cancelled_entitled)],
+        ["Promotional (comped)",n(sub.promotional_active)],
+        ["New subscription rows, 7 days",n(sub.new_7d)],
+        ["RevenueCat proceeds, all time",rc.revenue_usd?usd(rc.revenue_usd.proceeds):"–",["warn","incl. sandbox"]],
+        ["RevenueCat last synced",(sub.revenuecat&&sub.revenuecat.synced_at)?new Date(sub.revenuecat.synced_at).toLocaleString("en-GB",{hour:"2-digit",minute:"2-digit",day:"numeric",month:"short"}):"–"]
+      ]);
+
+      var google=Number(c.google_month_usd_inc_vat||0), anth=Number(c.anthropic_month_usd||0);
+      $("k-total").textContent=usd(google+anth);
+      var ops=c.anthropic_month_by_op||{}, top=Object.keys(ops).sort(function(a,b){return ops[b]-ops[a]}).slice(0,3).map(function(k){return k.replace(/_/g," ")+" "+usd(ops[k])}).join(", ");
+      kv($("k-kv"),[
+        ["Google Maps and Places, inc VAT",usd(google),google===0?["ok","inside free tier"]:null],
+        ["Anthropic (Mylo, summaries, moderation)",usd(anth)],
+        ["Anthropic, last 7 days",usd(c.anthropic_7d_usd)],
+        ["Biggest Anthropic uses",top||"none yet"],
+        ["Paid Google sweeps, 24 hours",n(c.search_sweeps_24h)+" of 1,500 cap"]
+      ]);
+
+      var waiting=(q.support_open||0)+(q.privacy_open||0)+(q.reviews_pending||0)+(q.user_reports_pending||0)+(q.location_reports_open||0)+(q.business_claims_pending||0)+(q.listing_submissions_pending||0);
+      $("s-open").textContent=n(waiting);
+      function f(v){return v>0?["warn","waiting"]:null}
+      kv($("s-kv"),[
+        ["Support tickets",n(q.support_open),f(q.support_open)],
+        ["Privacy requests",n(q.privacy_open),f(q.privacy_open)],
+        ["Reviews to moderate",n(q.reviews_pending),f(q.reviews_pending)],
+        ["User reports",n(q.user_reports_pending),f(q.user_reports_pending)],
+        ["Place reports",n(q.location_reports_open),f(q.location_reports_open)],
+        ["Business claims",n(q.business_claims_pending),f(q.business_claims_pending)],
+        ["Suggested places",n(q.listing_submissions_pending),f(q.listing_submissions_pending)],
+        ["App Store reviews without a reply",(s.app_store&&s.app_store.configured)?n(s.app_store.reviews_unanswered_30d):"not connected",(s.app_store&&s.app_store.reviews_unanswered_30d>0)?["warn","reply"]:null],
+        ["App Store average rating",(s.app_store&&s.app_store.average_rating)?s.app_store.average_rating+" from "+n(s.app_store.reviews_total):"–"]
+      ]);
+      var vers=(s.app_store&&s.app_store.versions)||[];
+      if(vers.length){var v0=vers[0];var st=(v0.appVersionState||v0.appStoreState||"").replace(/_/g," ").toLowerCase();$("s-note").textContent="App Store: version "+v0.versionString+", "+st+". Reviews synced "+new Date(s.app_store.synced_at).toLocaleString("en-GB",{hour:"2-digit",minute:"2-digit",day:"numeric",month:"short"})+"."}
+
+      var failed=h.cron_failed_24h||{}, fk=Object.keys(failed);
+      $("h-state").textContent=fk.length?fk.length+" failing":"Clean";
+      $("h-state").style.color=fk.length?"var(--crit)":"var(--ok)";
+      $("h-sub").textContent="of "+n(h.cron_active_jobs)+" scheduled jobs";
+      kv($("h-kv"),[
+        ["Failed job runs",fk.length?fk.map(function(k){return k+" ×"+failed[k]}).join(", "):"none",fk.length?["crit","fix"]:["ok","ok"]],
+        ["Outbound calls without a 2xx reply",n(h.http_non2xx_24h),h.http_non2xx_24h>0?["warn","check"]:null],
+        ["RevenueCat sync age",(h.revenuecat_sync_age_minutes==null?"–":h.revenuecat_sync_age_minutes+" min"),h.revenuecat_sync_age_minutes>90?["warn","stale"]:null],
+        ["Treat claims pending",n(q.treat_claims_pending),q.treat_claims_pending>0?["warn","stuck"]:null],
+        ["Accounts banned",n(u.banned)]
+      ].concat(Object.keys(s.uptime||{}).map(function(k){var x=s.uptime[k]||{};return ["Uptime: "+k,(x.availability_24h==null?"checking":x.availability_24h+"% in 24h"),x.ok===false?["crit","down"]:x.ok?["ok","up"]:null]})));
+      renderFeed();
+      $("fresh").textContent="Snapshot taken "+new Date(s.taken_at).toLocaleString("en-GB",{hour:"2-digit",minute:"2-digit",day:"numeric",month:"short"})+". Refresh pulls a new one.";
+    }
+
+    var em=state.email;
+    if(em){
+      $("e-rate").textContent=(em.delivery_rate!=null?em.delivery_rate.toFixed(1):"–")+"%";
+      kv($("e-kv"),[
+        ["Sent",n(em.sent)],["Delivered",n(em.delivered)],
+        ["Bounced",n(em.bounced),em.bounced?["warn",em.bounced_permanent?"permanent":"check"]:null],
+        ["Complaints",n(em.complained),em.complained?["crit","act"]:null],
+        ["Unsubscribes",n(em.unsubscribed)]
+      ]);
+    }else if(state.errors.email){
+      $("e-kv").innerHTML="";$("e-rate").textContent="–";
+      var p=$("p-email"),old=p.querySelector(".err");if(!old){old=document.createElement("div");old.className="err";p.insertBefore(old,p.querySelector(".note"))}
+      old.textContent=state.errors.email;
+    }
+  }
+
+  function load(){
+    if(!ready)return;
+    $("refresh").disabled=true;$("fresh").textContent="Pulling a fresh snapshot…";
+    var a=api("snapshot").then(function(r){state.snap=r.data;state.errors.snap=null})
+      .catch(function(e){state.errors.snap=errCopy(e,"Supabase")});
+    var b=api("history").then(function(r){state.history=r.data||[]}).catch(function(){state.history=[]});
+    var c=api("email_metrics").then(function(r){state.email=r.data;state.errors.email=null;var old=$("p-email").querySelector(".err");if(old)old.remove()})
+      .catch(function(e){state.email=null;state.errors.email=errCopy(e,"Resend")});
+    var d=loadQueue();
+    Promise.all([a,b,c,d]).then(function(){state.loadedAt=Date.now();render();$("refresh").disabled=false});
+  }
+
+  // ---------- queue (Act and Outreach tabs) ----------
+  function loadQueue(){
+    return api("queue").then(function(r){state.queue=r.data;state.errors.queue=null;renderAct();renderOutreach();renderFeed()})
+      .catch(function(e){state.errors.queue=errCopy(e,"Supabase");renderAct();renderOutreach()});
+  }
+    function act(action,args){
+    var allowed=["approve_review","reject_review","reply_ticket","set_ticket_status","note_ticket","user_report","location_report","outreach_save","outreach_log","outreach_delete"];
+    if(allowed.indexOf(action)<0)return Promise.reject({message:"Not an allowed action"});
+    return api("action",{action:action,args:args}).then(function(r){return r.data});
+  }
+  function when(ts){if(!ts)return "";var d=new Date(ts);return d.toLocaleString("en-GB",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"})}
+  function day(ts){if(!ts)return "";return new Date(ts+"T12:00:00").toLocaleDateString("en-GB",{weekday:"short",day:"numeric",month:"short"})}
+
+  // Two-step confirm on any button with data-confirm. First click arms it, second runs.
+  function armed(btn){
+    if(btn.dataset.armed==="1")return true;
+    btn.dataset.armed="1";btn.dataset.label=btn.textContent;btn.textContent=btn.dataset.confirm||"Confirm";btn.classList.add("confirm");
+    setTimeout(function(){if(btn.dataset.armed==="1"){btn.dataset.armed="";btn.textContent=btn.dataset.label;btn.classList.remove("confirm")}},6000);
+    return false;
+  }
+  function note(card,ok,text){var m=card.querySelector(".msg");if(!m){m=document.createElement("div");card.appendChild(m)}m.className="msg "+(ok?"good":"bad");m.textContent=text}
+
+  function renderFeed(){
+    var q=state.queue, list=(q&&q.alerts)||[];
+    $("feed").innerHTML=list.length?list.map(function(a){var d=a.delivered||{};var ch=["email","slack","push"].filter(function(k){return d[k]&&String(d[k]).indexOf("sent")>=0}).join(", ");return '<li><span class="when">'+esc(when(a.created_at))+'</span><span><span class="tag '+esc(a.severity==="crit"?"crit":a.severity==="warn"?"warn":"info")+'">'+esc(a.severity)+'</span> '+esc(a.title)+'</span><span class="note">'+esc(ch||"pending")+'</span></li>'}).join(""):'<li><span class="when">–</span><span>No alerts yet.</span><span></span></li>';
+  }
+
+  function renderAct(){
+    var el=$("actBody"),q=state.queue;
+    if(state.errors.queue){el.innerHTML='<div class="empty">'+esc(state.errors.queue)+'</div>';return}
+    if(!q){return}
+    var total=q.reviews.length+q.tickets.length+q.user_reports.length+q.location_reports.length+q.business_claims.length+q.listing_submissions.length;
+    var c=$("actCount");c.textContent=total;c.className="count"+(total?" hot":"");
+    var h="";
+    function section(title,items,sub,fn){h+='<div class="subhead"><h3>'+esc(title)+'</h3><span>'+esc(items.length?items.length+" waiting":sub)+'</span></div>';if(items.length)h+=items.map(fn).join("");}
+    section("Reviews to moderate",q.reviews,"none waiting",function(r){
+      var flagged=(r.ai_flags||[]).indexOf("csae_escalate")>=0;
+      return '<div class="card'+(flagged?' flagged':'')+'" data-kind="review" data-id="'+esc(r.id)+'"><div class="meta"><span>'+esc(when(r.created_at))+'</span><span>'+esc(r.paw_rating)+' paws</span><span>AI: '+esc(r.ai_status||"not checked")+(r.ai_confidence!=null?" ("+Number(r.ai_confidence).toFixed(2)+")":"")+'</span>'+(flagged?'<span class="tag crit">harm flag</span>':'')+'</div><div class="title">'+esc(r.place||"Unknown place")+'</div><div class="text">'+esc(r.text||"(no text)")+'</div>'+(r.ai_reason?'<div class="prior">AI note: '+esc(r.ai_reason)+'</div>':'')+'<div class="row"><button class="btn ok small" data-do="approve_review" data-confirm="Confirm approve">Approve</button><button class="btn danger small" data-do="reject_review" data-confirm="Confirm reject">Reject</button></div></div>';
+    });
+    section("Support tickets",q.tickets,"none open",function(t){
+      var prior=(t.replies||[]).map(function(x){return '<div class="prior">You replied '+esc(when(x.at))+' ('+esc(x.status||"")+'): '+esc(x.body)+'</div>'}).join("")+(t.notes||[]).map(function(x){return '<div class="prior">Note '+esc(when(x.at))+': '+esc(x.body)+'</div>'}).join("");
+      return '<div class="card" data-kind="ticket" data-id="'+esc(t.id)+'"><div class="meta"><span>'+esc(when(t.created_at))+'</span><span>'+esc(t.full_name||"")+' &lt;'+esc(t.email||"no email")+'&gt;</span><span>'+esc(t.category||"general")+'</span><span class="tag '+(t.status==="open"?"warn":"info")+'">'+esc((t.status||"").replace("_"," "))+'</span></div><div class="title">'+esc(t.subject||"(no subject)")+'</div><div class="text">'+esc(t.message||"")+'</div>'+prior+
+        '<label class="note" for="rep-'+esc(t.id)+'">Reply (sent from support@barkfind.com, signed Josh)</label><textarea id="rep-'+esc(t.id)+'" placeholder="Write a reply, or draft one with Claude"></textarea>'+
+        '<div class="row"><button class="btn small" data-do="draft">Draft with Claude</button><button class="btn primary small" data-do="reply_ticket" data-confirm="Confirm send">Send reply</button><button class="btn ok small" data-do="reply_resolve" data-confirm="Confirm send and resolve">Send and resolve</button><button class="btn small" data-do="note_ticket">Save as note</button><button class="btn small" data-do="resolve" data-confirm="Confirm resolve">Mark resolved</button></div></div>';
+    });
+    section("User reports",q.user_reports,"none pending",function(u){
+      return '<div class="card" data-kind="ureport" data-id="'+esc(u.id)+'"><div class="meta"><span>'+esc(when(u.created_at))+'</span>'+(u.place?'<span>'+esc(u.place)+'</span>':'')+'</div><div class="title">Reason: '+esc(u.reason||"not given")+'</div>'+(u.review_text?'<div class="text">'+esc(u.review_text)+'</div>':'')+'<div class="row"><button class="btn small" data-do="ur_actioned" data-confirm="Confirm actioned">Mark actioned</button><button class="btn small" data-do="ur_dismissed" data-confirm="Confirm dismiss">Dismiss</button><a class="btn small" href="https://www.barkfind.com/admin" target="_blank" rel="noopener">Ban in admin console</a></div></div>';
+    });
+    section("Place reports",q.location_reports,"none open",function(l){
+      return '<div class="card" data-kind="lreport" data-id="'+esc(l.id)+'"><div class="meta"><span>'+esc(when(l.created_at))+'</span><span>'+esc(l.address||"")+'</span></div><div class="title">'+esc(l.place||"Unknown place")+': '+esc(l.reason||"")+'</div>'+(l.details?'<div class="text">'+esc(l.details)+'</div>':'')+'<div class="row"><button class="btn small" data-do="lr_actioned" data-confirm="Confirm actioned">Mark fixed</button><button class="btn small" data-do="lr_dismissed" data-confirm="Confirm dismiss">Dismiss</button></div></div>';
+    });
+    section("Business claims",q.business_claims,"none pending",function(b){
+      return '<div class="card"><div class="meta"><span>'+esc(when(b.created_at))+'</span><span>'+esc(b.claimant_name||"")+' &lt;'+esc(b.claimant_email||"")+'&gt;</span></div><div class="title">'+esc(b.place||"a place")+'</div>'+(b.message?'<div class="text">'+esc(b.message)+'</div>':'')+'<div class="row"><a class="btn small" href="https://www.barkfind.com/admin" target="_blank" rel="noopener">Verify in admin console</a></div></div>';
+    });
+    section("Suggested places",q.listing_submissions,"none waiting",function(s){
+      return '<div class="card"><div class="meta"><span>'+esc(when(s.created_at))+'</span><span>'+esc(s.category||"")+'</span></div><div class="title">'+esc(s.name||"")+'</div><div class="text">'+esc([s.address,s.website,s.description].filter(Boolean).join("\n"))+'</div><div class="row"><a class="btn small" href="https://www.barkfind.com/admin" target="_blank" rel="noopener">Review in admin console</a></div></div>';
+    });
+    el.innerHTML=h;
+  }
+
+  $("actBody").addEventListener("click",function(ev){
+    var b=ev.target.closest("button[data-do]");if(!b)return;
+    var card=b.closest(".card"),id=card.dataset.id,what=b.dataset.do;
+    var ta=card.querySelector("textarea");
+    if(what==="draft"){
+      b.disabled=true;ta.value="Drafting…";
+      api("draft_ticket",{id:id}).then(function(r){ta.value=r.text;if(r.metered===false)note(card,false,"Draft ready, but its cost was not recorded in api_usage.")}).catch(function(e){ta.value="";note(card,false,(e&&e.message)||"No draft came back. Try again.")}).then(function(){b.disabled=false});
+      return;
+    }
+    if(b.dataset.confirm&&!armed(b))return;
+    var call;
+    if(what==="approve_review"||what==="reject_review")call=act(what,{id:id});
+    else if(what==="reply_ticket"||what==="reply_resolve"){if(!ta.value.trim()){note(card,false,"Write the reply first.");b.dataset.armed="";b.textContent=b.dataset.label;b.classList.remove("confirm");return}call=act("reply_ticket",{ticket_id:id,body:ta.value,resolve:what==="reply_resolve"})}
+    else if(what==="note_ticket"){if(!ta.value.trim()){note(card,false,"Write the note first.");return}call=act("note_ticket",{ticket_id:id,body:ta.value})}
+    else if(what==="resolve")call=act("set_ticket_status",{ticket_id:id,status:"resolved"});
+    else if(what==="ur_actioned"||what==="ur_dismissed")call=act("user_report",{id:id,status:what==="ur_actioned"?"actioned":"dismissed"});
+    else if(what==="lr_actioned"||what==="lr_dismissed")call=act("location_report",{id:id,status:what==="lr_actioned"?"actioned":"dismissed"});
+    if(!call)return;
+    card.querySelectorAll("button").forEach(function(x){x.disabled=true});
+    call.then(function(r){note(card,!!r.ok,r.message||"Done.");setTimeout(function(){loadQueue().then(function(){api("snapshot").then(function(r){state.snap=r.data;render()}).catch(function(){})})},1800)})
+      .catch(function(e){card.querySelectorAll("button").forEach(function(x){x.disabled=false});note(card,false,errCopy(e,"Supabase"))});
+  });
+
+  // ---------- outreach ----------
+  var outFilter="all";
+  var today=new Date();today.setHours(0,0,0,0);
+  function dueClass(d){if(!d)return "";var t=new Date(d+"T00:00:00");return t<today?"over":(t.getTime()===today.getTime()?"today":"")}
+  function statusTag(s){var m={to_contact:"info",contacted:"info",replied:"warn",agreed:"ok",live:"ok",declined:"",parked:""};return '<span class="tag '+(m[s]||"")+'">'+esc(String(s).replace("_"," "))+'</span>'}
+  var STATUSES=["to_contact","contacted","replied","agreed","live","declined","parked"], KINDS=["creator","venue","press","partner","other"];
+  function opts(list,sel){return list.map(function(v){return '<option value="'+v+'"'+(v===sel?" selected":"")+'>'+v.replace("_"," ")+'</option>'}).join("")}
+  function form(o,idp){o=o||{};return '<div class="grid2">'+
+    '<label>Name<input type="text" id="'+idp+'name" value="'+esc(o.name||"")+'"></label>'+
+    '<label>Organisation<input type="text" id="'+idp+'org" value="'+esc(o.org||"")+'"></label>'+
+    '<label>Type<select id="'+idp+'kind">'+opts(KINDS,o.kind||"creator")+'</select></label>'+
+    '<label>Status<select id="'+idp+'status">'+opts(STATUSES,o.status||"to_contact")+'</select></label>'+
+    '<label>Handle<input type="text" id="'+idp+'handle" value="'+esc(o.handle||"")+'"></label>'+
+    '<label>Email<input type="email" id="'+idp+'email" value="'+esc(o.email||"")+'"></label>'+
+    '<label>Phone<input type="text" id="'+idp+'phone" value="'+esc(o.phone||"")+'"></label>'+
+    '<label>Next follow-up<input type="date" id="'+idp+'next_follow_up" value="'+esc(o.next_follow_up||"")+'"></label>'+
+    '</div><label class="note" for="'+idp+'next_action">Next action</label><input type="text" id="'+idp+'next_action" value="'+esc(o.next_action||"")+'">'+
+    '<label class="note" for="'+idp+'owed">What you owe them</label><input type="text" id="'+idp+'owed" value="'+esc(o.owed||"")+'">'+
+    '<label class="note" for="'+idp+'notes">Notes</label><textarea id="'+idp+'notes" style="min-height:70px">'+esc(o.notes||"")+'</textarea>'}
+  function readForm(idp){var o={};["name","org","kind","status","handle","email","phone","next_follow_up","next_action","owed","notes"].forEach(function(k){var el=document.getElementById(idp+k);o[k]=el?el.value.trim():""});return o}
+
+  function renderOutreach(){
+    var el=$("outBody"),q=state.queue;
+    if(state.errors.queue){el.innerHTML='<div class="empty">'+esc(state.errors.queue)+'</div>';return}
+    if(!q)return;
+    var all=q.outreach||[];
+    var due=all.filter(function(o){return o.next_follow_up&&dueClass(o.next_follow_up)!==""&&["declined","parked","live"].indexOf(o.status)<0});
+    var c=$("outCount");c.textContent=due.length;c.className="count"+(due.length?" hot":"");
+    var list=all.filter(function(o){return outFilter==="all"||(outFilter==="due"?due.indexOf(o)>=0:o.kind===outFilter)});
+    if(!list.length){el.innerHTML='<div class="empty">Nobody here yet.</div>';return}
+    el.innerHTML=list.map(function(o){
+      var idp="o-"+o.id+"-";
+      var log=(o.log||[]).map(function(g){return '<div class="prior">'+esc(when(g.at))+': '+esc(g.note)+'</div>'}).join("");
+      return '<details class="card" data-id="'+esc(o.id)+'"><summary><div><div class="title">'+esc(o.name)+(o.org&&o.org!==o.name?' <span class="note">'+esc(o.org)+'</span>':'')+'</div><div class="meta"><span class="tag">'+esc(o.kind)+'</span>'+statusTag(o.status)+(o.handle?'<span>'+esc(o.handle)+'</span>':'')+'</div>'+(o.next_action?'<div class="text" style="font-size:13.5px;margin-top:4px">'+esc(o.next_action)+'</div>':'')+(o.owed?'<div class="note" style="color:var(--warn)">You owe: '+esc(o.owed)+'</div>':'')+'</div><span class="due '+dueClass(o.next_follow_up)+'">'+esc(o.next_follow_up?day(o.next_follow_up):"no date")+'</span></summary>'+
+        '<div class="stack" style="margin-top:8px">'+
+        (o.email||o.phone?'<div class="meta">'+(o.email?'<span class="mono">'+esc(o.email)+'</span>':'')+(o.phone?'<span class="mono">'+esc(o.phone)+'</span>':'')+'</div>':'')+
+        (o.notes?'<div class="prior">'+esc(o.notes)+'</div>':'')+
+        '<div class="subhead"><h3 style="font-size:14px">Log a contact</h3></div>'+
+        '<input type="text" id="'+idp+'lognote" placeholder="What happened, e.g. Emailed, visited, they replied">'+
+        '<div class="grid2"><label>New status<select id="'+idp+'logstatus"><option value="">no change</option>'+opts(STATUSES,"")+'</select></label><label>Next follow-up<input type="date" id="'+idp+'logfu" value="'+esc(o.next_follow_up||"")+'"></label></div>'+
+        '<div class="row"><button class="btn primary small" data-do="log">Log it</button><button class="btn small" data-do="draft">Draft a message with Claude</button></div>'+
+        '<textarea id="'+idp+'draft" hidden></textarea>'+
+        (log?'<div class="subhead"><h3 style="font-size:14px">History</h3></div>'+log:'')+
+        '<details><summary class="note" style="cursor:pointer">Edit details</summary><div class="stack" style="margin-top:8px">'+form(o,idp)+'<div class="row"><button class="btn primary small" data-do="save">Save changes</button><button class="btn danger small" data-do="delete" data-confirm="Confirm remove">Remove</button></div></div></details>'+
+        '</div></details>';
+    }).join("");
+  }
+
+  $("outFilter").addEventListener("click",function(ev){var b=ev.target.closest("button[data-k]");if(!b)return;outFilter=b.dataset.k;this.querySelectorAll("button").forEach(function(x){x.setAttribute("aria-pressed",x===b?"true":"false")});renderOutreach()});
+  $("outAdd").addEventListener("click",function(){
+    var box=$("outNew");if(box.innerHTML){box.innerHTML="";return}
+    box.innerHTML='<div class="card" data-new="1"><div class="subhead"><h3>Add a person</h3></div>'+form({},"on-")+'<div class="row"><button class="btn primary small" data-do="create">Add</button><button class="btn small" data-do="cancel">Cancel</button></div></div>';
+  });
+  $("outNew").addEventListener("click",function(ev){
+    var b=ev.target.closest("button[data-do]");if(!b)return;var card=b.closest(".card");
+    if(b.dataset.do==="cancel"){$("outNew").innerHTML="";return}
+    var o=readForm("on-");if(!o.name){note(card,false,"A name is needed.");return}
+    b.disabled=true;act("outreach_save",o).then(function(r){note(card,r.ok,r.message);if(r.ok){setTimeout(function(){$("outNew").innerHTML="";loadQueue()},900)}else b.disabled=false}).catch(function(e){b.disabled=false;note(card,false,errCopy(e,"Supabase"))});
+  });
+  $("outBody").addEventListener("click",function(ev){
+    var b=ev.target.closest("button[data-do]");if(!b)return;ev.preventDefault();
+    var card=b.closest("details.card"),id=card.dataset.id,idp="o-"+id+"-",what=b.dataset.do;
+    var o=((state.queue&&state.queue.outreach)||[]).filter(function(x){return x.id===id})[0]||{};
+    if(what==="draft"){
+      var ta=document.getElementById(idp+"draft");ta.hidden=false;
+      b.disabled=true;ta.value="Drafting…";
+      api("draft_outreach",{id:id}).then(function(r){ta.value=r.text;if(r.metered===false)note(card,false,"Draft ready, but its cost was not recorded in api_usage.")}).catch(function(e){ta.value=(e&&e.message)||"No draft came back. Try again."}).then(function(){b.disabled=false});
+      return;
+    }
+    if(b.dataset.confirm&&!armed(b))return;
+    var call;
+    if(what==="log"){var nt=document.getElementById(idp+"lognote").value.trim();if(!nt){note(card,false,"Write what happened first.");return}
+      var args={id:id,note:nt};var st=document.getElementById(idp+"logstatus").value;if(st)args.status=st;args.next_follow_up=document.getElementById(idp+"logfu").value||"";call=act("outreach_log",args)}
+    else if(what==="save"){var f=readForm(idp);f.id=id;call=act("outreach_save",f)}
+    else if(what==="delete")call=act("outreach_delete",{id:id});
+    if(!call)return;b.disabled=true;
+    call.then(function(r){note(card,r.ok,r.message);setTimeout(function(){loadQueue().then(function(){var re=document.querySelector('details.card[data-id="'+id+'"]');if(re)re.open=true})},700)}).catch(function(e){b.disabled=false;note(card,false,errCopy(e,"Supabase"))});
+  });
+
+  // ---------- tabs ----------
+  function go(t){
+    document.querySelectorAll("[data-tab]").forEach(function(s){s.hidden=s.dataset.tab!==t});
+    document.querySelectorAll(".tabs button").forEach(function(b){b.setAttribute("aria-selected",b.dataset.go===t?"true":"false")});
+    try{history.replaceState(null,"","#"+t)}catch(e){}
+    window.scrollTo(0,0);
+  }
+  document.querySelector(".tabs").addEventListener("click",function(ev){var b=ev.target.closest("button[data-go]");if(b)go(b.dataset.go)});
+  document.addEventListener("click",function(ev){var a=ev.target.closest('a[href^="#"]');if(!a)return;var t=a.getAttribute("href").slice(1);if(["today","act","outreach","consoles"].indexOf(t)>=0){ev.preventDefault();go(t)}});
+  (function(){var h=(location.hash||"").slice(1);if(["act","outreach","consoles"].indexOf(h)>=0)go(h)})();
+
+  $("refresh").addEventListener("click",load);
+
+  // Ask HQ
+  function ask(q){
+    q=(q||"").trim();if(!q)return;
+    var out=$("answer");
+    $("askBtn").disabled=true;out.textContent="Thinking…";
+    api("ask",{question:q})
+      .then(function(r){out.textContent=r.text+(r.truncated?"\n\n(Answer cut short.)":"")+(r.metered===false?"\n\n(The cost of this answer was not recorded in api_usage.)":"")})
+      .catch(function(e){out.textContent=(e&&e.message)||"No answer came back. Try again."})
+      .then(function(){$("askBtn").disabled=false});
+  }
+  $("askForm").addEventListener("submit",function(ev){ev.preventDefault();ask($("askInput").value)});
+  $("chips").addEventListener("click",function(ev){var b=ev.target.closest(".chip");if(!b)return;$("askInput").value=b.textContent;ask(b.textContent)});
+
+  // ---------- sign-in (same supabase-js email and password flow as admin.html) ----------
+  var SUPA_URL="https://kwwnwniyijeuorpbyvmn.supabase.co";
+  var SUPA_KEY="sb_publishable_-EWszMqW22vM4kNYHeq7xQ_JXMsX4MR";
+  var sb=window.supabase?window.supabase.createClient(SUPA_URL,SUPA_KEY):null;
+  // mode: signin, denied, checking or app. Signed out, only the sign-in form shows.
+  function gate(mode,msg){
+    $("gate").hidden=mode==="app";$("app").hidden=mode!=="app";
+    $("signIn").hidden=mode!=="signin";$("noAccess").hidden=mode!=="denied";
+    $("gMsg").textContent=msg||"";$("gMsg").hidden=!msg;
+    if(mode!=="app")ready=false;
+    if(mode==="signin"){$("gBtn").disabled=false}
+  }
+  window.hqGate=gate;
+  var checking=false;
+  function enter(session){
+    if(!session){gate("signin");return}
+    $("whoami").textContent="Signed in as "+((session.user&&session.user.email)||"an admin")+".";
+    if(ready||checking)return;
+    checking=true;gate("checking","Checking access.");
+    api("history").then(function(r){state.history=r.data||[];ready=true;gate("app");load()})
+      .catch(function(e){if(e.code!=="denied"&&e.code!=="auth")gate("signin",e.message)})
+      .then(function(){checking=false});
+  }
+  if(!sb){gate("signin","The sign-in library did not load. Check your connection and reload the page.");$("gBtn").disabled=true}
+  else{
+    sb.auth.onAuthStateChange(function(ev,session){
+      if(ev==="SIGNED_OUT"){gate("signin");return}
+      if(ev==="INITIAL_SESSION"||ev==="SIGNED_IN")setTimeout(function(){enter(session)},0);
+    });
+    $("signIn").addEventListener("submit",function(ev){
+      ev.preventDefault();
+      var em=$("gEmail").value.trim(),pw=$("gPass").value;
+      $("gBtn").disabled=true;$("gMsg").hidden=false;$("gMsg").textContent="Signing in.";
+      sb.auth.signInWithPassword({email:em,password:pw}).then(function(r){
+        if(r.error){$("gMsg").textContent=r.error.message;$("gBtn").disabled=false}
+        else $("gPass").value="";
+      });
+    });
+    function signOut(){sb.auth.signOut().catch(function(){}).then(function(){location.replace("/hq")})}
+    $("gOut").addEventListener("click",signOut);
+    $("signOut").addEventListener("click",signOut);
+  }
+})();
+</script>
+</body>
+</html>
