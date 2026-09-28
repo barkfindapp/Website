@@ -61,17 +61,17 @@ button{font:inherit;cursor:pointer}
 /* status strip and tabs */
 .strip{position:sticky;top:61px;z-index:15;background:rgba(255,255,255,.94);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
 .strip .wrap{display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px;padding-block:10px}
-.strip .wrap + .wrap{padding-block:0 12px}
+.strip .wrap + .wrap{padding-block:0 8px}
 .pill{display:inline-flex;align-items:center;gap:7px;font:700 12.5px/1 var(--sans);padding:7px 12px;border-radius:999px}
 .pill i{width:8px;height:8px;border-radius:50%;background:currentColor;display:block}
 .pill.ok{color:var(--ok);background:var(--ok-soft)} .pill.warn{color:var(--warn);background:var(--warn-soft)} .pill.crit{color:var(--crit);background:var(--crit-soft)} .pill.idle{color:var(--fg2);background:var(--well)}
 .fresh{font-size:13px;color:var(--mute);flex:1;min-width:160px}
-.tabs{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+.tabs{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch;padding:2px 2px 4px;margin:0 -2px}
 .tabs::-webkit-scrollbar{display:none}
-.tabs button{font:700 14px/1 var(--sans);padding:10px 16px;border:1px solid var(--line-2);border-radius:999px;background:#fff;color:var(--fg2);white-space:nowrap;transition:background .15s,color .15s,border-color .15s}
+.tabs button{display:inline-flex;align-items:center;gap:7px;flex:none;font:700 14px/1.2 var(--sans);padding:9px 16px;border:1px solid var(--line-2);border-radius:999px;background:#fff;color:var(--fg2);white-space:nowrap;transition:background .15s,color .15s,border-color .15s}
 .tabs button:hover{color:var(--brand)}
 .tabs button[aria-selected="true"]{background:var(--brand);border-color:var(--brand);color:#fff;box-shadow:0 2px 6px -2px rgba(183,66,23,.45)}
-.tabs button .count{display:inline-block;min-width:20px;margin-left:7px;padding:2px 6px;border-radius:999px;background:var(--well);color:var(--fg2);font:800 11px/1.3 var(--sans);text-align:center;font-variant-numeric:tabular-nums}
+.tabs button .count{display:inline-block;min-width:20px;padding:2px 6px;border-radius:999px;background:var(--well);color:var(--fg2);font:800 11px/1.3 var(--sans);text-align:center;font-variant-numeric:tabular-nums}
 .tabs button[aria-selected="true"] .count{background:rgba(255,255,255,.25);color:#fff}
 .tabs button .count.hot{background:var(--brand);color:#fff}
 .tabs button[aria-selected="true"] .count.hot{background:#fff;color:var(--brand)}
