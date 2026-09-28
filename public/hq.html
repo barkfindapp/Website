@@ -194,6 +194,9 @@ details.card summary::-webkit-details-marker{display:none}
 .speak{font:700 12.5px/1 var(--sans);border:1px solid var(--line-2);background:#fff;color:var(--fg2);border-radius:999px;padding:7px 12px;display:inline-flex;align-items:center;gap:6px;align-self:flex-start}
 .speak:hover{color:var(--brand);border-color:var(--brand-line)}
 .speak[aria-pressed="true"]{background:var(--brand);border-color:var(--brand);color:#fff}
+.speakrow{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.voice{font:700 16px/1.2 var(--sans);border:1px solid var(--line-2);border-radius:999px;padding:6px 30px 6px 12px;background:#fff;color:var(--fg2);max-width:220px;min-width:0;-webkit-appearance:none;appearance:none;background-image:linear-gradient(45deg,transparent 50%,var(--fg2) 50%),linear-gradient(135deg,var(--fg2) 50%,transparent 50%);background-position:calc(100% - 16px) 55%,calc(100% - 11px) 55%;background-size:5px 5px;background-repeat:no-repeat}
+.voice[hidden]{display:none}
 section.cta .answer-wrap{background:#fff;border-radius:16px;padding:14px 16px;display:flex;flex-direction:column;gap:10px;color:var(--fg)}
 section.cta .answer-wrap[hidden]{display:none}
 section.cta .answer-wrap .answer{padding:0;background:none}
@@ -304,7 +307,7 @@ footer .mono{color:rgba(255,255,255,.75)}
       <div class="mini-ans" id="miniAns" hidden aria-live="polite">
         <div class="who"><span class="rav">R</span>Ralphy</div>
         <div class="txt" id="miniTxt"></div>
-        <button type="button" class="speak" data-for="miniTxt" aria-pressed="false">Read it to me</button>
+        <div class="speakrow"><button type="button" class="speak" data-for="miniTxt" aria-pressed="false">Read it to me</button><select class="voice" aria-label="Reading voice"></select></div>
       </div>
     </div>
     <div class="countdown" id="countdown">
@@ -401,7 +404,7 @@ footer .mono{color:rgba(255,255,255,.75)}
         <button type="button" class="chip">Where is money going this month?</button>
         <button type="button" class="chip">Draft a reply for the open support items</button>
       </div>
-      <div class="answer-wrap" id="answerWrap" hidden><div class="who"><span class="rav">R</span>Ralphy</div><div class="answer" id="answer" aria-live="polite"></div><button type="button" class="speak" data-for="answer" aria-pressed="false">Read it to me</button></div>
+      <div class="answer-wrap" id="answerWrap" hidden><div class="who"><span class="rav">R</span>Ralphy</div><div class="answer" id="answer" aria-live="polite"></div><div class="speakrow"><button type="button" class="speak" data-for="answer" aria-pressed="false">Read it to me</button><select class="voice" aria-label="Reading voice"></select></div></div>
     </div>
   </div></section>
 
@@ -899,7 +902,31 @@ footer .mono{color:rgba(255,255,255,.75)}
   }
   // Read aloud with the phone's own voice, British English where available. No service, no cost.
   function stopSpeaking(){try{if(window.speechSynthesis)speechSynthesis.cancel()}catch(e){}document.querySelectorAll(".speak").forEach(function(b){b.setAttribute("aria-pressed","false");b.textContent="Read it to me"})}
-  function pickVoice(){try{var v=speechSynthesis.getVoices()||[];return v.filter(function(x){return /en-GB/i.test(x.lang)&&/Daniel|Arthur|Oliver|Male/i.test(x.name)})[0]||v.filter(function(x){return /en-GB/i.test(x.lang)})[0]||null}catch(e){return null}}
+  // The chosen voice is remembered on this device only. "Automatic" prefers a British voice.
+  var VOICE_KEY="hq-voice";
+  function savedVoice(){try{return localStorage.getItem(VOICE_KEY)||""}catch(e){return ""}}
+  function pickVoice(){try{var v=speechSynthesis.getVoices()||[],id=savedVoice();
+    if(id){var m=v.filter(function(x){return x.voiceURI===id})[0];if(m)return m}
+    return v.filter(function(x){return /en-GB/i.test(x.lang)&&/Daniel|Arthur|Oliver|Male/i.test(x.name)})[0]||v.filter(function(x){return /en-GB/i.test(x.lang)})[0]||null}catch(e){return null}}
+  function voiceList(){try{var v=speechSynthesis.getVoices()||[],gb=v.filter(function(x){return /en[-_]GB/i.test(x.lang)});
+    var list=gb.length?gb:v.filter(function(x){return /^en/i.test(x.lang)});
+    return list.slice().sort(function(a,b){return a.name.localeCompare(b.name)})}catch(e){return []}}
+  function fillVoices(){
+    var sels=document.querySelectorAll("select.voice");
+    if(!window.speechSynthesis){sels.forEach(function(s){s.hidden=true});return}
+    var list=voiceList(),id=savedVoice();
+    var html='<option value="">Automatic voice</option>'+list.map(function(x){return '<option value="'+esc(x.voiceURI)+'">'+esc(x.name.replace(/\s*\(.*\)$/,""))+'</option>'}).join("");
+    sels.forEach(function(s){s.innerHTML=html;s.value=list.some(function(x){return x.voiceURI===id})?id:"";s.hidden=!list.length});
+  }
+  if(window.speechSynthesis){fillVoices();try{speechSynthesis.addEventListener("voiceschanged",fillVoices)}catch(e){speechSynthesis.onvoiceschanged=fillVoices}setTimeout(fillVoices,800)}
+  else fillVoices();
+  document.addEventListener("change",function(ev){
+    var s=ev.target.closest("select.voice");if(!s)return;
+    try{if(s.value)localStorage.setItem(VOICE_KEY,s.value);else localStorage.removeItem(VOICE_KEY)}catch(e){}
+    document.querySelectorAll("select.voice").forEach(function(o){o.value=s.value});
+    stopSpeaking();
+    var u=new SpeechSynthesisUtterance("Hello, I'm Ralphy. This is how I'll read your answers.");u.lang="en-GB";var v=pickVoice();if(v)u.voice=v;speechSynthesis.speak(u);
+  });
   document.addEventListener("click",function(ev){
     var b=ev.target.closest(".speak");if(!b)return;
     if(!window.speechSynthesis||!window.SpeechSynthesisUtterance){b.textContent="Reading aloud is not available here";return}
