@@ -254,6 +254,7 @@ footer .mono{color:rgba(255,255,255,.75)}
 .mfa-key{font:700 14px/1.4 var(--mono);letter-spacing:.06em;word-break:break-all;color:var(--ink);background:#FAFAF9;border:1px solid var(--line);border-radius:12px;padding:10px 12px;user-select:all;-webkit-user-select:all}
 .gate input.code{letter-spacing:.35em;text-align:center;font-weight:800;font-size:20px}
 .gate .row .btn{flex:1 1 auto}
+.linkbtn{background:none;border:0;padding:0;font:inherit;font-weight:800;color:var(--brand);text-decoration:underline;text-underline-offset:3px;cursor:pointer}
 </style>
 </head>
 <body>
@@ -271,6 +272,14 @@ footer .mono{color:rgba(255,255,255,.75)}
           <label>Email<input type="email" id="gEmail" autocomplete="username" required></label>
           <label>Password<input type="password" id="gPass" autocomplete="current-password" required></label>
           <button class="btn primary" type="submit" id="gBtn">Sign in</button>
+          <p class="note" style="margin:0;text-align:center"><button type="button" class="linkbtn" id="gForgot">Forgot password?</button></p>
+        </form>
+        <form id="resetPw" class="stack" hidden autocomplete="off">
+          <div class="title">Choose a new password</div>
+          <p class="note" style="margin:0">At least 12 characters.</p>
+          <label>New password<input type="password" id="rpNew" autocomplete="new-password" minlength="12" required></label>
+          <label>New password again<input type="password" id="rpAgain" autocomplete="new-password" minlength="12" required></label>
+          <button class="btn primary" type="submit" id="rpBtn">Save password</button>
         </form>
         <div class="stack" id="noAccess" hidden>
           <div class="title">This account does not have access</div>
@@ -280,12 +289,16 @@ footer .mono{color:rgba(255,255,255,.75)}
         <form id="mfaSetup" class="stack" hidden autocomplete="off">
           <div class="title">Add a second sign-in step</div>
           <p class="note" style="margin:0">Scan this with your authenticator app. On this iPhone, tap Open in authenticator app instead.</p>
-          <img id="mfaQr" class="mfa-qr" alt="QR code for your authenticator app">
-          <a class="btn" id="mfaLink" href="#">Open in authenticator app</a>
-          <p class="note" style="margin:0">Or type this key into the app:</p>
-          <div class="mfa-key" id="mfaSecret"></div>
+          <div class="stack" id="mfaFresh">
+            <img id="mfaQr" class="mfa-qr" alt="QR code for your authenticator app">
+            <a class="btn" id="mfaLink" href="#">Open in authenticator app</a>
+            <p class="note" style="margin:0">Or type this key into the app:</p>
+            <div class="mfa-key" id="mfaSecret"></div>
+          </div>
+          <p class="note" id="mfaLost" style="margin:0" hidden>A setup was started earlier and its key cannot be shown again here. If the BarkFind entry is already in your authenticator, enter its code below. Otherwise tap Start again.</p>
           <label>Enter the 6-digit code<input class="code" id="mfaSetupCode" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]*" maxlength="6" required></label>
           <button class="btn primary" type="submit" id="mfaSetupBtn">Verify</button>
+          <p class="note" style="margin:0">Codes still not working? Delete the old BarkFind entry from your authenticator first, then <button type="button" class="linkbtn" id="mfaRestart">Start again</button>.</p>
           <div class="row"><button class="btn" type="button" data-signout>Sign out</button></div>
         </form>
         <form id="mfaCode" class="stack" hidden autocomplete="off">
@@ -971,11 +984,15 @@ footer .mono{color:rgba(255,255,255,.75)}
   var SUPA_URL="https://kwwnwniyijeuorpbyvmn.supabase.co";
   var SUPA_KEY="sb_publishable_-EWszMqW22vM4kNYHeq7xQ_JXMsX4MR";
   var sb=window.supabase?window.supabase.createClient(SUPA_URL,SUPA_KEY):null;
-  // mode: signin, denied, checking, mfa-setup, mfa-code or app. Signed out, only the sign-in form shows.
+  // mode: signin, denied, checking, reset, mfa-setup, mfa-code or app. Signed out, only the sign-in form shows.
+  var gateMode="checking";
+  // Opened from a password reset email: show "Choose a new password" before anything else.
+  var recovering=/(^|[#&?])type=recovery(&|$)/.test(location.hash+"&"+location.search.replace(/^\?/,"&"));
   function gate(mode,msg){
+    gateMode=mode;
     $("gate").hidden=mode==="app";$("app").hidden=mode!=="app";
     $("signIn").hidden=mode!=="signin";$("noAccess").hidden=mode!=="denied";$("gHead").hidden=mode==="denied";
-    $("mfaSetup").hidden=mode!=="mfa-setup";$("mfaCode").hidden=mode!=="mfa-code";
+    $("mfaSetup").hidden=mode!=="mfa-setup";$("mfaCode").hidden=mode!=="mfa-code";$("resetPw").hidden=mode!=="reset";
     $("gMsg").textContent=msg||"";$("gMsg").hidden=!msg;
     if(mode!=="app")ready=false;
     if(mode==="signin"){$("gBtn").disabled=false}
@@ -983,18 +1000,24 @@ footer .mono{color:rgba(255,255,255,.75)}
   window.hqGate=gate;
   var checking=false;
   function enter(session){
-    if(!session){gate("signin");return}
+    if(!session){gate("signin",linkMsg);linkMsg="";return}
     $("whoami").textContent="Signed in as "+((session.user&&session.user.email)||"an admin")+".";
     if(ready||checking)return;
+    if(gateMode==="mfa-setup"||gateMode==="mfa-code"||recovering)return;
     checking=true;gate("checking","Checking access.");
     api("history").then(function(r){state.history=r.data||[];ready=true;gate("app");load()})
       .catch(function(e){if(e.code!=="denied"&&e.code!=="auth"&&e.code!=="mfa")gate("signin",e.message)})
       .then(function(){checking=false});
   }
+  // A reset link that has expired or was already used comes back with an error instead of a session.
+  var linkErr=/error_code=([a-z_]+)/.exec(location.hash+"&"+location.search);
+  var linkMsg=linkErr?(linkErr[1]==="otp_expired"?"That reset link has expired or was already used. Enter your email and tap Forgot password for a new one.":"That link did not work. Enter your email and tap Forgot password for a new one."):"";
+  if(linkErr){recovering=false;try{history.replaceState(null,"","/hq")}catch(e){}}
   if(!sb){gate("signin","The sign-in library did not load. Check your connection and reload the page.");$("gBtn").disabled=true}
   else{
     sb.auth.onAuthStateChange(function(ev,session){
       if(ev==="SIGNED_OUT"){gate("signin");return}
+      if(ev==="PASSWORD_RECOVERY"||(recovering&&session)){recovering=true;setTimeout(function(){gate("reset");$("rpNew").focus()},0);return}
       if(ev==="INITIAL_SESSION"||ev==="SIGNED_IN")setTimeout(function(){enter(session)},0);
     });
     $("signIn").addEventListener("submit",function(ev){
@@ -1006,46 +1029,116 @@ footer .mono{color:rgba(255,255,255,.75)}
         else $("gPass").value="";
       });
     });
+    // Forgot password: the link in the email comes back to /hq on this same site (production or preview).
+    $("gForgot").addEventListener("click",function(){
+      var em=$("gEmail").value.trim();
+      $("gMsg").hidden=false;
+      if(!em||em.indexOf("@")<1){$("gMsg").textContent="Enter your email first, then tap Forgot password.";$("gEmail").focus();return}
+      $("gMsg").textContent="Sending.";
+      sb.auth.resetPasswordForEmail(em,{redirectTo:location.origin+"/hq"}).then(function(r){
+        $("gMsg").textContent=r.error&&/rate|seconds|many/i.test(r.error.message||"")?"A reset email was sent a moment ago. Wait a minute before asking again.":"If that email has an account, a reset link is on its way. Open it on this device.";
+      });
+    });
+    // New password, then the 6-digit step. If the account already has an authenticator, Supabase
+    // only accepts the new password after the code, so it is saved straight after the code instead.
+    var pendingPw=null;
+    function afterReset(){
+      recovering=false;pendingPw=null;
+      try{history.replaceState(null,"","/hq")}catch(e){}
+      return sb.auth.getSession().then(function(s){checking=false;enter(s.data&&s.data.session)});
+    }
+    $("resetPw").addEventListener("submit",function(ev){
+      ev.preventDefault();
+      var a=$("rpNew").value,b=$("rpAgain").value;$("gMsg").hidden=false;
+      if(a.length<12){$("gMsg").textContent="Use at least 12 characters.";return}
+      if(a!==b){$("gMsg").textContent="The two passwords do not match.";return}
+      $("rpBtn").disabled=true;$("gMsg").textContent="Saving.";
+      sb.auth.updateUser({password:a}).then(function(r){
+        if(!r.error){$("rpNew").value="";$("rpAgain").value="";$("gMsg").textContent="Password saved.";return afterReset()}
+        if(/aal2|mfa|multi-factor|factor/i.test(r.error.message||"")){pendingPw=a;$("rpNew").value="";$("rpAgain").value="";recovering=false;$("gMsg").textContent="Enter your 6-digit code to save the new password.";gateMode="checking";mfaStart();return}
+        $("gMsg").textContent=/same|different/i.test(r.error.message||"")?"Choose a password you have not used here before.":(r.error.message||"That did not save. Try again.");
+      }).catch(function(){$("gMsg").textContent="That did not save. Try again."}).then(function(){$("rpBtn").disabled=false});
+    });
     function signOut(){sb.auth.signOut().catch(function(){}).then(function(){location.replace("/hq")})}
     $("gOut").addEventListener("click",signOut);
     $("signOut").addEventListener("click",signOut);
     document.querySelectorAll("[data-signout]").forEach(function(b){b.addEventListener("click",signOut)});
 
     // ---------- second sign-in step (TOTP). The server refuses every op without aal2. ----------
-    var mfaFactor=null, mfaBusy=false;
+    // A pending setup (factor ID, QR, key) is kept in sessionStorage until it is verified, so
+    // leaving Safari for the authenticator app, a reload or a wrong code never changes the key.
+    // Only the explicit Start again link removes an unverified factor and enrols a new one.
+    var mfaFactor=null, mfaBusy=false, PENDING_KEY="hq-mfa-pending";
+    function pendingGet(uid){try{var p=JSON.parse(sessionStorage.getItem(PENDING_KEY)||"null");return p&&p.uid===uid?p:null}catch(e){return null}}
+    function pendingSet(p){try{sessionStorage.setItem(PENDING_KEY,JSON.stringify(p))}catch(e){}}
+    function pendingClear(){try{sessionStorage.removeItem(PENDING_KEY)}catch(e){}}
+    function showSetup(p){
+      mfaFactor=p?p.id:mfaFactor;
+      $("mfaFresh").hidden=!p;$("mfaLost").hidden=!!p;
+      if(p){$("mfaQr").src=qrSrc(p.qr);$("mfaSecret").textContent=p.secret;$("mfaLink").href=p.uri}
+      gate("mfa-setup");
+    }
+    function enrolFresh(uid){
+      return sb.auth.mfa.enroll({factorType:"totp",friendlyName:"BarkFind HQ"}).then(function(e){
+        if(e.error)throw e.error;
+        var p={uid:uid,id:e.data.id,qr:e.data.totp.qr_code,secret:e.data.totp.secret,uri:e.data.totp.uri};
+        pendingSet(p);showSetup(p);
+      });
+    }
     function mfaStart(){
-      if(mfaBusy)return;mfaBusy=true;ready=false;
+      if(mfaBusy||gateMode==="mfa-setup"||gateMode==="mfa-code")return;
+      mfaBusy=true;ready=false;
       gate("checking","Checking your second sign-in step.");
-      sb.auth.mfa.listFactors().then(function(r){
-        if(r.error)throw r.error;
-        var all=(r.data&&r.data.all)||[];
-        var verified=all.filter(function(f){return f.factor_type==="totp"&&f.status==="verified"})[0];
-        if(verified){mfaFactor=verified.id;gate("mfa-code");setTimeout(function(){$("mfaCodeIn").focus()},50);return}
-        // No verified authenticator yet: clear any half-finished setup, then start a fresh one.
-        var stale=all.filter(function(f){return f.factor_type==="totp"&&f.status!=="verified"});
-        return Promise.all(stale.map(function(f){return sb.auth.mfa.unenroll({factorId:f.id})})).then(function(){
-          return sb.auth.mfa.enroll({factorType:"totp",friendlyName:"BarkFind HQ"});
-        }).then(function(e){
-          if(e.error)throw e.error;
-          mfaFactor=e.data.id;
-          $("mfaQr").src=qrSrc(e.data.totp.qr_code);$("mfaSecret").textContent=e.data.totp.secret;$("mfaLink").href=e.data.totp.uri;
-          gate("mfa-setup");
-        });
+      sb.auth.getUser().then(function(u){
+        if(u.error||!u.data||!u.data.user)throw u.error||new Error("Sign in again.");
+        var uid=u.data.user.id, all=(u.data.user.factors||[]).filter(function(f){return f.factor_type==="totp"});
+        var verified=all.filter(function(f){return f.status==="verified"})[0];
+        if(verified){pendingClear();mfaFactor=verified.id;gate("mfa-code",pendingPw?"Enter your 6-digit code to save the new password.":"");setTimeout(function(){$("mfaCodeIn").focus()},50);return}
+        var p=pendingGet(uid), unverified=all.filter(function(f){return f.status!=="verified"});
+        if(p&&unverified.some(function(f){return f.id===p.id})){showSetup(p);return}   // same key as before
+        if(unverified.length){pendingClear();mfaFactor=unverified[0].id;showSetup(null);return}   // key not available here; never re-enrol by itself
+        pendingClear();return enrolFresh(uid);   // first time: nothing exists yet
       }).catch(function(e){gate("signin",(e&&e.message)||"The second sign-in step did not load. Try again.")})
         .then(function(){mfaBusy=false});
     }
+    // Explicit only: remove any unverified factor, then enrol afresh with a new key.
+    function mfaRestart(){
+      if(mfaBusy)return;mfaBusy=true;
+      $("gMsg").hidden=false;$("gMsg").textContent="Starting again.";
+      sb.auth.getUser().then(function(u){
+        if(u.error||!u.data||!u.data.user)throw u.error||new Error("Sign in again.");
+        var uid=u.data.user.id, stale=(u.data.user.factors||[]).filter(function(f){return f.factor_type==="totp"&&f.status!=="verified"});
+        pendingClear();
+        return stale.reduce(function(pr,f){return pr.then(function(){return sb.auth.mfa.unenroll({factorId:f.id})})},Promise.resolve()).then(function(){return enrolFresh(uid)});
+      }).then(function(){$("gMsg").hidden=false;$("gMsg").textContent="New key ready. Add it to your authenticator, then enter the code.";$("mfaSetupCode").value=""})
+        .catch(function(e){$("gMsg").textContent=(e&&e.message)||"That did not work. Try again."})
+        .then(function(){mfaBusy=false});
+    }
+    $("mfaRestart").addEventListener("click",mfaRestart);
     // Supabase returns the QR as an unencoded SVG data URL, which some browsers will not draw. Re-encode it.
     function qrSrc(q){q=String(q||"");var i=q.indexOf(",");if(/^data:image\/svg\+xml/.test(q)&&!/;base64,/.test(q)&&i>0){var svg=q.slice(i+1);try{svg=decodeURIComponent(svg)}catch(e){}return "data:image/svg+xml;charset=utf-8,"+encodeURIComponent(svg)}return q}
     window.hqMfa=mfaStart;
+    // A fresh challenge for every attempt. A wrong code only shows a message; it never re-enrols.
+    var WRONG="That code did not work. Check the time on your phone and try the newest code";
     function mfaVerify(input,btn){
       var code=(input.value||"").replace(/\D/g,"");
       if(code.length!==6){$("gMsg").hidden=false;$("gMsg").textContent="Enter the 6-digit code";return}
+      if(!mfaFactor){$("gMsg").hidden=false;$("gMsg").textContent="Sign out and sign in again.";return}
       btn.disabled=true;$("gMsg").hidden=false;$("gMsg").textContent="Checking the code.";
-      sb.auth.mfa.challengeAndVerify({factorId:mfaFactor,code:code}).then(function(r){
-        if(r.error){$("gMsg").textContent="That code did not work. Check the app and try the new code.";input.value="";input.focus();return}
-        input.value="";$("gMsg").hidden=true;
+      sb.auth.mfa.challenge({factorId:mfaFactor}).then(function(c){
+        if(c.error)throw c.error;
+        return sb.auth.mfa.verify({factorId:mfaFactor,challengeId:c.data.id,code:code});
+      }).then(function(r){
+        if(r.error){$("gMsg").textContent=WRONG;input.value="";input.focus();return}
+        input.value="";$("gMsg").hidden=true;pendingClear();
+        if(pendingPw){var pw=pendingPw;pendingPw=null;return sb.auth.updateUser({password:pw}).then(function(u){
+          gate("checking",u.error?"The code worked but the new password did not save. Use Forgot password again.":"Password saved.");
+          try{history.replaceState(null,"","/hq")}catch(e){}
+          return sb.auth.getSession().then(function(s){checking=false;enter(s.data&&s.data.session)});
+        })}
+        gate("checking","Checking access.");
         return sb.auth.getSession().then(function(s){checking=false;enter(s.data&&s.data.session)});
-      }).catch(function(){$("gMsg").textContent="That code did not work. Try again."}).then(function(){btn.disabled=false});
+      }).catch(function(){$("gMsg").textContent=WRONG}).then(function(){btn.disabled=false});
     }
     $("mfaSetup").addEventListener("submit",function(ev){ev.preventDefault();mfaVerify($("mfaSetupCode"),$("mfaSetupBtn"))});
     $("mfaCode").addEventListener("submit",function(ev){ev.preventDefault();mfaVerify($("mfaCodeIn"),$("mfaCodeBtn"))});
