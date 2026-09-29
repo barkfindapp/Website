@@ -1024,6 +1024,9 @@ footer .mono{color:rgba(255,255,255,.75)}
   var gateMode="checking";
   // Opened from a password reset email: show "Choose a new password" before anything else.
   var linkType=(/(^|[#&?])type=(recovery|invite)(&|$)/.exec(location.hash+"&"+location.search.replace(/^\?/,"&"))||[])[2]||"";
+  // HQ's own one-time links (Resend invite): /hq?welcome=1&token_hash=...&type=invite|recovery.
+  var qs=new URLSearchParams(location.search), otpHash=qs.get("token_hash"), otpType=qs.get("type");
+  if(otpHash&&(otpType==="invite"||otpType==="recovery")){linkType=qs.get("welcome")?"invite":otpType;try{history.replaceState(null,"","/hq")}catch(e){}}else otpHash=null;
   var recovering=!!linkType;
   function gate(mode,msg){
     gateMode=mode;
@@ -1052,13 +1055,27 @@ footer .mono{color:rgba(255,255,255,.75)}
   var linkErr=/error_code=([a-z_]+)/.exec(location.hash+"&"+location.search);
   var linkMsg=linkErr?(linkErr[1]==="otp_expired"?"That reset link has expired or was already used. Enter your email and tap Forgot password for a new one.":"That link did not work. Enter your email and tap Forgot password for a new one."):"";
   if(linkErr){recovering=false;try{history.replaceState(null,"","/hq")}catch(e){}}
+  function showReset(){
+    var inv=linkType==="invite";document.querySelector("#resetPw .title").textContent=inv?"Choose a password":"Choose a new password";
+    $("gHead").innerHTML=inv?"Welcome to <em>HQ</em>":"Sign in to <em>HQ</em>";gate("reset");$("rpNew").focus();
+  }
+  // Redeem an HQ one-time link: signs in as the invited person, then "Choose a password" shows.
+  // Until it finishes, sign-in events are ignored, so nobody else's session can reach that screen.
+  var otpPending=!!(sb&&otpHash);
+  if(otpPending){
+    gate("checking","Opening your invite.");
+    sb.auth.verifyOtp({token_hash:otpHash,type:otpType}).then(function(r){
+      otpPending=false;
+      if(r.error||!r.data||!r.data.session){recovering=false;gate("signin","That link has expired or was already used. Ask for a new invite.");return}
+      recovering=true;showReset();
+    }).catch(function(){otpPending=false;recovering=false;gate("signin","That link did not work. Ask for a new invite.")});
+  }
   if(!sb){gate("signin","The sign-in library did not load. Check your connection and reload the page.");$("gBtn").disabled=true}
   else{
     sb.auth.onAuthStateChange(function(ev,session){
       if(ev==="SIGNED_OUT"){gate("signin");return}
-      if(ev==="PASSWORD_RECOVERY"||(recovering&&session)){recovering=true;setTimeout(function(){
-        var inv=linkType==="invite";document.querySelector("#resetPw .title").textContent=inv?"Choose a password":"Choose a new password";
-        $("gHead").innerHTML=inv?"Welcome to <em>HQ</em>":"Sign in to <em>HQ</em>";gate("reset");$("rpNew").focus()},0);return}
+      if(otpPending)return;   // an HQ one-time link is still being redeemed; it switches screens itself
+      if(ev==="PASSWORD_RECOVERY"||(recovering&&session)){recovering=true;setTimeout(showReset,0);return}
       if(ev==="INITIAL_SESSION"||ev==="SIGNED_IN")setTimeout(function(){enter(session)},0);
     });
     $("signIn").addEventListener("submit",function(ev){

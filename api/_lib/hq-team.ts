@@ -88,6 +88,29 @@ async function accessEmail(to: string, name: string, level: string, hqUrl: strin
   return true;
 }
 
+// A fresh one-time link straight into HQ's own welcome flow: Supabase makes the link (an
+// invite link if the account was never confirmed, otherwise a password link) but does not
+// email it; HQ emails it through Resend. The link points at /hq on the same site, which
+// redeems it with verifyOtp, so no Supabase redirect is involved.
+async function sendWelcomeLink(pool: Pool, userId: string, email: string, name: string, hqUrl: string) {
+  const u = (await pool.query('select email_confirmed_at from auth.users where id = $1', [userId])).rows[0];
+  const type = u && !u.email_confirmed_at ? 'invite' : 'recovery';
+  const j = await authAdmin('/admin/generate_link', 'POST', { type, email, redirect_to: hqUrl });
+  const hashed = (j && (j.hashed_token || (j.properties && j.properties.hashed_token))) || '';
+  const vtype = (j && (j.verification_type || (j.properties && j.properties.verification_type))) || type;
+  if (!hashed) throw new HttpError(502, 'Supabase did not create a link. Try again.');
+  const link = `${hqUrl}?welcome=1&token_hash=${encodeURIComponent(hashed)}&type=${encodeURIComponent(vtype)}`;
+  if (!RESEND_API_KEY) return false;
+  const resend = new Resend(RESEND_API_KEY);
+  const { error } = await resend.emails.send({
+    from: 'BarkFind <hello@barkfind.com>', to: email,
+    subject: 'You have been invited to BarkFind HQ',
+    text: `Hi${name ? ' ' + name : ''},\n\nYou have been invited to help run BarkFind in HQ, its operations console.\n\nAccept the invite and choose a password here:\n${link}\n\nAfter that you will add a second sign-in step with an authenticator app, such as the iPhone Passwords app or Google Authenticator.\n\nThe link works once and expires in one hour. If you were not expecting this, you can ignore this email.\n\nBarkFind`,
+  });
+  if (error) { console.error('hq welcome email', error.name); return false; }
+  return true;
+}
+
 export function teamOps(pool: Pool): Record<string, Op | { perm: null; run: Op['run'] }> {
   // One write pattern for every team change: password, rate limit, before/after, audit.
   const change = (label: string, action: string, a: Record<string, unknown>, ctx: Ctx,
@@ -169,15 +192,12 @@ export function teamOps(pool: Pool): Record<string, Op | { perm: null; run: Op['
         const row = await staffRow(pool, userId);
         if (!row || row.status !== 'invited') throw new HttpError(409, 'Only a pending invite can be resent.');
         canTouch(ctx, row);
-        const u = (await pool.query("select email_confirmed_at, last_sign_in_at, coalesce(encrypted_password, '') <> '' as has_password from auth.users where id = $1", [userId])).rows[0];
-        let ok = false, kind = 'access';
-        if (u && !u.email_confirmed_at && !u.last_sign_in_at) { await authAdmin('/invite?redirect_to=' + encodeURIComponent(ctx.hqUrl), 'POST', { email: row.email }); ok = true; kind = 'invite'; }
-        else if (u && !u.has_password) { await authAdmin('/recover?redirect_to=' + encodeURIComponent(ctx.hqUrl), 'POST', { email: row.email }); ok = true; kind = 'password'; }
-        else ok = await accessEmail(row.email, row.display_name, row.level, ctx.hqUrl);
+        // Anyone still invited gets a fresh one-time link into Welcome, choose a password, second step.
+        const ok = await sendWelcomeLink(pool, userId, row.email, row.display_name, ctx.hqUrl);
         return writeTx(pool, ctx.staff.userId, async (c, audit) => {
           await c.query('update public.hq_staff set invited_at = now(), updated_at = now() where user_id = $1', [userId]);
           await audit({ action: 'team_resend', entity: 'hq_staff', entityId: userId, detail: `Resent invite to ${row.email}`, before: row, after: await staffRow(c, userId) });
-          return { ok: true, message: !ok ? 'The invite was kept open, but the email did not send.' : kind === 'invite' ? 'Invite resent. The new link works for 1 hour.' : kind === 'password' ? 'They have not chosen a password yet, so they have been sent a link to choose one. It works for 1 hour.' : 'They already have a password, so they have been emailed to sign in to HQ.' };
+          return { ok: true, message: ok ? 'Invite resent with a fresh link. It works once, for 1 hour.' : 'The invite was kept open, but the email did not send.' };
         });
       },
     },
