@@ -20,6 +20,7 @@ function Nav() {
           <a href="#features" className="hover:text-[#B74217] transition-colors">Features</a>
           <a href="#pricing" className="hover:text-[#B74217] transition-colors">Pricing</a>
           <a href="#faq" className="hover:text-[#B74217] transition-colors">FAQ</a>
+          <a href="/resources" className="hover:text-[#B74217] transition-colors">Resources</a>
         </nav>
 
         <a
@@ -52,6 +53,7 @@ function Nav() {
           <a href="#features" onClick={() => setMenuOpen(false)} className="text-[#585858]">Features</a>
           <a href="#pricing" onClick={() => setMenuOpen(false)} className="text-[#585858]">Pricing</a>
           <a href="#faq" onClick={() => setMenuOpen(false)} className="text-[#585858]">FAQ</a>
+          <a href="/resources" onClick={() => setMenuOpen(false)} className="text-[#585858]">Resources</a>
           <a
             href="#download"
             onClick={() => setMenuOpen(false)}

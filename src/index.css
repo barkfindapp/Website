@@ -17,3 +17,18 @@
     -webkit-font-smoothing: antialiased;
   }
 }
+
+/* Resources section: article bodies rendered from Markdown at build time. */
+.bf-prose { color: #444; line-height: 1.75; }
+.bf-prose > * + * { margin-top: 1rem; }
+.bf-prose h2 { font-family: "DM Serif Display", Georgia, serif; font-size: 1.75rem; line-height: 1.2; color: #1a1a1a; margin-top: 2.5rem; }
+.bf-prose h3 { font-weight: 700; font-size: 1.125rem; color: #1a1a1a; margin-top: 1.75rem; }
+.bf-prose strong { color: #1a1a1a; font-weight: 700; }
+.bf-prose a { color: #B74217; font-weight: 600; text-decoration: underline; text-underline-offset: 2px; }
+.bf-prose ul, .bf-prose ol { padding-left: 1.25rem; }
+.bf-prose ul { list-style: disc; }
+.bf-prose ol { list-style: decimal; }
+.bf-prose li + li { margin-top: 0.4rem; }
+.bf-prose blockquote { border-left: 3px solid #B74217; padding-left: 1rem; color: #585858; }
+.bf-prose table { display: block; max-width: 100%; overflow-x: auto; border-collapse: collapse; font-size: 0.95rem; }
+.bf-prose th, .bf-prose td { border-bottom: 1px solid #e7e5e4; padding: 0.5rem 0.5rem 0.5rem 0; text-align: left; vertical-align: top; }

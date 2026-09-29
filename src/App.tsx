@@ -15,6 +15,11 @@ import { lazy, Suspense } from "react";
 // visitor downloads. Keeps the codes out of everything except the creator pages.
 const CreatorPage = lazy(() => import("./pages/CreatorPage"));
 
+// Resources section (/resources, /dog-friendly, /news, /events). Its build-time
+// content JSON ships in this chunk only, so the homepage bundle does not grow.
+const ResourcesRoutes = lazy(() => import("./pages/resources/ResourcesRoutes"));
+const RESOURCE_SECTIONS = ["/resources", "/dog-friendly", "/news", "/events"];
+
 const ROUTES: Record<string, () => JSX.Element> = {
   "/mockup": MockupCapture,
   "/privacy": PrivacyPolicy,
@@ -35,6 +40,14 @@ export default function App() {
     return (
       <Suspense fallback={null}>
         <CreatorPage slug={slug} />
+      </Suspense>
+    );
+  }
+  const clean = path.replace(/\/+$/, "") || "/";
+  if (RESOURCE_SECTIONS.some((s) => clean === s || clean.startsWith(`${s}/`))) {
+    return (
+      <Suspense fallback={null}>
+        <ResourcesRoutes path={clean} />
       </Suspense>
     );
   }
