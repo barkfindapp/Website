@@ -1,11 +1,9 @@
 // /api/admin-ai — gated Claude proxy for the admin console's AI-draft features.
-// Same auth gate as /api/admin (valid session + admin role), then calls Anthropic.
+// Same auth gate as /api/admin (valid session + admin role + second sign-in step), then calls Anthropic.
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { Pool } from 'pg';
-import { createClient } from '@supabase/supabase-js';
+import { requireAdmin, tokenAal } from './_lib/admin-auth.js';
 
-const SUPABASE_URL = process.env.SUPABASE_URL!;
-const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY!;
 const DB_URL = process.env.SUPABASE_DB_URL!;
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 const pool = new Pool({ connectionString: DB_URL, ssl: { rejectUnauthorized: false }, max: 2 });
@@ -14,13 +12,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'POST only' });
   try {
-    const token = String(req.headers.authorization || '').replace(/^Bearer\s+/i, '');
-    if (!token) return res.status(401).json({ error: 'Not signed in' });
-    const supa = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { global: { headers: { Authorization: 'Bearer ' + token } } });
-    const { data: { user }, error } = await supa.auth.getUser();
-    if (error || !user) return res.status(401).json({ error: 'Invalid session' });
-    const rc = await pool.query("select 1 from public.user_roles where user_id=$1 and role='admin' limit 1", [user.id]);
-    if (!rc.rows.length) return res.status(403).json({ error: 'Not authorised' });
+    // Same admin check as before (shared helper), plus the second sign-in step.
+    const gate = await requireAdmin(req, pool);
+    if (!gate.ok) return res.status(gate.status).json({ error: gate.status === 401 ? 'Not signed in' : 'Not authorised' });
+    if (tokenAal(req) !== 'aal2') return res.status(401).json({ error: 'Enter your 6-digit code', code: 'mfa' });
 
     if (!ANTHROPIC_API_KEY) return res.status(200).json({ text: '(AI not configured — add ANTHROPIC_API_KEY in Vercel)' });
     const { prompt, data } = (req.body || {});

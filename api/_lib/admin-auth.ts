@@ -1,8 +1,7 @@
 // Shared admin gate for the serverless functions. Same check as /api/admin and
 // /api/admin-ai: verify the caller's Supabase session with the anon key, then
 // confirm the 'admin' role in public.user_roles through the server-side pool.
-// admin.ts and admin-ai.ts still carry their own copy; they move to this helper
-// after launch (13 October 2026).
+// Used by /api/admin and /api/admin-ai. /api/hq uses hq-staff.ts instead.
 // Files under api/_lib are not deployed as functions (leading underscore).
 import type { VercelRequest } from '@vercel/node';
 import type { Pool } from 'pg';
@@ -35,4 +34,14 @@ export async function requireAdmin(req: VercelRequest, pool: Pool): Promise<Admi
   if (!roleRes.rows.length) return { ok: false, status: 403 };
 
   return { ok: true, userId: data.user.id };
+}
+
+// The aal claim from a token requireAdmin has already verified with Supabase.
+// 'aal2' means the second sign-in step (the 6-digit code) was completed.
+export function tokenAal(req: VercelRequest): string | null {
+  try {
+    const token = String(req.headers.authorization || '').replace(/^Bearer\s+/i, '');
+    const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64url').toString('utf8'));
+    return typeof payload.aal === 'string' ? payload.aal : null;
+  } catch { return null; }
 }

@@ -179,6 +179,12 @@ a.evidence { color:var(--rust); font-size:12px; word-break:break-all; }
       <input id="lgPass" type="password" placeholder="Password" autocomplete="current-password" style="width:100%;box-sizing:border-box;padding:11px 13px;border:1px solid #ECE4DB;border-radius:11px;margin-bottom:14px;font-size:14px;font-family:inherit;background:#FCFAF7" />
       <button onclick="adminLogin()" style="width:100%;background:linear-gradient(180deg,#C0562C,#B74217);color:#fff;border:none;padding:12px;border-radius:11px;font-weight:800;cursor:pointer;font-size:14px;font-family:inherit;box-shadow:0 6px 16px rgba(183,66,23,.28)">Sign in</button>
       <button onclick="adminMagic()" style="width:100%;background:transparent;color:#B74217;border:none;padding:10px;margin-top:8px;cursor:pointer;font-weight:800;font-size:13px;font-family:inherit">Email me a magic link instead</button>
+      <div id="lgMfa" style="display:none">
+        <p style="color:#6E6A66;font-size:13px;margin:0 0 10px">Enter the 6-digit code from your authenticator app.</p>
+        <input id="lgCode" class="mfa" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="6-digit code" style="width:100%;box-sizing:border-box;padding:11px 13px;border:1px solid #ECE4DB;border-radius:11px;margin-bottom:12px;font-size:18px;letter-spacing:.3em;text-align:center;font-family:inherit;background:#FCFAF7" />
+        <button class="mfa" onclick="adminVerifyCode()" style="width:100%;background:linear-gradient(180deg,#C0562C,#B74217);color:#fff;border:none;padding:12px;border-radius:11px;font-weight:800;cursor:pointer;font-size:14px;font-family:inherit">Verify</button>
+        <button class="mfa" onclick="adminSignOutGate()" style="width:100%;background:transparent;color:#B74217;border:none;padding:10px;margin-top:8px;cursor:pointer;font-weight:800;font-size:13px;font-family:inherit">Sign out</button>
+      </div>
       <div id="loginMsg" style="color:#C0392B;font-size:12px;margin-top:10px;min-height:16px"></div>
     </div>
   </div>
@@ -1726,6 +1732,7 @@ window.loadOverview=loadOverview; window.activate=activate; window.loaded=loaded
     _token = session.access_token;
     try{
       var chk = await fetch('/api/admin', { method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+_token}, body: JSON.stringify({ sql:'select 1 as ok' }) });
+      if(chk.status===401){ var cj=await chk.json().catch(function(){return {};}); if(cj&&cj.code==='mfa'){ await showCodeStep(); return; } }
       if(chk.status===403){ document.getElementById('loginMsg').textContent='This account is not an admin.'; _token=null; try{ await sb.auth.signOut(); }catch(e){} return; }
       if(!chk.ok){ document.getElementById('loginMsg').textContent='Sign-in error, try again.'; return; }
     }catch(e){ document.getElementById('loginMsg').textContent='Network error.'; return; }
@@ -1734,6 +1741,33 @@ window.loadOverview=loadOverview; window.activate=activate; window.loaded=loaded
   }
   sb.auth.getSession().then(function(r){ if(r.data && r.data.session) afterAuth(r.data.session); });
   sb.auth.onAuthStateChange(function(_e, session){ if(session) afterAuth(session); });
+  // Second sign-in step (6-digit code). Setting up a new authenticator happens in HQ (/hq).
+  var mfaFactorId=null;
+  function setGateMode(code){
+    document.querySelectorAll('#loginGate input:not(.mfa), #loginGate button:not(.mfa)').forEach(function(el){ el.style.display=code?'none':''; });
+    document.getElementById('lgMfa').style.display=code?'block':'none';
+  }
+  async function showCodeStep(){
+    var r=await sb.auth.mfa.listFactors();
+    var f=((r.data&&r.data.all)||[]).filter(function(x){return x.factor_type==='totp'&&x.status==='verified';})[0];
+    var msg=document.getElementById('loginMsg');
+    if(!f){ setGateMode(false); msg.innerHTML='This console now needs a second sign-in step. Set it up in <a href="/hq" style="color:#B74217;font-weight:800">HQ</a> first, then come back here.'; return; }
+    mfaFactorId=f.id; msg.textContent=''; setGateMode(true);
+    setTimeout(function(){ var c=document.getElementById('lgCode'); if(c) c.focus(); },50);
+  }
+  window.adminVerifyCode=async function(){
+    var msg=document.getElementById('loginMsg'); var code=(document.getElementById('lgCode').value||'').replace(/\D/g,'');
+    if(code.length!==6){ msg.textContent='Enter the 6-digit code'; return; }
+    msg.textContent='Checking the code.';
+    var c=await sb.auth.mfa.challenge({factorId:mfaFactorId});
+    if(c.error){ msg.textContent='That code did not work. Try the newest code.'; return; }
+    var v=await sb.auth.mfa.verify({factorId:mfaFactorId,challengeId:c.data.id,code:code});
+    document.getElementById('lgCode').value='';
+    if(v.error){ msg.textContent='That code did not work. Check the time on your phone and try the newest code'; return; }
+    msg.textContent=''; setGateMode(false);
+    var s2=await sb.auth.getSession(); if(s2.data&&s2.data.session) afterAuth(s2.data.session);
+  };
+  window.adminSignOutGate=async function(){ try{ await sb.auth.signOut(); }catch(e){} location.replace('/admin'); };
   window.adminLogin=function(){ var em=(document.getElementById('lgEmail').value||'').trim(); var pw=document.getElementById('lgPass').value||''; document.getElementById('loginMsg').textContent='Signing in...'; sb.auth.signInWithPassword({email:em,password:pw}).then(function(r){ if(r.error) document.getElementById('loginMsg').textContent=r.error.message; }); };
   window.adminMagic=function(){ var em=(document.getElementById('lgEmail').value||'').trim(); if(!em){ document.getElementById('loginMsg').textContent='Enter your email first.'; return; } sb.auth.signInWithOtp({email:em, options:{emailRedirectTo: window.location.origin+'/admin'}}).then(function(r){ document.getElementById('loginMsg').textContent = r.error? r.error.message : 'Magic link sent - check your email.'; }); };
   // Set/change password so future sign-ins can use email + password (must be signed in first).
