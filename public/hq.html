@@ -348,7 +348,7 @@ footer .mono{color:rgba(255,255,255,.75)}
 <header class="topbar">
   <div class="wrap">
     <a class="logo" href="https://www.barkfind.com/" target="_blank" rel="noopener"><img src="/barkfind-logo-rust.png" alt="BarkFind"><span class="hq">HQ</span></a>
-    <div class="right"><span class="pill idle" id="statusPill"><i></i><span id="statusText">Connecting</span></span></div>
+    <div class="right"><button class="btn small" type="button" id="accountBtn">Account</button><span class="pill idle" id="statusPill"><i></i><span id="statusText">Connecting</span></span></div>
   </div>
 </header>
 
@@ -392,6 +392,7 @@ footer .mono{color:rgba(255,255,255,.75)}
     <button role="tab" id="t-act" aria-selected="false" data-go="act">Act<span class="count" id="actCount">0</span></button>
     <button role="tab" id="t-users" aria-selected="false" data-go="users" hidden>Users</button>
     <button role="tab" id="t-outreach" aria-selected="false" data-go="outreach">Outreach<span class="count" id="outCount">0</span></button>
+    <button role="tab" id="t-admin" aria-selected="false" data-go="admin" hidden>Admin</button>
     <button role="tab" id="t-consoles" aria-selected="false" data-go="consoles">Consoles</button>
   </nav></div>
 </div>
@@ -515,6 +516,14 @@ footer .mono{color:rgba(255,255,255,.75)}
   <div class="stack" id="outBody"><div class="empty">Loading outreach.</div></div>
  </div>
 
+ <div data-tab="admin" class="stack" hidden>
+  <nav class="filter subnav" id="adminNav" aria-label="Admin sections">
+    <button class="chip" data-sec="team" aria-pressed="true">Team</button>
+    <button class="chip" data-sec="signins" aria-pressed="false">Sign-in activity</button>
+  </nav>
+  <div class="stack" id="adminPane"><div class="empty">Loading.</div></div>
+ </div>
+
  <div data-tab="consoles" hidden>
   <section aria-labelledby="h-con">
     <h2 class="sec" id="h-con">Every console, one tap</h2>
@@ -549,7 +558,7 @@ footer .mono{color:rgba(255,255,255,.75)}
   <footer class="bleed"><div class="inner">
     <img class="flogo" src="/barkfind-logo-white.png" alt="BarkFind">
     Everything above comes from one database function, <span class="mono">public.hq_snapshot()</span>, plus Resend's own metrics. A copy is saved every morning at 05:50 UTC into <span class="mono">hq_snapshots</span>, which is what the trend line and the morning brief compare against. The narrative (decisions, open issues, how things fit together) lives in <span class="mono">claude/BARKFIND-HQ.md</span> in the Claude project.
-    <br><span id="whoami"></span> <button class="signout" type="button" id="signOut">Sign out</button>
+    <br><span id="whoami"></span> <button class="signout" type="button" id="footAccount">My account</button> <button class="signout" type="button" id="signOut">Sign out</button>
   </div></footer>
 </main></main>
 </div>
@@ -925,7 +934,7 @@ footer .mono{color:rgba(255,255,255,.75)}
   function applyPerms(){
     var c=HQ.can, show=function(id,on){var e=$(id);if(e)e.hidden=!on};
     show("t-act",c("safety")||c("privacy")||c("reviews")||c("reports")||c("claims")||c("support")||c("places_edit"));
-    show("t-users",c("users_view"));show("t-outreach",c("outreach"));
+    show("t-users",c("users_view"));show("t-outreach",c("outreach"));show("t-admin",c("staff_manage"));
     show("p-money",c("money"));show("p-costs",c("money"));show("p-renewals",c("renewals"));
     var ask=document.querySelector("section.cta");if(ask)ask.hidden=!c("ask_ralphy");
     show("miniForm",c("ask_ralphy"));show("miniLinks",c("ask_ralphy"));
@@ -941,9 +950,10 @@ footer .mono{color:rgba(255,255,255,.75)}
     window.scrollTo(0,0);
     if(t==="act"&&window.HQAct)HQAct.show();
     if(t==="users"&&window.HQUsers)HQUsers.show();
+    if(t==="admin"&&window.HQAdmin)HQAdmin.show();
   }
   document.querySelector(".tabs").addEventListener("click",function(ev){var b=ev.target.closest("button[data-go]");if(b)go(b.dataset.go)});
-  document.addEventListener("click",function(ev){var a=ev.target.closest('a[href^="#"]');if(!a)return;var t=a.getAttribute("href").slice(1);if(["today","act","users","outreach","consoles"].indexOf(t)>=0){ev.preventDefault();go(t)}});
+  document.addEventListener("click",function(ev){var a=ev.target.closest('a[href^="#"]');if(!a)return;var t=a.getAttribute("href").slice(1);if(["today","act","users","outreach","admin","consoles"].indexOf(t)>=0){ev.preventDefault();go(t)}});
   var startTab=(location.hash||"").slice(1);
 
   $("refresh").addEventListener("click",load);
@@ -1013,7 +1023,8 @@ footer .mono{color:rgba(255,255,255,.75)}
   // mode: signin, denied, checking, reset, mfa-setup, mfa-code or app. Signed out, only the sign-in form shows.
   var gateMode="checking";
   // Opened from a password reset email: show "Choose a new password" before anything else.
-  var recovering=/(^|[#&?])type=recovery(&|$)/.test(location.hash+"&"+location.search.replace(/^\?/,"&"));
+  var linkType=(/(^|[#&?])type=(recovery|invite)(&|$)/.exec(location.hash+"&"+location.search.replace(/^\?/,"&"))||[])[2]||"";
+  var recovering=!!linkType;
   function gate(mode,msg){
     gateMode=mode;
     $("gate").hidden=mode==="app";$("app").hidden=mode!=="app";
@@ -1033,7 +1044,7 @@ footer .mono{color:rgba(255,255,255,.75)}
     checking=true;gate("checking","Checking access.");
     api("history").then(function(r){state.history=r.data||[];return api("me")}).then(function(m){
         HQ.perms=(m.data&&m.data.perms)||[];HQ.me=m.data||{};ready=true;applyPerms();gate("app");
-        if(["act","users","outreach","consoles"].indexOf(startTab)>=0)go(startTab);load()})
+        if(["act","users","outreach","admin","consoles"].indexOf(startTab)>=0)go(startTab);load()})
       .catch(function(e){if(e.code!=="denied"&&e.code!=="auth"&&e.code!=="mfa")gate("signin",e.message)})
       .then(function(){checking=false});
   }
@@ -1045,7 +1056,9 @@ footer .mono{color:rgba(255,255,255,.75)}
   else{
     sb.auth.onAuthStateChange(function(ev,session){
       if(ev==="SIGNED_OUT"){gate("signin");return}
-      if(ev==="PASSWORD_RECOVERY"||(recovering&&session)){recovering=true;setTimeout(function(){gate("reset");$("rpNew").focus()},0);return}
+      if(ev==="PASSWORD_RECOVERY"||(recovering&&session)){recovering=true;setTimeout(function(){
+        var inv=linkType==="invite";document.querySelector("#resetPw .title").textContent=inv?"Choose a password":"Choose a new password";
+        $("gHead").innerHTML=inv?"Welcome to <em>HQ</em>":"Sign in to <em>HQ</em>";gate("reset");$("rpNew").focus()},0);return}
       if(ev==="INITIAL_SESSION"||ev==="SIGNED_IN")setTimeout(function(){enter(session)},0);
     });
     $("signIn").addEventListener("submit",function(ev){
@@ -1146,6 +1159,9 @@ footer .mono{color:rgba(255,255,255,.75)}
     // Supabase returns the QR as an unencoded SVG data URL, which some browsers will not draw. Re-encode it.
     function qrSrc(q){q=String(q||"");var i=q.indexOf(",");if(/^data:image\/svg\+xml/.test(q)&&!/;base64,/.test(q)&&i>0){var svg=q.slice(i+1);try{svg=decodeURIComponent(svg)}catch(e){}return "data:image/svg+xml;charset=utf-8,"+encodeURIComponent(svg)}return q}
     window.hqMfa=mfaStart;
+    HQ.sb=sb;
+    // After "Set up again on a new phone" removes the old authenticator: straight to setup.
+    HQ.mfaAfterReset=function(){pendingClear();ready=false;gateMode="checking";mfaStart()};
     // A fresh challenge for every attempt. A wrong code only shows a message; it never re-enrols.
     var WRONG="That code did not work. Check the time on your phone and try the newest code";
     function mfaVerify(input,btn){
@@ -1413,6 +1429,113 @@ footer .mono{color:rgba(255,255,255,.75)}
     else run(b,card,H.api("user_unban",{id:id}),function(r){if(r&&r.ok!==false)setTimeout(function(){open(id);if(loaded)list()},900)});
   });
   window.HQUsers={show:function(){if(!loaded){loaded=true;list()}},open:open};
+})();
+</script>
+<script>
+// ---------- Admin (Team, Sign-in activity) and My account ----------
+// Changes to someone's access ask for your own password and two taps; the server checks
+// the password, your permissions, "not yourself" and "not the last owner" again.
+(function(){
+  var $=function(id){return document.getElementById(id)}, H=window.HQ, esc=H.esc;
+  var LABEL={owner:"Owner",admin:"Admin",moderator:"Moderator",support:"Support",viewer:"Viewer"};
+  function dt(ts){return ts?H.when(ts):"never"}
+  function fail(el,e){el.innerHTML='<div class="empty">'+esc((e&&e.message)||"That did not load. Try again.")+'</div>'}
+  function busy(b,p,card,after){b.disabled=true;return p.then(function(r){H.note(card,r&&r.ok!==false,(r&&r.message)||"Done.");if(after)after(r)}).catch(function(e){H.note(card,false,(e&&e.message)||"That did not work.")}).then(function(){b.disabled=false})}
+  function device(ua){ua=String(ua||"");return /iPhone/.test(ua)?"iPhone":/iPad/.test(ua)?"iPad":/Android/.test(ua)?"Android":/Macintosh/.test(ua)?"Mac":/Windows/.test(ua)?"Windows":ua?"Browser":"Unknown"}
+
+  // ---------- Admin tab ----------
+  var sec="team", team=null;
+  $("adminNav").addEventListener("click",function(ev){var b=ev.target.closest("[data-sec]");if(!b)return;sec=b.dataset.sec;this.querySelectorAll("[data-sec]").forEach(function(x){x.setAttribute("aria-pressed",x===b?"true":"false")});show()});
+  function show(){var el=$("adminPane");el.innerHTML='<div class="empty">Loading.</div>';(sec==="team"?teamView:signins)(el)}
+
+  function teamView(el){
+    H.api("team_list").then(function(r){team=r.data;var d=r.data;
+      var invite='<div class="card" id="inviteCard"><div class="subhead"><h3>Invite someone</h3></div>'+
+        '<div class="grid2"><label>Email<input type="email" id="invEmail" autocomplete="off"></label><label>Name<input type="text" id="invName" autocomplete="off" maxlength="80"></label>'+
+        '<label>Level<select id="invLevel">'+d.levels.map(function(l){return '<option value="'+l+'"'+(l==="moderator"?" selected":"")+'>'+LABEL[l]+'</option>'}).join("")+'</select></label></div>'+
+        '<p class="note" style="margin:0">They get HQ access only, never extra database rights. New people get a Supabase invite email; people who already use BarkFind get a short email telling them to sign in to HQ. Invites last 7 days.</p>'+
+        '<div class="row"><button class="btn primary" data-do="invite">Send invite</button></div></div>';
+      el.innerHTML=invite+'<div class="subhead"><h3>Team</h3><span>'+d.staff.filter(function(s){return s.status!=="removed"}).length+' people</span></div>'+d.staff.map(function(s){return person(s,d)}).join("");
+    }).catch(function(e){fail(el,e)});
+  }
+  function person(s,d){
+    var self=s.user_id===d.me, adminLevel=s.level==="owner"||s.level==="admin", locked=self||(adminLevel&&!d.can_admins)||s.status==="removed";
+    var tags='<span class="tag">'+LABEL[s.level]+'</span><span class="tag '+(s.status==="active"?"ok":s.status==="invited"?"warn":s.status==="suspended"?"crit":"")+'">'+esc(s.status)+(s.expired?", expired":"")+'</span>'+(s.status!=="removed"?(s.mfa?'<span class="tag ok">second step on</span>':'<span class="tag crit">no second step</span>'):'');
+    var extra=(s.grants||[]).map(function(p){return '<span>added: '+esc(p)+'</span>'}).concat((s.denies||[]).map(function(p){return '<span>removed: '+esc(p)+'</span>'})).join("");
+    var h='<div class="card" data-uid="'+esc(s.user_id)+'"><div class="meta">'+tags+'</div><div class="title">'+esc(s.display_name||s.email)+(self?' <span class="note">(you)</span>':'')+'</div>'+
+      '<dl class="kvs"><dt>Email</dt><dd>'+esc(s.email||"")+'</dd><dt>Last seen</dt><dd>'+esc(dt(s.last_seen_at))+'</dd><dt>Invited</dt><dd>'+esc(s.invited_at?dt(s.invited_at):"–")+(s.invited_by_name?" by "+esc(s.invited_by_name):"")+'</dd>'+
+      (s.accepted_at?'<dt>Accepted</dt><dd>'+esc(dt(s.accepted_at))+'</dd>':'')+'<dt>Alerts</dt><dd>email '+(s.alert_email?"on":"off")+', push '+(s.alert_push?"on":"off")+' <span class="note">(set by Josh for now)</span></dd></dl>'+
+      (extra?'<div class="chips-sm">'+extra+'</div>':'');
+    if(locked){return h+(self?'<p class="note" style="margin:0">Change your own details in My account.</p>':'')+'</div>'}
+    if(s.status==="invited")return h+'<div class="row"><button class="btn small" data-do="resend">Resend invite</button><button class="btn danger small" data-do="cancel" data-confirm="Confirm cancel">Cancel invite</button></div></div>';
+    var perms=d.can_grants?'<details><summary class="note">Add or remove single permissions</summary><div class="grid2">'+d.permissions.map(function(p){var v=(s.grants||[]).indexOf(p)>=0?"grant":(s.denies||[]).indexOf(p)>=0?"deny":"";return '<label>'+esc(p)+'<select data-perm="'+p+'"><option value=""'+(v===""?" selected":"")+'>as level</option><option value="grant"'+(v==="grant"?" selected":"")+'>add</option><option value="deny"'+(v==="deny"?" selected":"")+'>remove</option></select></label>'}).join("")+'</div><div class="row"><button class="btn small" data-do="perms" data-confirm="Confirm save">Save permissions</button></div></details>':'';
+    return h+'<details><summary class="note">Change access</summary><div class="stack" style="margin-top:8px">'+
+      '<label class="note">Level</label><div class="row"><select data-level>'+d.levels.map(function(l){return '<option value="'+l+'"'+(l===s.level?" selected":"")+'>'+LABEL[l]+'</option>'}).join("")+'</select><button class="btn small" data-do="level" data-confirm="Confirm level">Save level</button></div>'+perms+
+      '<label class="note">Your password, to confirm any change here</label><input type="password" class="pill-in" data-pw autocomplete="current-password">'+
+      '<div class="row">'+(s.status==="active"?'<button class="btn small" data-do="suspend" data-confirm="Confirm suspend">Suspend</button>':'<button class="btn ok small" data-do="reinstate" data-confirm="Confirm reinstate">Reinstate</button>')+'<button class="btn danger small" data-do="remove" data-confirm="Confirm remove">Remove</button></div>'+
+      '<p class="note" style="margin:0">Suspending or removing signs them out everywhere at once.</p></div></details></div>';
+  }
+  $("adminPane").addEventListener("click",function(ev){
+    var b=ev.target.closest("button[data-do]");if(!b)return;var card=b.closest(".card"),what=b.dataset.do;
+    if(what==="invite"){var em=$("invEmail").value.trim(),nm=$("invName").value.trim();if(!em||!nm){H.note(card,false,"Add their email and name first.");return}
+      busy(b,H.api("team_invite",{email:em,name:nm,level:$("invLevel").value}),card,function(r){if(r&&r.ok!==false)setTimeout(show,1200)});return}
+    var uid=card.dataset.uid, pw=card.querySelector("[data-pw]");
+    if(b.dataset.confirm&&!H.armed(b))return;
+    var refresh=function(r){if(r&&r.ok!==false)setTimeout(show,1200)};
+    if(what==="resend"){busy(b,H.api("team_resend",{user_id:uid}),card,refresh);return}
+    if(what==="cancel"){busy(b,H.api("team_cancel",{user_id:uid}),card,refresh);return}
+    if(!pw||!pw.value){H.note(card,false,"Enter your password first.");b.dataset.armed="";b.textContent=b.dataset.label||b.textContent;b.classList.remove("confirm");return}
+    var args={user_id:uid,password:pw.value};
+    if(what==="level"){args.level=card.querySelector("[data-level]").value;busy(b,H.api("team_set_level",args),card,refresh)}
+    else if(what==="perms"){args.grants=[];args.denies=[];card.querySelectorAll("[data-perm]").forEach(function(s){if(s.value==="grant")args.grants.push(s.dataset.perm);if(s.value==="deny")args.denies.push(s.dataset.perm)});busy(b,H.api("team_set_perms",args),card,refresh)}
+    else busy(b,H.api("team_"+what,args),card,refresh);
+    pw.value="";
+  });
+
+  function signins(el){
+    H.api("team_activity").then(function(r){
+      el.innerHTML='<p class="note" style="margin:0">Sign-ins come from Supabase sessions. Unconfirmed code attempts are codes asked for but never accepted in the last 30 days: wrong codes, or a screen closed half way.</p>'+r.data.map(function(s){
+        return '<div class="card'+(!s.mfa?" crit":"")+'"><div class="meta"><span class="tag">'+LABEL[s.level]+'</span><span class="tag">'+esc(s.status)+'</span>'+(s.mfa?'<span class="tag ok">second step on</span>':'<span class="tag crit">no second step</span>')+(s.unverified_codes_30d?'<span class="tag warn">'+s.unverified_codes_30d+' unconfirmed code attempt'+(s.unverified_codes_30d===1?"":"s")+'</span>':'')+'</div>'+
+          '<div class="title">'+esc(s.display_name||s.email)+'</div><div class="note">Last seen in HQ '+esc(dt(s.last_seen_at))+'</div>'+
+          (s.sessions.length?'<div class="stack" style="gap:4px">'+s.sessions.map(function(x){return '<div class="prior">Signed in '+esc(dt(x.created_at))+', last used '+esc(dt(x.last_used))+' · '+esc(device(x.user_agent))+(x.ip?' · '+esc(x.ip):'')+' · '+(x.aal==="aal2"?"with code":"password only")+'</div>'}).join("")+'</div>':'<div class="note">No active sessions.</div>')+'</div>'}).join("");
+    }).catch(function(e){fail(el,e)});
+  }
+  window.HQAdmin={show:show};
+
+  // ---------- My account ----------
+  function account(){
+    var bg=$("sheetBg");$("sheetTitle").textContent="My account";$("sheetBody").innerHTML='<div class="empty">Loading.</div>';bg.hidden=false;document.body.style.overflow="hidden";
+    H.api("account_get").then(function(r){var d=r.data;
+      $("sheetBody").innerHTML=
+        '<div class="card" data-acc="name"><div class="subhead"><h3 style="font-size:18px">Name</h3></div><input type="text" class="pill-in" id="accName" maxlength="80" value="'+esc(d.name)+'"><div class="row"><button class="btn small" data-do="name">Save name</button></div><div class="note">'+esc(d.email)+' · '+esc(LABEL[d.level]||d.level)+'</div></div>'+
+        '<div class="card" data-acc="pw"><div class="subhead"><h3 style="font-size:18px">Change password</h3></div><label class="note">Current password</label><input type="password" class="pill-in" id="accCur" autocomplete="current-password"><label class="note">New password, at least 12 characters</label><input type="password" class="pill-in" id="accNew" autocomplete="new-password"><label class="note">New password again</label><input type="password" class="pill-in" id="accNew2" autocomplete="new-password"><div class="row"><button class="btn small" data-do="password" data-confirm="Confirm change">Change password</button></div></div>'+
+        '<div class="card" data-acc="mfa"><div class="subhead"><h3 style="font-size:18px">Second sign-in step</h3></div><div class="note">'+(d.mfa.length?"On, set up "+esc(H.when(d.mfa[0].created_at))+".":"Not set up.")+'</div>'+
+          '<details><summary class="note">Set up again on a new phone</summary><div class="stack" style="margin-top:8px"><label class="note">Your password</label><input type="password" class="pill-in" id="accMfaPw" autocomplete="current-password"><label class="note">A current 6-digit code from your old phone</label><input type="text" class="pill-in" id="accMfaCode" inputmode="numeric" autocomplete="one-time-code" maxlength="6"><div class="row"><button class="btn small" data-do="mfa" data-confirm="Confirm new phone">Remove old and set up new</button></div><p class="note" style="margin:0">Lost the old phone? Ask an owner to remove your authenticator in the Supabase dashboard instead.</p></div></details></div>'+
+        '<div class="card" data-acc="out"><div class="subhead"><h3 style="font-size:18px">Sign out everywhere</h3></div><p class="note" style="margin:0">Signs you out on every phone and computer, including this one.</p><div class="row"><button class="btn danger small" data-do="signout_all" data-confirm="Confirm sign out">Sign out everywhere</button></div></div>'+
+        '<div class="card"><div class="subhead"><h3 style="font-size:18px">Alerts</h3></div><div class="note">Email '+(d.alert_email?"on":"off")+', push '+(d.alert_push?"on":"off")+'. Instant alerts and the morning brief go to Josh only for now.</div></div>'+
+        '<div class="card"><div class="subhead"><h3 style="font-size:18px">Your recent HQ activity</h3></div>'+(d.activity.length?d.activity.map(function(a){return '<div class="prior">'+esc(H.when(a.created_at))+': '+esc(a.detail||a.action)+'</div>'}).join(""):'<div class="note">Nothing yet.</div>')+'</div>';
+    }).catch(function(e){$("sheetBody").innerHTML='<div class="empty">'+esc(e.message||"That did not load.")+'</div>'});
+  }
+  $("accountBtn").addEventListener("click",account);$("footAccount").addEventListener("click",account);
+  $("sheetBody").addEventListener("click",function(ev){
+    var b=ev.target.closest("button[data-do]");if(!b)return;var card=b.closest("[data-acc]");if(!card)return;var what=b.dataset.do;
+    if(b.dataset.confirm&&!H.armed(b))return;
+    if(what==="name"){busy(b,H.api("account_name",{name:$("accName").value.trim()}),card);return}
+    if(what==="password"){var n1=$("accNew").value,n2=$("accNew2").value;if(n1.length<12){H.note(card,false,"Use at least 12 characters.");return}if(n1!==n2){H.note(card,false,"The two new passwords do not match.");return}
+      busy(b,H.api("account_password",{current:$("accCur").value,next:n1}),card,function(){$("accCur").value=$("accNew").value=$("accNew2").value=""});return}
+    if(what==="signout_all"){busy(b,H.api("account_signout_all"),card,function(){setTimeout(function(){H.sb.auth.signOut().catch(function(){}).then(function(){location.replace("/hq")})},900)});return}
+    if(what==="mfa"){
+      var code=($("accMfaCode").value||"").replace(/\D/g,""), pw=$("accMfaPw").value;
+      if(code.length!==6||!pw){H.note(card,false,"Enter your password and a current 6-digit code.");return}
+      b.disabled=true;H.note(card,true,"Checking the code.");
+      // Prove the old phone first (a fresh code check), then the server checks the password and removes it.
+      H.sb.auth.mfa.listFactors().then(function(r){var f=((r.data&&r.data.all)||[]).filter(function(x){return x.factor_type==="totp"&&x.status==="verified"})[0];if(!f)throw new Error("No authenticator is set up.");
+        return H.sb.auth.mfa.challenge({factorId:f.id}).then(function(c){if(c.error)throw c.error;return H.sb.auth.mfa.verify({factorId:f.id,challengeId:c.data.id,code:code})})})
+        .then(function(v){if(v.error)throw new Error("That code did not work. Check the time on your phone and try the newest code");return H.api("account_mfa_reset",{password:pw})})
+        .then(function(r){H.note(card,true,r.message);$("sheetBg").hidden=true;document.body.style.overflow="";setTimeout(function(){H.mfaAfterReset()},600)})
+        .catch(function(e){H.note(card,false,(e&&e.message)||"That did not work.")}).then(function(){b.disabled=false});
+    }
+  });
 })();
 </script>
 </body>

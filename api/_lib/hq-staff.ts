@@ -35,7 +35,7 @@ export function effectivePerms(level: string, grants: unknown, denies: unknown):
   return set;
 }
 
-export type Staff = { userId: string; email: string; name: string; level: Level; perms: Set<Perm> };
+export type Staff = { userId: string; email: string; name: string; level: Level; perms: Set<Perm>; status: string; inviteExpired: boolean };
 export type StaffCheck = { ok: true; staff: Staff } | { ok: false; status: 401 | 403 };
 
 export async function requireStaff(req: VercelRequest, pool: Pool): Promise<StaffCheck> {
@@ -52,11 +52,12 @@ export async function requireStaff(req: VercelRequest, pool: Pool): Promise<Staf
 
   // 2. An active hq_staff row, and last_seen_at at most every 5 minutes.
   const r = await pool.query(
-    'select email, display_name, level, status, grants, denies from public.hq_staff where user_id = $1',
+    "select email, display_name, level, status, grants, denies, (status = 'invited' and invited_at < now() - interval '7 days') as invite_expired from public.hq_staff where user_id = $1",
     [data.user.id],
   );
   const row = r.rows[0];
-  if (!row || row.status !== 'active') return { ok: false, status: 403 };
+  // A pending invite passes here only so it can be accepted after the second sign-in step (see /api/hq).
+  if (!row || (row.status !== 'active' && row.status !== 'invited')) return { ok: false, status: 403 };
   try {
     await pool.query(
       "update public.hq_staff set last_seen_at = now() where user_id = $1 and (last_seen_at is null or last_seen_at < now() - interval '5 minutes')",
@@ -68,7 +69,7 @@ export async function requireStaff(req: VercelRequest, pool: Pool): Promise<Staf
     ok: true,
     staff: {
       userId: data.user.id, email: row.email || data.user.email || '', name: row.display_name || '',
-      level: row.level, perms: effectivePerms(row.level, row.grants, row.denies),
+      level: row.level, perms: effectivePerms(row.level, row.grants, row.denies), status: row.status, inviteExpired: !!row.invite_expired,
     },
   };
 }
