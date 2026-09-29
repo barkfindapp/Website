@@ -12,7 +12,6 @@ const SUPABASE_URL = process.env.SUPABASE_URL!;
 const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY!;
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
-const HQ_URL = 'https://www.barkfind.com/hq';
 const INVITE_DAYS = 7;
 const TEAM_LEVELS = ['moderator', 'support', 'viewer'] as const;   // what staff_manage alone can give
 const EMAIL_RE = /^[^\s@]{1,64}@[^\s@]{1,190}\.[^\s@]{2,}$/;
@@ -77,13 +76,13 @@ function permList(v: unknown): Perm[] {
   return [...new Set(v.map((p) => oneOf(p, PERMISSIONS) as Perm))];
 }
 
-async function accessEmail(to: string, name: string, level: string) {
+async function accessEmail(to: string, name: string, level: string, hqUrl: string) {
   if (!RESEND_API_KEY) return false;
   const resend = new Resend(RESEND_API_KEY);
   const { error } = await resend.emails.send({
     from: 'BarkFind <hello@barkfind.com>', to,
     subject: 'You have access to BarkFind HQ',
-    text: `Hi${name ? ' ' + name : ''},\n\nYou have been given ${level} access to BarkFind HQ, the operations console for BarkFind.\n\nSign in at ${HQ_URL} with your usual BarkFind email and password. The first time, it will ask you to add a second sign-in step with an authenticator app.\n\nIf you were not expecting this, you can ignore this email.\n\nBarkFind`,
+    text: `Hi${name ? ' ' + name : ''},\n\nYou have been given ${level} access to BarkFind HQ, the operations console for BarkFind.\n\nSign in at ${hqUrl} with your usual BarkFind email and password. The first time, it will ask you to add a second sign-in step with an authenticator app.\n\nIf you were not expecting this, you can ignore this email.\n\nBarkFind`,
   });
   if (error) { console.error('hq access email', error.name); return false; }
   return true;
@@ -142,7 +141,7 @@ export function teamOps(pool: Pool): Record<string, Op | { perm: null; run: Op['
           if (row && row.status !== 'removed') throw new HttpError(409, row.status === 'invited' ? 'That person already has an invite. Resend it instead.' : 'That person is already on the team.');
         } else {
           // New to BarkFind: Supabase creates the account and sends its invite email (template: Invite user).
-          const u = await authAdmin('/invite?redirect_to=' + encodeURIComponent(HQ_URL), 'POST', { email, data: { full_name: name } });
+          const u = await authAdmin('/invite?redirect_to=' + encodeURIComponent(ctx.hqUrl), 'POST', { email, data: { full_name: name } });
           userId = u.id || u.user?.id;
           if (!userId) throw new HttpError(502, 'Supabase did not create the invite. Try again.');
           sent = 'invite';
@@ -159,7 +158,7 @@ export function teamOps(pool: Pool): Record<string, Op | { perm: null; run: Op['
           await audit({ action: 'team_invite', entity: 'hq_staff', entityId: userId, detail: `Invited ${email} as ${level}`, before, after });
           return { ok: true };
         });
-        if (existing) sent = (await accessEmail(email, name, level)) ? 'access' : 'none';
+        if (existing) sent = (await accessEmail(email, name, level, ctx.hqUrl)) ? 'access' : 'none';
         return { ...out, message: sent === 'invite' ? 'Invite sent. The link in the email works for 1 hour. If it runs out, tap Resend invite.' : sent === 'access' ? 'They already have a BarkFind account, so they have been emailed to sign in to HQ.' : 'Added, but the email did not send. Tell them to sign in at barkfind.com/hq.' };
       },
     },
@@ -170,14 +169,15 @@ export function teamOps(pool: Pool): Record<string, Op | { perm: null; run: Op['
         const row = await staffRow(pool, userId);
         if (!row || row.status !== 'invited') throw new HttpError(409, 'Only a pending invite can be resent.');
         canTouch(ctx, row);
-        const u = (await pool.query('select email_confirmed_at, last_sign_in_at from auth.users where id = $1', [userId])).rows[0];
-        let ok = false;
-        if (u && !u.email_confirmed_at && !u.last_sign_in_at) { await authAdmin('/invite?redirect_to=' + encodeURIComponent(HQ_URL), 'POST', { email: row.email }); ok = true; }
-        else ok = await accessEmail(row.email, row.display_name, row.level);
+        const u = (await pool.query("select email_confirmed_at, last_sign_in_at, coalesce(encrypted_password, '') <> '' as has_password from auth.users where id = $1", [userId])).rows[0];
+        let ok = false, kind = 'access';
+        if (u && !u.email_confirmed_at && !u.last_sign_in_at) { await authAdmin('/invite?redirect_to=' + encodeURIComponent(ctx.hqUrl), 'POST', { email: row.email }); ok = true; kind = 'invite'; }
+        else if (u && !u.has_password) { await authAdmin('/recover?redirect_to=' + encodeURIComponent(ctx.hqUrl), 'POST', { email: row.email }); ok = true; kind = 'password'; }
+        else ok = await accessEmail(row.email, row.display_name, row.level, ctx.hqUrl);
         return writeTx(pool, ctx.staff.userId, async (c, audit) => {
           await c.query('update public.hq_staff set invited_at = now(), updated_at = now() where user_id = $1', [userId]);
           await audit({ action: 'team_resend', entity: 'hq_staff', entityId: userId, detail: `Resent invite to ${row.email}`, before: row, after: await staffRow(c, userId) });
-          return { ok: true, message: ok ? 'Invite resent. The new link works for 1 hour.' : 'The invite was kept open, but the email did not send.' };
+          return { ok: true, message: !ok ? 'The invite was kept open, but the email did not send.' : kind === 'invite' ? 'Invite resent. The new link works for 1 hour.' : kind === 'password' ? 'They have not chosen a password yet, so they have been sent a link to choose one. It works for 1 hour.' : 'They already have a password, so they have been emailed to sign in to HQ.' };
         });
       },
     },

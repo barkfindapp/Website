@@ -233,6 +233,17 @@ async function runAction(ctx: Ctx, action: string, rawArgs: unknown) {
   });
 }
 
+// The /hq address this request came from, so invite links come back to the same site
+// (production or a preview). Only barkfind.com and this project's Vercel previews are
+// accepted; anything else falls back to production.
+function hqUrlFor(req: VercelRequest): string {
+  const raw = String(req.headers.origin || '') || ('https://' + String(req.headers['x-forwarded-host'] || req.headers.host || ''));
+  let host = '';
+  try { const u = new URL(raw); host = u.protocol === 'https:' ? u.hostname.toLowerCase() : ''; } catch { host = ''; }
+  const ok = host === 'www.barkfind.com' || /^barkfind-website-v1-[a-z0-9-]+-bark-find\.vercel\.app$/.test(host);
+  return ok ? `https://${host}/hq` : 'https://www.barkfind.com/hq';
+}
+
 function tokenAal(req: VercelRequest): string | null {
   try {
     const token = String(req.headers.authorization || '').replace(/^Bearer\s+/i, '');
@@ -358,7 +369,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (op.perm && !gate.staff.perms.has(op.perm)) return res.status(403).json({ error: 'You do not have access to this' });
     const args = body.args === undefined ? {} : obj(body.args);
     const token = String(req.headers.authorization || '').replace(/^Bearer\s+/i, '');
-    return res.status(200).json(await op.run(args, { staff: gate.staff, token }));
+    return res.status(200).json(await op.run(args, { staff: gate.staff, token, hqUrl: hqUrlFor(req) }));
   } catch (e: any) {
     if (e instanceof HttpError) return res.status(e.status).json({ error: e.message });
     console.error('hq', e?.message || e);

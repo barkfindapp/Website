@@ -7,7 +7,7 @@ import type { Pool, PoolClient } from 'pg';
 import { HttpError, bad, only, uuid, str, oneOf, writeTx, toTrash, scrubEmails } from './hq-core.js';
 import type { Perm, Staff } from './hq-staff.js';
 
-export type Ctx = { staff: Staff; token: string };
+export type Ctx = { staff: Staff; token: string; hqUrl: string };
 export type Op = { perm: Perm; run: (a: Record<string, unknown>, ctx: Ctx) => Promise<unknown> };
 type Deps = { claude: (operation: string, prompt: string, userId: string) => Promise<unknown> };
 
