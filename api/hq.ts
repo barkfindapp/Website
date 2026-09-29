@@ -222,10 +222,11 @@ async function runAction(ctx: Ctx, action: string, rawArgs: unknown) {
     const newId = id || (r && typeof r.id === 'string' ? r.id : null);
     const after = newId ? await rowOf(c, spec.table, newId) : null;
     if (action === 'outreach_delete' && id && before) await toTrash(c, userId, spec.table, id, before);
-    // hq_action inserted its own audit row in this transaction (same now()); complete it.
+    // hq_action inserted its own audit row in this transaction (same now()); complete it. Its entity
+    // is the first word of the action name ("set", "reply"), so set the real table name here.
     await c.query(
-      "update public.admin_audit set actor_user_id = $1, detail = $2, before = $3::jsonb, after = $4::jsonb where actor = 'hq' and actor_user_id is null and created_at = now()",
-      [userId, spec.label, before === null ? null : JSON.stringify(before), after === null ? null : JSON.stringify(after)],
+      "update public.admin_audit set actor_user_id = $1, detail = $2, before = $3::jsonb, after = $4::jsonb, entity = $5 where actor = 'hq' and actor_user_id is null and created_at = now()",
+      [userId, spec.label, before === null ? null : JSON.stringify(before), after === null ? null : JSON.stringify(after), spec.table],
     );
     return r;
   });
