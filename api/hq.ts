@@ -7,7 +7,8 @@
 // transaction with its admin_audit row (see _lib/hq-core.ts).
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { Pool, type PoolClient } from 'pg';
-import { requireAdmin } from './_lib/admin-auth.js';
+import { requireStaff, type Perm } from './_lib/hq-staff.js';
+import { actOps, type Op, type Ctx } from './_lib/hq-act.js';
 import { HttpError, bad, obj, only, uuid, str, oneOf, date, bool, scrubEmails, writeTx, toTrash } from './_lib/hq-core.js';
 
 const DB_URL = process.env.SUPABASE_DB_URL!;
@@ -26,32 +27,32 @@ const pool = new Pool({ connectionString: DB_URL, ssl: { rejectUnauthorized: fal
 // row to copy into admin_audit.before/after; the table names never come from the request.
 const KINDS = ['creator', 'venue', 'press', 'partner', 'other'] as const;
 const OUT_STATUSES = ['to_contact', 'contacted', 'replied', 'agreed', 'live', 'declined', 'parked'] as const;
-type ActionSpec = { table: string; idKey: string; label: string; args: (a: Record<string, unknown>) => Record<string, unknown> };
+type ActionSpec = { perm: Perm; table: string; idKey: string; label: string; args: (a: Record<string, unknown>) => Record<string, unknown> };
 const ACTIONS: Record<string, ActionSpec> = {
-  approve_review: { table: 'reviews', idKey: 'id', label: 'Approved review', args: (a) => ({ id: uuid(only(a, ['id']).id) }) },
-  reject_review: { table: 'reviews', idKey: 'id', label: 'Rejected review', args: (a) => ({ id: uuid(only(a, ['id']).id) }) },
+  approve_review: { perm: 'reviews', table: 'reviews', idKey: 'id', label: 'Approved review', args: (a) => ({ id: uuid(only(a, ['id']).id) }) },
+  reject_review: { perm: 'reviews', table: 'reviews', idKey: 'id', label: 'Rejected review', args: (a) => ({ id: uuid(only(a, ['id']).id) }) },
   reply_ticket: {
-    table: 'support_tickets', idKey: 'ticket_id', label: 'Replied to ticket',
+    perm: 'support', table: 'support_tickets', idKey: 'ticket_id', label: 'Replied to ticket',
     args: (a) => (only(a, ['ticket_id', 'body', 'resolve']), { ticket_id: uuid(a.ticket_id), body: str(a.body, 10000, { min: 1 }), resolve: bool(a.resolve, { optional: true }) }),
   },
   set_ticket_status: {
-    table: 'support_tickets', idKey: 'ticket_id', label: 'Changed ticket status',
+    perm: 'support', table: 'support_tickets', idKey: 'ticket_id', label: 'Changed ticket status',
     args: (a) => (only(a, ['ticket_id', 'status']), { ticket_id: uuid(a.ticket_id), status: oneOf(a.status, ['open', 'in_progress', 'resolved']) }),
   },
   note_ticket: {
-    table: 'support_tickets', idKey: 'ticket_id', label: 'Added ticket note',
+    perm: 'support', table: 'support_tickets', idKey: 'ticket_id', label: 'Added ticket note',
     args: (a) => (only(a, ['ticket_id', 'body']), { ticket_id: uuid(a.ticket_id), body: str(a.body, 5000, { min: 1 }) }),
   },
   user_report: {
-    table: 'user_reports', idKey: 'id', label: 'Handled user report',
+    perm: 'reports', table: 'user_reports', idKey: 'id', label: 'Handled user report',
     args: (a) => (only(a, ['id', 'status']), { id: uuid(a.id), status: oneOf(a.status, ['actioned', 'dismissed']) }),
   },
   location_report: {
-    table: 'location_reports', idKey: 'id', label: 'Handled place report',
+    perm: 'reports', table: 'location_reports', idKey: 'id', label: 'Handled place report',
     args: (a) => (only(a, ['id', 'status']), { id: uuid(a.id), status: oneOf(a.status, ['actioned', 'dismissed']) }),
   },
   outreach_save: {
-    table: 'hq_outreach', idKey: 'id', label: 'Saved outreach contact',
+    perm: 'outreach', table: 'hq_outreach', idKey: 'id', label: 'Saved outreach contact',
     args: (a) => {
       only(a, ['id', 'name', 'org', 'kind', 'status', 'handle', 'email', 'phone', 'next_follow_up', 'next_action', 'owed', 'notes']);
       const o: Record<string, unknown> = {
@@ -66,7 +67,7 @@ const ACTIONS: Record<string, ActionSpec> = {
     },
   },
   outreach_log: {
-    table: 'hq_outreach', idKey: 'id', label: 'Logged outreach contact',
+    perm: 'outreach', table: 'hq_outreach', idKey: 'id', label: 'Logged outreach contact',
     args: (a) => {
       only(a, ['id', 'note', 'status', 'next_follow_up']);
       const o: Record<string, unknown> = { id: uuid(a.id), note: str(a.note, 2000, { min: 1 }), next_follow_up: date(a.next_follow_up, { optional: true }) };
@@ -75,10 +76,10 @@ const ACTIONS: Record<string, ActionSpec> = {
       return o;
     },
   },
-  outreach_delete: { table: 'hq_outreach', idKey: 'id', label: 'Removed outreach contact', args: (a) => ({ id: uuid(only(a, ['id']).id) }) },
-  renewal_done: { table: 'hq_renewals', idKey: 'id', label: 'Marked renewal done', args: (a) => ({ id: uuid(only(a, ['id']).id) }) },
+  outreach_delete: { perm: 'outreach', table: 'hq_outreach', idKey: 'id', label: 'Removed outreach contact', args: (a) => ({ id: uuid(only(a, ['id']).id) }) },
+  renewal_done: { perm: 'renewals', table: 'hq_renewals', idKey: 'id', label: 'Marked renewal done', args: (a) => ({ id: uuid(only(a, ['id']).id) }) },
   renewal_save: {
-    table: 'hq_renewals', idKey: 'id', label: 'Saved renewal date',
+    perm: 'renewals', table: 'hq_renewals', idKey: 'id', label: 'Saved renewal date',
     args: (a) => (only(a, ['id', 'due_date']), { id: uuid(a.id), due_date: date(a.due_date) }),
   },
 };
@@ -203,14 +204,20 @@ async function rowOf(c: PoolClient, table: string, id: string) {
 // Runs one hq_action inside a write transaction: rate limit, row before and after,
 // hq_trash copy for a delete, and the audit row hq_action writes gets the signed-in
 // user, a short human line and the before/after.
-async function runAction(userId: string, action: string, rawArgs: unknown) {
+async function runAction(ctx: Ctx, action: string, rawArgs: unknown) {
   const spec = ACTIONS[action];
   if (!spec) throw bad();
+  if (!ctx.staff.perms.has(spec.perm)) throw new HttpError(403, 'You do not have access to this');
+  const userId = ctx.staff.userId;
   const a = spec.args(obj(rawArgs));
   const id = (a[spec.idKey] as string | undefined) || null;
   return writeTx(pool, userId, async (c) => {
     const before = id ? await rowOf(c, spec.table, id) : null;
     if (id && !before) throw new HttpError(404, 'That record no longer exists.');
+    // A child-safety escalation can only be approved or rejected with the safety permission.
+    if (spec.table === 'reviews' && before && JSON.stringify(before.ai_flags || []).includes('csae_escalate') && !ctx.staff.perms.has('safety')) {
+      throw new HttpError(403, 'You do not have access to this');
+    }
     const r = (await c.query('select public.hq_action($1, $2::jsonb) as r', [action, JSON.stringify(a)])).rows[0].r;
     const newId = id || (r && typeof r.id === 'string' ? r.id : null);
     const after = newId ? await rowOf(c, spec.table, newId) : null;
@@ -224,7 +231,6 @@ async function runAction(userId: string, action: string, rawArgs: unknown) {
   });
 }
 
-// Reads the aal claim from a token requireAdmin has already verified with Supabase.
 function tokenAal(req: VercelRequest): string | null {
   try {
     const token = String(req.headers.authorization || '').replace(/^Bearer\s+/i, '');
@@ -233,47 +239,86 @@ function tokenAal(req: VercelRequest): string | null {
   } catch { return null; }
 }
 
-// ---------- ops whitelist ----------
-type Ctx = { userId: string };
+// ---------- ops whitelist: every op names the one permission it needs ----------
+const has = (ctx: Ctx, p: Perm) => ctx.staff.perms.has(p);
 const noArgs = (a: Record<string, unknown>) => only(a, []);
-const OPS: Record<string, (args: Record<string, unknown>, ctx: Ctx) => Promise<unknown>> = {
-  snapshot: async (a) => (noArgs(a), { data: await snapshot() }),
-  queue: async (a) => (noArgs(a), { data: await queue() }),
-  history: async (a) => (noArgs(a), { data: await history() }),
-  email_metrics: async (a) => (noArgs(a), { data: await emailMetrics() }),
+const CSAE_FLAG = 'csae_escalate';
 
-  action: async (a, ctx) => {
-    only(a, ['action', 'args']);
-    if (typeof a.action !== 'string' || !ACTIONS[a.action]) throw bad();
-    return { data: await runAction(ctx.userId, a.action, a.args) };
+// Money figures are left out of the snapshot without the money permission.
+function snapshotFor(ctx: Ctx, snap: any) {
+  if (has(ctx, 'money') || !snap) return snap;
+  const { costs, subscriptions, ...rest } = snap;
+  return rest;
+}
+// The queue only carries the sections this person can act on; emails need users_contact.
+function queueFor(ctx: Ctx, q: any) {
+  if (!q) return q;
+  const out: any = { alerts: q.alerts || [] };
+  out.reviews = has(ctx, 'reviews') ? (q.reviews || []).filter((r: any) => has(ctx, 'safety') || !JSON.stringify(r.ai_flags || []).includes(CSAE_FLAG)) : [];
+  out.tickets = has(ctx, 'support') ? (q.tickets || []).map((t: any) => (has(ctx, 'users_contact') ? t : { ...t, email: null })) : [];
+  out.user_reports = has(ctx, 'reports') ? q.user_reports || [] : [];
+  out.location_reports = has(ctx, 'reports') ? q.location_reports || [] : [];
+  out.business_claims = has(ctx, 'claims') ? q.business_claims || [] : [];
+  out.listing_submissions = has(ctx, 'places_edit') ? q.listing_submissions || [] : [];
+  out.outreach = has(ctx, 'outreach') ? q.outreach || [] : [];
+  return out;
+}
+
+const OPS: Record<string, Op | { perm: null; run: Op['run'] }> = {
+  // Who am I and what can I see: any active member of staff.
+  me: { perm: null, run: async (a, ctx) => (noArgs(a), { data: { name: ctx.staff.name, email: ctx.staff.email, level: ctx.staff.level, perms: [...ctx.staff.perms] } }) },
+
+  snapshot: { perm: 'today', run: async (a, ctx) => (noArgs(a), { data: snapshotFor(ctx, await snapshot()) }) },
+  queue: { perm: 'today', run: async (a, ctx) => (noArgs(a), { data: queueFor(ctx, await queue()) }) },
+  history: { perm: 'today', run: async (a) => (noArgs(a), { data: await history() }) },
+  email_metrics: { perm: 'today', run: async (a) => (noArgs(a), { data: await emailMetrics() }) },
+
+  // The action's own permission is checked in runAction.
+  action: {
+    perm: null,
+    run: async (a, ctx) => {
+      only(a, ['action', 'args']);
+      if (typeof a.action !== 'string' || !ACTIONS[a.action]) throw bad();
+      return { data: await runAction(ctx, a.action, a.args) };
+    },
   },
 
   // Ralphy sees snapshot totals only, with any email address removed.
-  ask: async (a, ctx) => {
-    only(a, ['question']);
-    const q = str(a.question, 1000, { min: 1 });
-    const snap = scrubEmails(await snapshot());
-    let email: unknown = null;
-    try { email = await emailMetrics(); } catch { email = null; }
-    return claude('hq_ask', askPrompt({ snapshot: snap, email_30d: email }, q), ctx.userId);
+  ask: {
+    perm: 'ask_ralphy',
+    run: async (a, ctx) => {
+      only(a, ['question']);
+      const q = str(a.question, 1000, { min: 1 });
+      const snap = scrubEmails(await snapshot());
+      let email: unknown = null;
+      try { email = await emailMetrics(); } catch { email = null; }
+      return claude('hq_ask', askPrompt({ snapshot: snap, email_30d: email }, q), ctx.staff.userId);
+    },
   },
 
   // Drafts send only the one ticket or contact being drafted, with email addresses removed.
-  draft_ticket: async (a, ctx) => {
-    const id = uuid(only(a, ['id']).id);
-    const t = ((await queue())?.tickets || []).find((x: any) => String(x.id) === id);
-    if (!t) throw new HttpError(404, 'That ticket is no longer open.');
-    return claude('hq_draft_ticket', ticketPrompt(scrubEmails(t)), ctx.userId);
+  draft_ticket: {
+    perm: 'support',
+    run: async (a, ctx) => {
+      const id = uuid(only(a, ['id']).id);
+      const t = (await pool.query('select subject, category, message from public.support_tickets where id = $1', [id])).rows[0];
+      if (!t) throw new HttpError(404, 'That ticket no longer exists.');
+      const replies = (await pool.query('select body from public.support_responses where ticket_id = $1 order by created_at', [id])).rows;
+      return claude('hq_draft_ticket', ticketPrompt(scrubEmails({ ...t, replies })), ctx.staff.userId);
+    },
   },
-  draft_outreach: async (a, ctx) => {
-    const id = uuid(only(a, ['id']).id);
-    const o = ((await queue())?.outreach || []).find((x: any) => String(x.id) === id);
-    if (!o) throw new HttpError(404, 'That person is no longer in the list.');
-    return claude('hq_draft_outreach', outreachPrompt(scrubEmails(o)), ctx.userId);
+  draft_outreach: {
+    perm: 'outreach',
+    run: async (a, ctx) => {
+      const id = uuid(only(a, ['id']).id);
+      const o = ((await queue())?.outreach || []).find((x: any) => String(x.id) === id);
+      if (!o) throw new HttpError(404, 'That person is no longer in the list.');
+      return claude('hq_draft_outreach', outreachPrompt(scrubEmails(o)), ctx.staff.userId);
+    },
   },
-};
 
-// ---------- handler ----------
+  ...actOps(pool, { claude }),
+};
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Cache-Control', 'no-store');
@@ -283,17 +328,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Referrer-Policy', 'no-referrer');
   if (req.method !== 'POST') return res.status(405).json({ error: 'POST only.' });
   try {
-    const gate = await requireAdmin(req, pool);
+    // HQ access comes from hq_staff (active members only).
+    const gate = await requireStaff(req, pool);
     if (!gate.ok) return res.status(gate.status).json({ error: gate.status === 401 ? 'Not signed in.' : 'Not authorised.' });
     // Second sign-in step, checked here on the server for every op.
     if (tokenAal(req) !== 'aal2') return res.status(401).json({ error: 'Enter your 6-digit code', code: 'mfa' });
 
     const body = obj(req.body);
     only(body, ['op', 'args']);
-    const run = typeof body.op === 'string' && Object.prototype.hasOwnProperty.call(OPS, body.op) ? OPS[body.op] : null;
-    if (!run) throw bad();
+    const op = typeof body.op === 'string' && Object.prototype.hasOwnProperty.call(OPS, body.op) ? OPS[body.op] : null;
+    if (!op) throw bad();
+    if (op.perm && !gate.staff.perms.has(op.perm)) return res.status(403).json({ error: 'You do not have access to this' });
     const args = body.args === undefined ? {} : obj(body.args);
-    return res.status(200).json(await run(args, { userId: gate.userId }));
+    const token = String(req.headers.authorization || '').replace(/^Bearer\s+/i, '');
+    return res.status(200).json(await op.run(args, { staff: gate.staff, token }));
   } catch (e: any) {
     if (e instanceof HttpError) return res.status(e.status).json({ error: e.message });
     console.error('hq', e?.message || e);
