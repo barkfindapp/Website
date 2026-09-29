@@ -10,6 +10,7 @@ import { Pool, type PoolClient } from 'pg';
 import { requireStaff, type Perm } from './_lib/hq-staff.js';
 import { actOps, type Op, type Ctx } from './_lib/hq-act.js';
 import { teamOps } from './_lib/hq-team.js';
+import { flagOps } from './_lib/hq-flags.js';
 import { HttpError, bad, obj, only, uuid, str, oneOf, date, bool, scrubEmails, writeTx, toTrash } from './_lib/hq-core.js';
 
 const DB_URL = process.env.SUPABASE_DB_URL!;
@@ -332,6 +333,7 @@ const OPS: Record<string, Op | { perm: null; run: Op['run'] }> = {
 
   ...actOps(pool, { claude }),
   ...teamOps(pool),
+  ...flagOps(pool),
 };
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {

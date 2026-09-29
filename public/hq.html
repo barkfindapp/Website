@@ -1249,12 +1249,13 @@ footer .mono{color:rgba(255,255,255,.75)}
   // ---------- Act sub-sections ----------
   var SECTIONS=[
     {k:"safety",label:"Safety",ok:function(){return H.can("safety")||H.can("privacy")}},
-    {k:"reviews",label:"Reviews",ok:function(){return H.can("reviews")||H.can("places_edit")}},
+    {k:"reviews",label:"Reviews",ok:function(){return H.can("reviews")}},
+    {k:"flags",label:"Flagged places",ok:function(){return H.can("places_moderate")||H.can("places_delete")}},
     {k:"support",label:"Support",ok:function(){return H.can("support")}},
     {k:"reports",label:"Reports",ok:function(){return H.can("reports")}},
     {k:"claims",label:"Claims",ok:function(){return H.can("claims")}}
   ];
-  var cur=null, st={reviewPeriod:"all",ticketStatus:"",ticketPeriod:"all",reportPeriod:"all",flag:{q:"",type:"all",cat:"",sort:"new"}};
+  var cur=null, st={reviewPeriod:"all",ticketStatus:"",ticketPeriod:"all",reportPeriod:"all"};
   function counts(){
     var q=H.state.queue||{}, sq=(H.state.snap&&H.state.snap.queues)||{};
     return {safety:(H.can("safety")?(sq.csae_escalations||0):0)+(H.can("privacy")?(sq.privacy_open||0):0),
@@ -1266,7 +1267,7 @@ footer .mono{color:rgba(255,255,255,.75)}
       var n=c[s.k]||0;return '<button class="chip'+(s.k==="safety"&&n?" crit":"")+'" data-sec="'+s.k+'" aria-pressed="'+(s.k===cur)+'">'+s.label+(n?'<span class="count">'+n+'</span>':'')+'</button>'}).join("");
   }
   $("actNav").addEventListener("click",function(ev){var b=ev.target.closest("button[data-sec]");if(!b)return;cur=b.dataset.sec;nav();load()});
-  function load(){var el=$("actPane");el.innerHTML='<div class="empty">Loading.</div>';({safety:safety,reviews:reviews,support:support,reports:reports,claims:claims})[cur](el)}
+  function load(){var el=$("actPane");el.innerHTML='<div class="empty">Loading.</div>';({safety:safety,reviews:reviews,flags:flagsSection,support:support,reports:reports,claims:claims})[cur](el)}
   window.HQAct={
     init:function(){var ok=SECTIONS.filter(function(s){return s.ok()});cur=ok.length?ok[0].k:null;nav()},
     onQueue:function(){nav()},
@@ -1295,24 +1296,12 @@ footer .mono{color:rgba(255,255,255,.75)}
       (r.ai_reason||flags.length?'<div class="prior">AI note: '+esc(r.ai_reason||"")+(flags.length?" ("+esc(flags.map(pretty).join(", "))+")":"")+'</div>':'')+
       '<div class="row"><button class="btn ok small" data-do="approve_review" data-confirm="Confirm approve">Approve</button><button class="btn danger small" data-do="reject_review" data-confirm="Confirm reject">Reject</button></div></div>';
   }
-  var flagged=[];
-  function flaggedHtml(){
-    var f=st.flag, isAuto=function(l){return String(l.flag_reason||"").indexOf("Auto-excluded")===0};
-    var rows=flagged.filter(function(l){if(f.type==="manual"&&isAuto(l))return false;if(f.type==="auto"&&!isAuto(l))return false;if(f.cat&&l.category!==f.cat)return false;
-      if(f.q&&((l.name||"")+" "+(l.address||"")+" "+(l.flag_reason||"")).toLowerCase().indexOf(f.q)<0)return false;return true});
-    rows.sort(function(a,b){if(f.sort==="name")return String(a.name||"").localeCompare(String(b.name||""));var ta=a.flagged_at?Date.parse(a.flagged_at):0,tb=b.flagged_at?Date.parse(b.flagged_at):0;return f.sort==="old"?ta-tb:tb-ta});
-    return '<div class="note">'+rows.length+(rows.length!==flagged.length?" of "+flagged.length:" places")+'</div>'+(rows.slice(0,200).map(function(l){var auto=isAuto(l);return '<div class="card" data-lid="'+esc(l.id)+'"><div class="meta"><span class="tag">'+esc(l.category||"")+'</span><span class="tag '+(auto?"":"warn")+'">'+(auto?"auto-excluded":"manual or report")+'</span>'+(l.flagged_at?'<span>flagged '+esc(dateOnly(l.flagged_at))+'</span>':'')+'</div><div class="title">'+esc(l.name||"")+'</div><div class="note">'+esc(l.address||"")+'</div><div class="prior">'+esc(l.flag_reason||"No reason recorded")+'</div><div class="row"><button class="btn small" data-do="place_unflag">'+(auto?"Restore":"Unflag")+'</button></div></div>'}).join("")||'<div class="empty">No matches.</div>')+(rows.length>200?'<div class="note">Showing the first 200. Narrow the search to see more.</div>':'');
-  }
   function reviews(el){
-    var parts=[];
-    var a=H.can("reviews")?H.api("reviews_list",{period:st.reviewPeriod}).then(function(r){var ai=r.data.filter(function(x){return x.ai_status==="approve"&&arr(x.ai_flags).indexOf("csae_escalate")<0}).length;
-      parts[0]='<div class="subhead"><h3>Reviews to moderate</h3><span>'+(r.data.length?r.data.length+" waiting":"none waiting")+'</span></div><div class="filter" data-f="reviewPeriod">'+periodChips(st.reviewPeriod)+'</div>'+
+    H.api("reviews_list",{period:st.reviewPeriod}).then(function(r){var ai=r.data.filter(function(x){return x.ai_status==="approve"&&arr(x.ai_flags).indexOf("csae_escalate")<0}).length;
+      el.innerHTML='<div class="subhead"><h3>Reviews to moderate</h3><span>'+(r.data.length?r.data.length+" waiting":"none waiting")+'</span></div><div class="filter" data-f="reviewPeriod">'+periodChips(st.reviewPeriod)+'</div>'+
         (ai?'<div class="row"><button class="btn ok" data-do="bulk_ai" data-confirm="Confirm approve '+ai+'">Approve all AI-cleared ('+ai+')</button></div>':'')+
-        (r.data.length?r.data.map(reviewCard).join(""):'<div class="empty">No reviews waiting.</div>')}):Promise.resolve();
-    var b=H.can("places_edit")?H.api("flagged_list").then(function(r){flagged=r.data;var cats=[...new Set(flagged.map(function(l){return l.category}).filter(Boolean))].sort();
-      parts[1]='<div class="subhead"><h3>Flagged and excluded places</h3></div><div class="row"><input type="search" class="pill-in" id="flagQ" placeholder="Search name, address or reason" value="'+esc(st.flag.q)+'" style="flex:1 1 200px"></div>'+
-        '<div class="row"><select id="flagType"><option value="all">All types</option><option value="manual">Manual or report</option><option value="auto">Auto-excluded</option></select><select id="flagCat"><option value="">All categories</option>'+cats.map(function(c){return '<option>'+esc(c)+'</option>'}).join("")+'</select><select id="flagSort"><option value="new">Newest</option><option value="old">Oldest</option><option value="name">Name</option></select></div><div class="stack" id="flagList">'+flaggedHtml()+'</div>'}):Promise.resolve();
-    Promise.all([a,b]).then(function(){el.innerHTML=parts.join("");if($("flagType")){$("flagType").value=st.flag.type;$("flagCat").value=st.flag.cat;$("flagSort").value=st.flag.sort}}).catch(function(e){fail(el,e)});
+        (r.data.length?r.data.map(reviewCard).join(""):'<div class="empty">No reviews waiting.</div>');
+    }).catch(function(e){fail(el,e)});
   }
 
   // Support: status and period filters, SLA, priority, tags, notes, macros, replies, delete to trash.
@@ -1365,8 +1354,110 @@ footer .mono{color:rgba(255,255,255,.75)}
     }).catch(function(e){fail(el,e)});
   }
 
+  // ---------- Flagged places (Part A): tabs, server-side filters, grouping, multi-select ----------
+  var CATS=["park","cafe","pub","bar","restaurant","beach","pet-store","vet","groomer"];
+  var RULE={hard_reject:["Hard reject","crit"],soft_reject:["Soft reject","warn"],dogs_not_allowed:["Dogs not allowed","info"],manual:["Manual","info"],report:["From a report","info"]};
+  var fl={filter:{tab:"to_review",rule:"",gtype:"",category:"",by:"",from:"",to:"",q:""},sort:"new",page:0,group:false,allTabs:false,sel:{},selAll:false,rows:[],total:0,counts:null};
+  function catOpts(sel){return '<option value="">Choose a category</option>'+CATS.map(function(c){return '<option value="'+c+'"'+(c===sel?" selected":"")+'>'+c+'</option>'}).join("")}
+  function flFilter(){var f=Object.assign({},fl.filter);if(fl.allTabs&&f.q)f.tab="all";return f}
+  function selIds(){return Object.keys(fl.sel)}
+  function selection(){return fl.selAll?{all:true,filter:flFilter()}:{ids:selIds()}}
+  function selCount(){return fl.selAll?fl.total:selIds().length}
+  function mapsUrl(r){return r.place_id?"https://www.google.com/maps/search/?api=1&query="+encodeURIComponent(r.name||"place")+"&query_place_id="+encodeURIComponent(r.place_id):(r.latitude!=null?"https://www.google.com/maps/search/?api=1&query="+r.latitude+","+r.longitude:"")}
+  function flagsSection(el){
+    var f=fl.filter;
+    el.innerHTML='<div class="filter" id="flTabs"></div>'+
+      '<div class="row"><input type="search" class="pill-in" id="flQ" placeholder="Search name, address or reason" value="'+esc(f.q)+'" style="flex:1 1 220px"><label class="note" style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="flAllTabs"'+(fl.allTabs?" checked":"")+'> Search all three tabs</label></div>'+
+      '<div class="grid2" id="flFilters"></div>'+
+      '<div class="row"><label class="note" style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="flGroup"'+(fl.group?" checked":"")+'> Group by Google type</label><button class="btn small" data-fa="clear">Clear filters</button></div>'+
+      '<div id="flBody" class="stack"><div class="empty">Loading.</div></div>';
+    flLoad();
+  }
+  function flLoad(){
+    var body=$("flBody");if(!body)return;body.innerHTML='<div class="empty">Loading.</div>';
+    Promise.all([H.api("flags_counts",{filter:flFilter()}),fl.group?Promise.resolve(null):H.api("flags_list",{filter:flFilter(),page:fl.page,sort:fl.sort})]).then(function(r){
+      var c=r[0].data;fl.counts=c;var f=fl.filter;
+      $("flTabs").innerHTML=[["to_review","To review"],["keep_excluded","Kept excluded"],["restored","Restored"]].map(function(t){return '<button class="chip" data-fa="tab" data-v="'+t[0]+'" aria-pressed="'+(f.tab===t[0]&&!(fl.allTabs&&f.q))+'">'+t[1]+' <span class="count">'+(c.tabs[t[0]]||0).toLocaleString("en-GB")+'</span></button>'}).join("")+(fl.allTabs&&f.q?'<span class="note">Searching all three tabs</span>':'');
+      var opt=function(list,cur,none){return '<option value="">'+none+'</option>'+list.map(function(x){return '<option value="'+esc(x.k)+'"'+(x.k===cur?" selected":"")+'>'+esc(RULE[x.k]?RULE[x.k][0]:x.k)+' ('+x.n.toLocaleString("en-GB")+')</option>'}).join("")};
+      $("flFilters").innerHTML='<label>Rule<select data-ff="rule">'+opt(c.rules,f.rule,"Any rule")+'</select></label>'+
+        '<label>Google type<select data-ff="gtype">'+opt(c.gtypes,f.gtype,"Any Google type")+'</select></label>'+
+        '<label>BarkFind category<select data-ff="category">'+opt(c.categories,f.category,"Any category")+'</select></label>'+
+        '<label>Flagged by<select data-ff="by"><option value="">Anyone</option><option value="auto"'+(f.by==="auto"?" selected":"")+'>Automatic</option>'+c.flaggers.map(function(p){return '<option value="'+esc(p.id)+'"'+(p.id===f.by?" selected":"")+'>'+esc(p.name)+' ('+p.n+')</option>'}).join("")+'</select></label>'+
+        '<label>Flagged from<input type="date" data-ff="from" value="'+esc(f.from)+'"></label><label>Flagged to<input type="date" data-ff="to" value="'+esc(f.to)+'"></label>'+
+        '<label>Sort<select data-ff="sort"><option value="new">Newest flag</option><option value="old"'+(fl.sort==="old"?" selected":"")+'>Oldest flag</option><option value="name"'+(fl.sort==="name"?" selected":"")+'>Name</option></select></label>';
+      if(fl.group){
+        $("flBody").innerHTML='<div class="note">Open a Google type to work through it.</div>'+(c.gtypes.length?c.gtypes.map(function(g){return '<button class="card" data-fa="opengroup" data-v="'+esc(g.k)+'" style="text-align:left;cursor:pointer"><div class="row" style="justify-content:space-between"><span class="title">'+esc(g.k)+'</span><span class="tag">'+g.n.toLocaleString("en-GB")+'</span></div></button>'}).join(""):'<div class="empty">Nothing here.</div>');
+        return;
+      }
+      var d=r[1].data;fl.rows=d.rows;fl.total=d.total;flRender();
+    }).catch(function(e){$("flBody").innerHTML='<div class="empty">'+esc(e.message||"That did not load.")+'</div>'});
+  }
+  function flRender(){
+    var f=fl.filter, tab=fl.allTabs&&f.q?"all":f.tab, from=fl.page*50;
+    var canDel=H.can("places_delete");
+    var bar='<div class="card" id="flBar"><div class="row"><label class="note" style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="flPageAll"'+(fl.rows.length&&fl.rows.every(function(r){return fl.sel[r.id]})?" checked":"")+'> Select this page</label>'+
+      (fl.total>fl.rows.length?'<button class="btn small" data-fa="selall">'+(fl.selAll?"Selecting all "+fl.total.toLocaleString("en-GB")+" matching":"Select all "+fl.total.toLocaleString("en-GB")+" matching")+'</button>':'')+
+      '<span class="note" id="flSelN">'+selCount().toLocaleString("en-GB")+' selected</span>'+(selCount()?'<button class="btn small" data-fa="none">Clear selection</button>':'')+'</div>'+
+      (selCount()?'<div class="row">'+(tab==="to_review"||tab==="all"?'<button class="btn small" data-fa="keep" data-confirm="Confirm keep">Keep excluded</button>':'')+(tab==="keep_excluded"?'<button class="btn small" data-fa="to_review" data-confirm="Confirm move">Move back to review</button>':'')+
+        (tab!=="restored"?'<select id="flBulkCat">'+catOpts("")+'</select><button class="btn ok small" data-fa="restore" data-confirm="Confirm restore">Restore</button>':'')+
+        (tab==="keep_excluded"&&canDel?'<button class="btn danger small" data-fa="delete" data-confirm="Confirm delete">Delete</button>':'')+'</div><div class="note" id="flConfirm"></div>':'')+'</div>';
+    var cards=fl.rows.map(function(r){var rl=RULE[r.flag_rule]||[r.flag_rule||"unknown",""], mu=mapsUrl(r);
+      return '<div class="card" data-flid="'+esc(r.id)+'"><div class="row" style="align-items:flex-start;flex-wrap:nowrap"><input type="checkbox" data-fa="pick" aria-label="Select '+esc(r.name)+'"'+(fl.sel[r.id]||fl.selAll?" checked":"")+(fl.selAll?" disabled":"")+' style="width:22px;height:22px;margin-top:2px;flex:none"><div class="stack" style="gap:6px;min-width:0;flex:1">'+
+        '<div class="meta"><span class="tag '+rl[1]+'">'+esc(rl[0])+'</span>'+(r.flag_google_type?'<span class="tag">'+esc(r.flag_google_type)+'</span>':'')+'<span class="tag">filed as '+esc(r.category||"none")+'</span>'+(r.category_locked?'<span class="tag ok">category locked</span>':'')+(tab==="all"?'<span class="tag info">'+esc((r.flag_review||"").replace("_"," "))+'</span>':'')+'</div>'+
+        '<div class="title">'+esc(r.name||"Unnamed place")+'</div><div class="note">'+esc(r.address||"")+'</div>'+
+        '<div class="note">'+(r.flagged_by_name?"Flagged by "+esc(r.flagged_by_name):"Flagged automatically")+(r.flagged_at?", "+esc(H.when(r.flagged_at)):"")+'</div>'+
+        '<div class="prior">'+esc(r.flag_reason||"No reason recorded")+'</div>'+
+        '<div class="row">'+(mu?'<a class="btn small" href="'+esc(mu)+'" target="_blank" rel="noopener noreferrer">Open in Google Maps</a>':'')+
+        (r.flagged?'<select data-card-cat>'+catOpts("")+'</select><button class="btn ok small" data-fa="restore1" data-confirm="Confirm restore">Restore</button>':'')+'</div></div></div></div>'}).join("");
+    var pager='<div class="row" style="justify-content:space-between"><span class="note">'+(fl.total?(from+1).toLocaleString("en-GB")+" to "+Math.min(from+50,fl.total).toLocaleString("en-GB")+" of "+fl.total.toLocaleString("en-GB"):"Nothing matches")+'</span><div class="row">'+(fl.page>0?'<button class="btn small" data-fa="prev">Previous</button>':'')+(from+50<fl.total?'<button class="btn small" data-fa="next">Next</button>':'')+'</div></div>';
+    $("flBody").innerHTML=(fl.rows.length?bar:'')+(cards||'<div class="empty">Nothing matches these filters.</div>')+(fl.total>50?pager:'');
+  }
+  function flReset(keepSel){if(!keepSel){fl.sel={};fl.selAll=false}fl.page=0;flLoad()}
+  // Big actions (over 50 places): the exact count and first names before the second tap.
+  function flBulk(b,op,extra,label){
+    var n=selCount(), card=$("flBar");
+    if(n>50&&b.dataset.armed!=="1"){
+      b.disabled=true;H.api("flags_preview",Object.assign({action:op==="flags_restore"?"restore":op==="flags_delete"?"delete":op==="flags_keep"?"keep":"to_review"},selection())).then(function(r){
+        var d=r.data;$("flConfirm").textContent="This will "+label.replace("{n}",d.count.toLocaleString("en-GB"))+": "+d.names.join(", ")+(d.count>d.names.length?" and "+(d.count-d.names.length).toLocaleString("en-GB")+" more.":".")+" Tap again to confirm.";
+        b.disabled=false;H.armed(b);
+      }).catch(function(e){b.disabled=false;H.note(card,false,e.message)});return;
+    }
+    if(n<=50&&!H.armed(b))return;
+    var go=function(){return H.api(op,Object.assign({},selection(),extra||{})).then(function(r){H.note(card,true,r.message);flReset()}).catch(function(e){H.note(card,false,e.message)})};
+    if(op==="flags_delete"){deferOp("Deleting "+n.toLocaleString("en-GB")+" place"+(n===1?"":"s"),go,function(){b.dataset.armed="";b.textContent=b.dataset.label||"Delete";b.classList.remove("confirm")});return}
+    b.disabled=true;go().then(function(){b.disabled=false});
+  }
+  function flClick(ev){
+    var b=ev.target.closest("[data-fa]");if(!b||!$("flBody"))return false;var what=b.dataset.fa, f=fl.filter;
+    if(what==="tab"){f.tab=b.dataset.v;fl.allTabs=false;flReset();return true}
+    if(what==="clear"){fl.filter={tab:f.tab,rule:"",gtype:"",category:"",by:"",from:"",to:"",q:""};fl.allTabs=false;var el=$("actPane");flagsSection(el);return true}
+    if(what==="opengroup"){f.gtype=b.dataset.v;fl.group=false;var g=$("flGroup");if(g)g.checked=false;flReset();return true}
+    if(what==="prev"||what==="next"){fl.page+=what==="next"?1:-1;flLoad();window.scrollTo(0,$("actPane").offsetTop-120);return true}
+    if(what==="selall"){fl.selAll=!fl.selAll;fl.sel={};flRender();return true}
+    if(what==="none"){fl.sel={};fl.selAll=false;flRender();return true}
+    if(what==="pick"){var id=b.closest("[data-flid]").dataset.flid;if(b.checked)fl.sel[id]=1;else delete fl.sel[id];flRender();return true}
+    if(what==="keep"){flBulk(b,"flags_keep",null,"keep {n} places excluded");return true}
+    if(what==="to_review"){flBulk(b,"flags_to_review",null,"move {n} places back to review");return true}
+    if(what==="restore"){var c=$("flBulkCat").value;if(!c){H.note($("flBar"),false,"Choose the correct category first.");b.dataset.armed="";return true}flBulk(b,"flags_restore",{category:c},"restore {n} places as "+c);return true}
+    if(what==="delete"){flBulk(b,"flags_delete",null,"delete {n} places");return true}
+    if(what==="restore1"){var card=b.closest("[data-flid]"), cc=card.querySelector("[data-card-cat]").value;if(!cc){H.note(card,false,"Choose the correct category first.");return true}
+      if(!H.armed(b))return true;b.disabled=true;H.api("flags_restore",{ids:[card.dataset.flid],category:cc}).then(function(r){H.note(card,true,r.message);setTimeout(flLoad,900)}).catch(function(e){H.note(card,false,e.message);b.disabled=false});return true}
+    return false;
+  }
+  function flChange(ev){
+    var t=ev.target;if(!$("flBody"))return false;
+    if(t.id==="flPageAll"){fl.rows.forEach(function(r){if(t.checked)fl.sel[r.id]=1;else delete fl.sel[r.id]});flRender();return true}
+    if(t.id==="flGroup"){fl.group=t.checked;flReset();return true}
+    if(t.id==="flAllTabs"){fl.allTabs=t.checked;flReset();return true}
+    if(t.dataset.ff){if(t.dataset.ff==="sort")fl.sort=t.value;else fl.filter[t.dataset.ff]=t.value;flReset();return true}
+    return false;
+  }
+  var flQTimer=null;
+  function flInput(ev){if(ev.target.id!=="flQ")return false;clearTimeout(flQTimer);var v=ev.target.value.trim().toLowerCase();flQTimer=setTimeout(function(){fl.filter.q=v;flReset()},400);return true}
+
   // ---------- Act clicks and changes ----------
   $("actPane").addEventListener("click",function(ev){
+    if(flClick(ev))return;
     var ch=ev.target.closest("[data-f] .chip");
     if(ch){var f=ch.parentNode.dataset.f;st[f]=ch.dataset.period!==undefined?ch.dataset.period:ch.dataset.v;load();return}
     var rb=ev.target.closest("[data-reason]");if(rb){rb.closest(".card").querySelector("[data-flag-reason]").value=rb.dataset.reason;return}
@@ -1379,7 +1470,6 @@ footer .mono{color:rgba(255,255,255,.75)}
     if(what==="approve_review"||what==="reject_review"){run(b,card,H.act(what,{id:card.dataset.id}),refresh);return}
     if(what==="bulk_ai"){var n=b.textContent;b.disabled=true;
       deferOp("Approving AI-cleared reviews",function(){H.api("reviews_bulk_approve_ai").then(function(r){H.note(card,true,r.message);refresh()}).catch(function(e){H.note(card,false,e.message)}).then(function(){b.disabled=false})},function(){b.disabled=false});return}
-    if(what==="place_unflag"){run(b,card,H.api("place_unflag",{id:card.dataset.lid}),function(){flagged=flagged.filter(function(l){return l.id!==card.dataset.lid});setTimeout(function(){card.remove()},700)});return}
     if(what==="privacy_processed"){run(b,card,H.api("privacy_processed",{id:card.dataset.pid}),refresh);return}
     // Support
     var tid=card&&card.dataset.tid, ta=card&&card.querySelector("textarea[data-reply]");
@@ -1398,14 +1488,14 @@ footer .mono{color:rgba(255,255,255,.75)}
     if(what==="verify"||what==="reject"){run(b,card,H.api("claim_set_status",{id:cid,status:what==="verify"?"verified":"rejected"}),refresh);return}
   });
   $("actPane").addEventListener("change",function(ev){
+    if(flChange(ev))return;
     var t=ev.target, card=t.closest(".card");
-    if(t.id==="flagType"||t.id==="flagCat"||t.id==="flagSort"){st.flag.type=$("flagType").value;st.flag.cat=$("flagCat").value;st.flag.sort=$("flagSort").value;$("flagList").innerHTML=flaggedHtml();return}
     if(!card)return;var tid=card.dataset.tid;
     if(t.dataset.do==="priority"){H.api("ticket_set_priority",{id:tid,priority:t.value}).then(function(r){H.note(card,true,r.message)}).catch(function(e){H.note(card,false,e.message)});return}
     if(t.dataset.do==="tags"){var tags=t.value.split(",").map(function(x){return x.trim()}).filter(Boolean);H.api("ticket_set_tags",{id:tid,tags:tags}).then(function(r){H.note(card,true,r.message)}).catch(function(e){H.note(card,false,e.message)});return}
     if(t.dataset.do==="macro"&&t.value){var m=(tk.macros||[]).filter(function(x){return x.id===t.value})[0];var ta=card.querySelector("textarea[data-reply]");if(m)ta.value=(ta.value?ta.value+"\n\n":"")+m.body;t.value="";ta.focus()}
   });
-  $("actPane").addEventListener("input",function(ev){if(ev.target.id==="flagQ"){st.flag.q=ev.target.value.trim().toLowerCase();$("flagList").innerHTML=flaggedHtml()}});
+  $("actPane").addEventListener("input",function(ev){flInput(ev)});
 
   // ---------- Users ----------
   var seg="", qTimer=null, loaded=false;
