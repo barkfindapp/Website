@@ -76,16 +76,82 @@ function permList(v: unknown): Perm[] {
   return [...new Set(v.map((p) => oneOf(p, PERMISSIONS) as Perm))];
 }
 
-async function accessEmail(to: string, name: string, level: string, hqUrl: string) {
+// ---------- branded staff emails (HTML matching docs/emails/email-invite-user.html, plus plain text) ----------
+const escHtml = (v: string) => v.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!));
+type StaffEmail = { to: string; subject: string; preheader: string; heading: string; paras: string[]; button: { label: string; url: string }; note: string; text: string };
+function staffEmailHtml(m: StaffEmail) {
+  const font = "font-family:'Nunito',Arial,Helvetica,sans-serif;";
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="color-scheme" content="light">
+<title>${escHtml(m.subject)}</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  @media (max-width: 620px) {
+    .card { border-radius: 0 !important; }
+    .pad { padding-left: 24px !important; padding-right: 24px !important; }
+    .h1 { font-size: 28px !important; }
+  }
+</style>
+</head>
+<body style="margin:0;padding:0;background:#F5F1E9;">
+<div style="display:none;max-height:0;overflow:hidden;opacity:0;">${escHtml(m.preheader)}</div>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#F5F1E9;">
+  <tr><td align="center" style="padding:32px 12px;">
+    <table role="presentation" class="card" width="600" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:600px;background:#ffffff;border:1px solid #EDE6D6;border-radius:24px;overflow:hidden;">
+      <tr><td align="center" class="pad" style="padding:36px 40px 8px;">
+        <a href="https://www.barkfind.com" style="text-decoration:none;">
+          <img src="https://www.barkfind.com/barkfind-logo-rust.png" width="112" alt="BarkFind" style="display:block;width:112px;height:auto;border:0;font-family:Georgia,serif;font-size:28px;font-weight:bold;color:#B74217;text-align:center;">
+        </a>
+      </td></tr>
+      <tr><td class="pad" style="padding:24px 48px 8px;${font}">
+        <h1 class="h1" style="margin:0 0 16px;font-family:'DM Serif Display',Georgia,'Times New Roman',serif;font-weight:400;font-size:32px;line-height:1.2;color:#1a1a1a;text-align:center;">${escHtml(m.heading)}</h1>
+        ${m.paras.map((p, i) => `<p style="margin:0 0 ${i === m.paras.length - 1 ? 28 : 14}px;font-size:16px;line-height:1.6;color:#585858;text-align:center;">${escHtml(p)}</p>`).join('\n        ')}
+      </td></tr>
+      <tr><td align="center" style="padding:0 40px 28px;">
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
+          <td align="center" bgcolor="#B74217" style="border-radius:999px;">
+            <a href="${escHtml(m.button.url)}" style="display:inline-block;padding:15px 34px;${font}font-size:16px;font-weight:800;color:#ffffff;text-decoration:none;border-radius:999px;">${escHtml(m.button.label)}</a>
+          </td>
+        </tr></table>
+      </td></tr>
+      <tr><td class="pad" style="padding:0 48px 36px;${font}">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#F2F8F8;border-left:3px solid #4FA4A1;border-radius:12px;">
+          <tr><td style="padding:14px 18px;font-size:14px;line-height:1.55;color:#2F291E;">${escHtml(m.note)}</td></tr>
+        </table>
+      </td></tr>
+      <tr><td align="center" style="background:#1a1a1a;padding:28px 40px;${font}">
+        <img src="https://www.barkfind.com/barkfind-logo-white.png" width="72" alt="BarkFind" style="display:block;width:72px;height:auto;border:0;margin:0 auto 14px;font-family:Georgia,serif;font-size:18px;font-weight:bold;color:#ffffff;text-align:center;">
+        <p style="margin:0 0 6px;font-size:13px;line-height:1.5;color:#d6d3cc;">Dog-friendly places, found in seconds.</p>
+        <p style="margin:0;font-size:12px;line-height:1.5;color:#9a958c;">&copy; 2026 BarkFind &middot; <a href="https://www.barkfind.com" style="color:#E8A07F;text-decoration:none;">barkfind.com</a></p>
+      </td></tr>
+    </table>
+  </td></tr>
+</table>
+</body>
+</html>`;
+}
+// Sends one branded staff email (HTML and plain text). Resend reports errors in its result, it does not throw.
+async function sendStaffEmail(m: StaffEmail, tag: string) {
   if (!RESEND_API_KEY) return false;
-  const resend = new Resend(RESEND_API_KEY);
-  const { error } = await resend.emails.send({
-    from: 'BarkFind <hello@barkfind.com>', to,
-    subject: 'You have access to BarkFind HQ',
-    text: `Hi${name ? ' ' + name : ''},\n\nYou have been given ${level} access to BarkFind HQ, the operations console for BarkFind.\n\nSign in at ${hqUrl} with your usual BarkFind email and password. The first time, it will ask you to add a second sign-in step with an authenticator app.\n\nIf you were not expecting this, you can ignore this email.\n\nBarkFind`,
-  });
-  if (error) { console.error('hq access email', error.name); return false; }
+  const { error } = await new Resend(RESEND_API_KEY).emails.send({ from: 'BarkFind <hello@barkfind.com>', to: m.to, subject: m.subject, html: staffEmailHtml(m), text: m.text });
+  if (error) { console.error('hq ' + tag, error.name); return false; }
   return true;
+}
+
+async function accessEmail(to: string, name: string, level: string, hqUrl: string) {
+  const hi = `Hi${name ? ' ' + name : ''},`;
+  const p1 = `You have been given ${level} access to BarkFind HQ, the operations console for BarkFind.`;
+  const p2 = 'Sign in with your usual BarkFind email and password. The first time, it will ask you to add a second sign-in step with an authenticator app.';
+  const note = 'If you were not expecting this, you can ignore this email.';
+  return sendStaffEmail({
+    to, subject: 'You have access to BarkFind HQ', preheader: 'You have been given access to BarkFind HQ.',
+    heading: 'You have access to BarkFind HQ', paras: [hi, p1, p2], button: { label: 'Sign in to HQ', url: hqUrl }, note,
+    text: `${hi}\n\n${p1}\n\nSign in at ${hqUrl} with your usual BarkFind email and password. The first time, it will ask you to add a second sign-in step with an authenticator app.\n\n${note}\n\nBarkFind`,
+  }, 'access email');
 }
 
 // A fresh one-time link straight into HQ's own welcome flow: Supabase makes the link (an
@@ -100,15 +166,15 @@ async function sendWelcomeLink(pool: Pool, userId: string, email: string, name: 
   const vtype = (j && (j.verification_type || (j.properties && j.properties.verification_type))) || type;
   if (!hashed) throw new HttpError(502, 'Supabase did not create a link. Try again.');
   const link = `${hqUrl}?welcome=1&token_hash=${encodeURIComponent(hashed)}&type=${encodeURIComponent(vtype)}`;
-  if (!RESEND_API_KEY) return false;
-  const resend = new Resend(RESEND_API_KEY);
-  const { error } = await resend.emails.send({
-    from: 'BarkFind <hello@barkfind.com>', to: email,
-    subject: 'You have been invited to BarkFind HQ',
-    text: `Hi${name ? ' ' + name : ''},\n\nYou have been invited to help run BarkFind in HQ, its operations console.\n\nAccept the invite and choose a password here:\n${link}\n\nAfter that you will add a second sign-in step with an authenticator app, such as the iPhone Passwords app or Google Authenticator.\n\nThe link works once and expires in one hour. If you were not expecting this, you can ignore this email.\n\nBarkFind`,
-  });
-  if (error) { console.error('hq welcome email', error.name); return false; }
-  return true;
+  const hi = `Hi${name ? ' ' + name : ''},`;
+  const p1 = 'You have been invited to help run BarkFind in HQ, its operations console.';
+  const p2 = 'After choosing a password you will add a second sign-in step with an authenticator app, such as the iPhone Passwords app or Google Authenticator.';
+  const note = 'The link works once and expires in one hour. If you were not expecting this, you can ignore this email.';
+  return sendStaffEmail({
+    to: email, subject: 'You have been invited to BarkFind HQ', preheader: 'Accept your invitation to BarkFind HQ.',
+    heading: 'You have been invited to BarkFind HQ', paras: [hi, p1, p2], button: { label: 'Accept the invite and choose a password', url: link }, note,
+    text: `${hi}\n\n${p1}\n\nAccept the invite and choose a password here:\n${link}\n\nAfter that you will add a second sign-in step with an authenticator app, such as the iPhone Passwords app or Google Authenticator.\n\n${note}\n\nBarkFind`,
+  }, 'welcome email');
 }
 
 export function teamOps(pool: Pool): Record<string, Op | { perm: null; run: Op['run'] }> {
