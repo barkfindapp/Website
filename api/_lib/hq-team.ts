@@ -83,7 +83,7 @@ async function accessEmail(to: string, name: string, level: string) {
   const { error } = await resend.emails.send({
     from: 'BarkFind <hello@barkfind.com>', to,
     subject: 'You have access to BarkFind HQ',
-    text: `Hi${name ? ' ' + name : ''},\n\nYou have been given ${level} access to BarkFind HQ, the operations console for BarkFind.\n\nSign in at ${HQ_URL} with your usual BarkFind email and password. The first time, it will ask you to add a second sign-in step with an authenticator app.\n\nThis access lasts for ${INVITE_DAYS} days if you do not sign in. If you were not expecting this, you can ignore this email.\n\nBarkFind`,
+    text: `Hi${name ? ' ' + name : ''},\n\nYou have been given ${level} access to BarkFind HQ, the operations console for BarkFind.\n\nSign in at ${HQ_URL} with your usual BarkFind email and password. The first time, it will ask you to add a second sign-in step with an authenticator app.\n\nIf you were not expecting this, you can ignore this email.\n\nBarkFind`,
   });
   if (error) { console.error('hq access email', error.name); return false; }
   return true;
@@ -160,7 +160,7 @@ export function teamOps(pool: Pool): Record<string, Op | { perm: null; run: Op['
           return { ok: true };
         });
         if (existing) sent = (await accessEmail(email, name, level)) ? 'access' : 'none';
-        return { ...out, message: sent === 'invite' ? 'Invite sent. It lasts 7 days.' : sent === 'access' ? 'They already had a BarkFind account, so they have been emailed to sign in to HQ. The invite lasts 7 days.' : 'Added, but the email did not send. Tell them to sign in at barkfind.com/hq.' };
+        return { ...out, message: sent === 'invite' ? 'Invite sent. The link in the email works for 1 hour. If it runs out, tap Resend invite.' : sent === 'access' ? 'They already have a BarkFind account, so they have been emailed to sign in to HQ.' : 'Added, but the email did not send. Tell them to sign in at barkfind.com/hq.' };
       },
     },
     team_resend: {
@@ -177,7 +177,7 @@ export function teamOps(pool: Pool): Record<string, Op | { perm: null; run: Op['
         return writeTx(pool, ctx.staff.userId, async (c, audit) => {
           await c.query('update public.hq_staff set invited_at = now(), updated_at = now() where user_id = $1', [userId]);
           await audit({ action: 'team_resend', entity: 'hq_staff', entityId: userId, detail: `Resent invite to ${row.email}`, before: row, after: await staffRow(c, userId) });
-          return { ok: true, message: ok ? 'Invite resent. It lasts another 7 days.' : 'The invite was extended, but the email did not send.' };
+          return { ok: true, message: ok ? 'Invite resent. The new link works for 1 hour.' : 'The invite was kept open, but the email did not send.' };
         });
       },
     },

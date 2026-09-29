@@ -1453,7 +1453,7 @@ footer .mono{color:rgba(255,255,255,.75)}
       var invite='<div class="card" id="inviteCard"><div class="subhead"><h3>Invite someone</h3></div>'+
         '<div class="grid2"><label>Email<input type="email" id="invEmail" autocomplete="off"></label><label>Name<input type="text" id="invName" autocomplete="off" maxlength="80"></label>'+
         '<label>Level<select id="invLevel">'+d.levels.map(function(l){return '<option value="'+l+'"'+(l==="moderator"?" selected":"")+'>'+LABEL[l]+'</option>'}).join("")+'</select></label></div>'+
-        '<p class="note" style="margin:0">They get HQ access only, never extra database rights. New people get a Supabase invite email; people who already use BarkFind get a short email telling them to sign in to HQ. Invites last 7 days.</p>'+
+        '<p class="note" style="margin:0">They get HQ access only, never extra database rights. New people get an invite email whose link works for 1 hour; if it runs out, use Resend invite for a fresh one. People who already use BarkFind get a short email telling them to sign in to HQ.</p>'+
         '<div class="row"><button class="btn primary" data-do="invite">Send invite</button></div></div>';
       el.innerHTML=invite+'<div class="subhead"><h3>Team</h3><span>'+d.staff.filter(function(s){return s.status!=="removed"}).length+' people</span></div>'+d.staff.map(function(s){return person(s,d)}).join("");
     }).catch(function(e){fail(el,e)});
