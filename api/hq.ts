@@ -9,6 +9,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { Pool, type PoolClient } from 'pg';
 import { requireStaff, type Perm } from './_lib/hq-staff.js';
 import { actOps, type Op, type Ctx } from './_lib/hq-act.js';
+import { teamOps } from './_lib/hq-team.js';
 import { HttpError, bad, obj, only, uuid, str, oneOf, date, bool, scrubEmails, writeTx, toTrash } from './_lib/hq-core.js';
 
 const DB_URL = process.env.SUPABASE_DB_URL!;
@@ -232,6 +233,17 @@ async function runAction(ctx: Ctx, action: string, rawArgs: unknown) {
   });
 }
 
+// The /hq address this request came from, so invite links come back to the same site
+// (production or a preview). Only barkfind.com and this project's Vercel previews are
+// accepted; anything else falls back to production.
+function hqUrlFor(req: VercelRequest): string {
+  const raw = String(req.headers.origin || '') || ('https://' + String(req.headers['x-forwarded-host'] || req.headers.host || ''));
+  let host = '';
+  try { const u = new URL(raw); host = u.protocol === 'https:' ? u.hostname.toLowerCase() : ''; } catch { host = ''; }
+  const ok = host === 'www.barkfind.com' || /^barkfind-website-v1-[a-z0-9-]+-bark-find\.vercel\.app$/.test(host);
+  return ok ? `https://${host}/hq` : 'https://www.barkfind.com/hq';
+}
+
 function tokenAal(req: VercelRequest): string | null {
   try {
     const token = String(req.headers.authorization || '').replace(/^Bearer\s+/i, '');
@@ -319,6 +331,7 @@ const OPS: Record<string, Op | { perm: null; run: Op['run'] }> = {
   },
 
   ...actOps(pool, { claude }),
+  ...teamOps(pool),
 };
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -333,7 +346,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const gate = await requireStaff(req, pool);
     if (!gate.ok) return res.status(gate.status).json({ error: gate.status === 401 ? 'Not signed in.' : 'Not authorised.' });
     // Second sign-in step, checked here on the server for every op.
-    if (tokenAal(req) !== 'aal2') return res.status(401).json({ error: 'Enter your 6-digit code', code: 'mfa' });
+    if (tokenAal(req) !== 'aal2') {
+      if (gate.staff.status === 'invited' && gate.staff.inviteExpired) return res.status(403).json({ error: 'This invite has expired. Ask for a new one.' });
+      return res.status(401).json({ error: 'Enter your 6-digit code', code: 'mfa' });
+    }
+    // Accepting an invite: only once there is a password and a verified second step (aal2 here).
+    if (gate.staff.status === 'invited') {
+      if (gate.staff.inviteExpired) return res.status(403).json({ error: 'This invite has expired. Ask for a new one.' });
+      await writeTx(pool, gate.staff.userId, async (c, audit) => {
+        const before = (await c.query('select to_jsonb(s) r from public.hq_staff s where user_id = $1', [gate.staff.userId])).rows[0]?.r;
+        await c.query("update public.hq_staff set status = 'active', accepted_at = now(), updated_at = now() where user_id = $1 and status = 'invited'", [gate.staff.userId]);
+        const after = (await c.query('select to_jsonb(s) r from public.hq_staff s where user_id = $1', [gate.staff.userId])).rows[0]?.r;
+        await audit({ action: 'team_accept', entity: 'hq_staff', entityId: gate.staff.userId, detail: 'Accepted HQ invite', before, after });
+      });
+      gate.staff.status = 'active';
+    }
 
     const body = obj(req.body);
     only(body, ['op', 'args']);
@@ -342,7 +369,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (op.perm && !gate.staff.perms.has(op.perm)) return res.status(403).json({ error: 'You do not have access to this' });
     const args = body.args === undefined ? {} : obj(body.args);
     const token = String(req.headers.authorization || '').replace(/^Bearer\s+/i, '');
-    return res.status(200).json(await op.run(args, { staff: gate.staff, token }));
+    return res.status(200).json(await op.run(args, { staff: gate.staff, token, hqUrl: hqUrlFor(req) }));
   } catch (e: any) {
     if (e instanceof HttpError) return res.status(e.status).json({ error: e.message });
     console.error('hq', e?.message || e);

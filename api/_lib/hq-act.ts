@@ -7,7 +7,7 @@ import type { Pool, PoolClient } from 'pg';
 import { HttpError, bad, only, uuid, str, oneOf, writeTx, toTrash, scrubEmails } from './hq-core.js';
 import type { Perm, Staff } from './hq-staff.js';
 
-export type Ctx = { staff: Staff; token: string };
+export type Ctx = { staff: Staff; token: string; hqUrl: string };
 export type Op = { perm: Perm; run: (a: Record<string, unknown>, ctx: Ctx) => Promise<unknown> };
 type Deps = { claude: (operation: string, prompt: string, userId: string) => Promise<unknown> };
 
@@ -387,7 +387,8 @@ export function actOps(pool: Pool, deps: Deps): Record<string, Op> {
           data: {
             profile: { ...p, email: contact(ctx, p.email), phone_number: contact(ctx, p.phone_number) },
             dogs: dogs.rows, saves: favs.rows, reviews: revs.rows, tickets: tix.rows, notifications: notifs.rows, reports: reports.rows,
-            can_ban: can(ctx, 'users_ban'),
+            // Ban goes through admin-ban-user, which only accepts the owners, so only owners see it.
+            can_ban: can(ctx, 'users_ban') && ctx.staff.level === 'owner',
           },
         };
       },
@@ -402,6 +403,7 @@ export function actOps(pool: Pool, deps: Deps): Record<string, Op> {
 // the signed-in person's own token. The HQ audit row records the profile before and after.
 async function banOrUnban(pool: Pool, ctx: Ctx, action: 'ban' | 'unban', a: Record<string, unknown>) {
   only(a, action === 'ban' ? ['id', 'reason'] : ['id']);
+  if (ctx.staff.level !== 'owner') throw new HttpError(403, 'You do not have access to this');
   const id = uuid(a.id);
   const reason = action === 'ban' ? str(a.reason, 500, { optional: true }) : '';
   return writeTx(pool, ctx.staff.userId, async (c, audit) => {
