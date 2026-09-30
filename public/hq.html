@@ -160,7 +160,7 @@ svg.spark{width:100%;height:46px;display:block}
 .card .text{white-space:pre-wrap;font-size:14.5px;line-height:1.6;max-width:72ch;overflow-wrap:anywhere}
 .card .prior{font-size:13.5px;color:var(--fg2);border-left:3px solid var(--brand-line);padding-left:12px;white-space:pre-wrap}
 .row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
-textarea,select,.card input[type=text],.card input[type=date],.card input[type=email]{font:500 14.5px/1.4 var(--sans);padding:11px 14px;border-radius:12px;border:1px solid var(--line-2);background:#fff;color:var(--ink);width:100%}
+textarea,select,.card input[type=text],.card input[type=date],.card input[type=email],.grid2 input[type=date],.grid2 input[type=text],.grid2 input[type=email]{font:500 14.5px/1.4 var(--sans);padding:11px 14px;border-radius:12px;border:1px solid var(--line-2);background:#fff;color:var(--ink);width:100%}
 textarea{min-height:110px;resize:vertical;line-height:1.55}
 .msg{font-size:13.5px;padding:9px 12px;border-radius:12px;font-weight:600}
 .msg.good{background:var(--ok-soft);color:var(--ok)} .msg.bad{background:var(--crit-soft);color:var(--crit)}
@@ -234,6 +234,10 @@ footer .mono{color:rgba(255,255,255,.75)}
 }
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 
+/* date pickers look like the dropdowns beside them (same height; iOS draws its own otherwise) */
+.grid2 input[type=date]{-webkit-appearance:none;appearance:none;display:block;min-height:46px;text-align:left}
+.grid2 input[type=date]::-webkit-date-and-time-value{text-align:left}
+.grid2 input[type=date]::-webkit-calendar-picker-indicator{opacity:.55;cursor:pointer}
 /* hidden always wins inside the app (tabs, panels and blocks the person has no permission for) */
 #app [hidden]{display:none!important}
 /* Phase 1: sub-sections, detail sheet, undo toast, tiles */
