@@ -106,31 +106,6 @@ export function actOps(pool: Pool, deps: Deps): Record<string, Op> {
         });
       },
     },
-    flagged_list: {
-      perm: 'places_edit',
-      run: async (a) => {
-        only(a, []);
-        const r = await pool.query(
-          `select id, name, category, coalesce(left(address, 60), '') as address, flag_reason, flagged_at
-             from public.locations where flagged = true order by flagged_at desc nulls last limit 2000`);
-        return { data: r.rows };
-      },
-    },
-    place_unflag: {
-      perm: 'places_edit',
-      run: async (a, ctx) => {
-        const id = uuid(only(a, ['id']).id);
-        return writeTx(pool, ctx.staff.userId, async (c, audit) => {
-          const before = await rowJson(c, 'locations', id);
-          if (!before) throw new HttpError(404, 'That place no longer exists.');
-          await c.query('update public.locations set flagged = false, flag_reason = null, flagged_at = null where id = $1', [id]);
-          const after = await rowJson(c, 'locations', id);
-          await audit({ action: 'place_unflag', entity: 'locations', entityId: id, detail: `Unflagged ${String(before.name || 'a place').slice(0, 80)}`, before, after });
-          return { ok: true, message: 'Unflagged.' };
-        });
-      },
-    },
-
     // ---------- Reports ----------
     reports_list: {
       perm: 'reports',
@@ -171,7 +146,8 @@ export function actOps(pool: Pool, deps: Deps): Record<string, Op> {
           const rep = await rowJson(c, 'location_reports', reportId);
           if (!rep || !rep.location_id) throw new HttpError(404, 'That report no longer exists.');
           const before = await rowJson(c, 'locations', rep.location_id);
-          await c.query('update public.locations set flagged = true, flag_reason = $2, flagged_at = now() where id = $1', [rep.location_id, reason]);
+          // A flag from a place report: rule 'report' and who flagged it (the flag trigger sets flag_review).
+          await c.query("update public.locations set flagged = true, flag_reason = $2, flagged_at = now(), flag_rule = 'report', flagged_by = $3 where id = $1", [rep.location_id, reason, ctx.staff.userId]);
           await c.query("update public.location_reports set status = 'actioned' where id = $1", [reportId]);
           const after = await rowJson(c, 'locations', rep.location_id);
           await audit({ action: 'report_flag_place', entity: 'locations', entityId: rep.location_id, detail: `Flagged from a place report: ${reason.slice(0, 80)}`, before, after });
