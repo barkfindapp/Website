@@ -8,17 +8,33 @@ import {
   groupByCounty,
   guideBySlug,
   guides,
-  manifest,
   matchesTown,
   news,
   newsBySlug,
+  searchAll,
   type EventItem,
   type Guide,
   type NewsPost,
 } from "./data";
-import { Breadcrumbs, DownloadCta, ListingCard, PressBox, Prose, TownSearch, placesLabel, plural, type Crumb } from "./parts";
+import {
+  BrandBlock,
+  Breadcrumbs,
+  DownloadCta,
+  EventCard,
+  EventRow,
+  GuideCard,
+  ListingCard,
+  NewsCard,
+  PhotoCredit,
+  PressBox,
+  Prose,
+  TownSearch,
+  placesLabel,
+  plural,
+  type Crumb,
+} from "./parts";
 
-// Router for the resources section. Every page here renders from build-time
+// Router for the Discover section. Every page here renders from build-time
 // JSON (see ./data.ts). A path with no published piece behind it falls through
 // to the homepage, exactly like any other unknown URL: no stubs, no
 // "coming soon" pages.
@@ -28,6 +44,9 @@ const DISCOVER: Crumb = { name: "Discover", path: "/discover" };
 const GUIDES: Crumb = { name: "Dog-friendly guides", path: "/dog-friendly" };
 const NEWS: Crumb = { name: "News", path: "/news" };
 const EVENTS: Crumb = { name: "Events", path: "/events" };
+
+const WIDE = "max-w-6xl";
+const SEE_ALL = "font-semibold text-[#B74217] hover:underline";
 
 export default function ResourcesRoutes({ path }: { path: string }) {
   if (path === "/discover") return <DiscoverHub />;
@@ -45,7 +64,68 @@ export default function ResourcesRoutes({ path }: { path: string }) {
   return <LandingPage />;
 }
 
+function CardGrid({ children }: { children: React.ReactNode }) {
+  return <ul className="grid gap-[18px] sm:grid-cols-2 lg:grid-cols-3">{children}</ul>;
+}
+
+function GuidesByCounty({ list }: { list: Guide[] }) {
+  return (
+    <>
+      {groupByCounty(list).map(({ county, items }) => (
+        <div key={county} className="mt-6 first:mt-0">
+          <h3 className="mb-3 text-sm font-extrabold uppercase tracking-[0.06em] text-[#6b6b6b]">{county}</h3>
+          <CardGrid>
+            {items.map((g) => (
+              <li key={g.slug}>
+                <GuideCard guide={g} />
+              </li>
+            ))}
+          </CardGrid>
+        </div>
+      ))}
+    </>
+  );
+}
+
 // ─── /discover ───────────────────────────────────────────────────────────────
+
+type HubType = "all" | "guides" | "events" | "news" | "press";
+const CHIPS: { type: HubType; label: string }[] = [
+  { type: "all", label: "All" },
+  { type: "guides", label: "Town guides" },
+  { type: "events", label: "Events" },
+  { type: "news", label: "News" },
+  { type: "press", label: "Press" },
+];
+
+const pressReleases = news.filter((n) => n.pressRelease);
+const COUNTS: Record<HubType, number> = {
+  all: guides.length + events.length + news.length,
+  guides: guides.length,
+  events: events.length,
+  news: news.length,
+  press: pressReleases.length,
+};
+
+// The filter lives in the URL (/discover?type=events) so a view can be shared.
+// An unknown type, or one with nothing to show, falls back to All.
+function typeFromUrl(): HubType {
+  if (typeof window === "undefined") return "all";
+  const t = new URLSearchParams(window.location.search).get("type") as HubType | null;
+  return t && t !== "all" && CHIPS.some((c) => c.type === t) && COUNTS[t] > 0 ? t : "all";
+}
+
+// Newest guide, next event, latest news or press release. Only cards with
+// content; with nothing but guides, the newest guides instead.
+function featuredItems() {
+  const byApproved = [...guides].sort((a, b) => String(b.approvedAt).localeCompare(String(a.approvedAt)));
+  if (!events.length && !news.length) return byApproved.slice(0, 3).map((g) => ({ kind: "guide" as const, guide: g }));
+  return [
+    ...(byApproved[0] ? [{ kind: "guide" as const, guide: byApproved[0] }] : []),
+    ...(events[0] ? [{ kind: "event" as const, event: events[0] }] : []),
+    ...(news[0] ? [{ kind: "news" as const, post: news[0] }] : []),
+  ];
+}
 
 function DiscoverHub() {
   useSeo({
@@ -53,76 +133,161 @@ function DiscoverHub() {
     description: "Dog-friendly town guides, news and events from BarkFind, free to read.",
     path: "/discover",
   });
+  const [type, setType] = useState<HubType>(typeFromUrl);
   const [query, setQuery] = useState("");
-  const matches = useMemo(() => manifest.filter((g) => matchesTown(g, query)), [query]);
-  const latestNews = news.slice(0, 3);
-  const latestPress = news.find((n) => n.pressRelease);
-  const upcoming = events.slice(0, 5);
+  const chips = CHIPS.filter((c) => c.type === "all" || COUNTS[c.type] > 0);
+  const featured = useMemo(featuredItems, []);
+  const results = useMemo(() => searchAll(query), [query]);
+  const searching = query.trim().length > 0;
+  const show = (t: HubType) => type === "all" || type === t;
+
+  function choose(t: HubType) {
+    setType(t);
+    try {
+      const url = t === "all" ? window.location.pathname : `${window.location.pathname}?type=${t}`;
+      window.history.replaceState(null, "", url);
+    } catch {
+      /* the filter still works without the URL */
+    }
+  }
+
+  const guideResults = results.guides.map((g) => guideBySlug(g.slug)).filter((g): g is Guide => Boolean(g));
+  const newsResults = type === "press" ? results.news.filter((n) => n.pressRelease) : results.news;
+  const hasResults =
+    (show("guides") && guideResults.length > 0) ||
+    (show("events") && results.events.length > 0) ||
+    ((show("news") || type === "press") && newsResults.length > 0);
+  const newsList = type === "press" ? pressReleases : news;
 
   return (
-    <PageShell title="Discover" subtitle="Dog-friendly town guides, news and events from BarkFind.">
+    <PageShell title="Discover" subtitle="Dog-friendly town guides, news and events from BarkFind." maxWidth={WIDE}>
       <Breadcrumbs items={[HOME, DISCOVER]} />
 
-      {manifest.length > 0 && (
-        <Section title="Dog-friendly town guides">
-          <p>Where to eat, drink and walk with your dog, town by town, with local dog restrictions and where they come from.</p>
-          <TownSearch value={query} onChange={setQuery} />
-          {query.trim() ? (
-            matches.length ? (
-              <ul className="grid gap-3 sm:grid-cols-2">
-                {matches.map((g) => (
+      {COUNTS.all > 0 && (
+        <div className="rounded-[22px] border border-[#EDE6D6] bg-[#F5F1E9] p-4 md:p-5">
+          <TownSearch value={query} onChange={setQuery} label="Search town guides, events and news" placeholder="Search towns, events and news" />
+          {chips.length > 2 && (
+            <div role="group" aria-label="Show" className="mt-3 flex flex-wrap gap-2">
+              {chips.map((c) => (
+                <button
+                  key={c.type}
+                  type="button"
+                  onClick={() => choose(c.type)}
+                  aria-pressed={type === c.type}
+                  className={`rounded-full border px-4 py-1.5 text-sm font-bold transition ${
+                    type === c.type
+                      ? "border-[#B74217] bg-[#B74217] text-white"
+                      : "border-[#EDE6D6] bg-white text-[#1a1a1a] hover:border-[#B74217]/40"
+                  }`}
+                >
+                  {c.label}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {searching ? (
+        <div aria-live="polite">
+          {show("guides") && guideResults.length > 0 && (
+            <Section title="Town guides">
+              <CardGrid>
+                {guideResults.map((g) => (
                   <li key={g.slug}>
-                    <ListingCard href={`/dog-friendly/${g.slug}`} title={g.town} meta={`${g.county} · ${placesLabel(g.venueCount)}`} />
+                    <GuideCard guide={g} />
+                  </li>
+                ))}
+              </CardGrid>
+            </Section>
+          )}
+          {show("events") && results.events.length > 0 && (
+            <Section title="Events">
+              <ul className="grid gap-3 md:grid-cols-2">
+                {results.events.map((e) => (
+                  <li key={e.id}>
+                    <EventRow event={e} />
                   </li>
                 ))}
               </ul>
-            ) : (
-              <p className="text-sm text-[#585858]">No guide for that town yet.</p>
-            )
-          ) : null}
-          <p>
-            <a href="/dog-friendly" className="font-semibold text-[#B74217] hover:underline">
-              {manifest.length === 1 ? "Browse 1 town guide" : `Browse all ${plural(manifest.length, "town guide")}`}
-            </a>
-          </p>
-        </Section>
+            </Section>
+          )}
+          {(show("news") || type === "press") && newsResults.length > 0 && (
+            <Section title="News">
+              <CardGrid>
+                {newsResults.map((n) => (
+                  <li key={n.slug}>
+                    <NewsCard post={n} />
+                  </li>
+                ))}
+              </CardGrid>
+            </Section>
+          )}
+          {!hasResults && <p className="mt-8 text-[#585858]">Nothing matches that yet.</p>}
+        </div>
+      ) : (
+        <>
+          {type === "all" && featured.length > 0 && (
+            <section aria-label="Featured" className="mt-8">
+              <CardGrid>
+                {featured.map((f) => (
+                  <li key={f.kind === "guide" ? `g-${f.guide.slug}` : f.kind === "event" ? `e-${f.event.id}` : `n-${f.post.slug}`}>
+                    {f.kind === "guide" ? <GuideCard guide={f.guide} /> : f.kind === "event" ? <EventCard event={f.event} /> : <NewsCard post={f.post} />}
+                  </li>
+                ))}
+              </CardGrid>
+            </section>
+          )}
+
+          {show("guides") && guides.length > 0 && (
+            <Section title="Town guides">
+              <GuidesByCounty list={guides} />
+              <p>
+                <a href="/dog-friendly" className={SEE_ALL}>
+                  See all {plural(guides.length, "town guide")}
+                </a>
+              </p>
+            </Section>
+          )}
+
+          {show("events") && events.length > 0 && (
+            <Section title="Events">
+              <ul className="grid gap-3 md:grid-cols-2">
+                {(type === "events" ? events : events.slice(0, 6)).map((e) => (
+                  <li key={e.id}>
+                    <EventRow event={e} />
+                  </li>
+                ))}
+              </ul>
+              <p>
+                <a href="/events" className={SEE_ALL}>
+                  See all {plural(events.length, "event")}
+                </a>
+              </p>
+            </Section>
+          )}
+
+          {(show("news") || type === "press") && newsList.length > 0 && (
+            <Section title={type === "press" ? "Press releases" : "News"}>
+              <CardGrid>
+                {(type === "all" ? newsList.slice(0, 3) : newsList).map((n) => (
+                  <li key={n.slug}>
+                    <NewsCard post={n} />
+                  </li>
+                ))}
+              </CardGrid>
+              <p>
+                <a href="/news" className={SEE_ALL}>
+                  See all news
+                </a>
+              </p>
+            </Section>
+          )}
+
+          {(type === "all" || type === "press") && <PressBox latest={pressReleases[0]} />}
+        </>
       )}
 
-      {latestNews.length > 0 && (
-        <Section title="Latest news">
-          <ul className="grid gap-3">
-            {latestNews.map((n) => (
-              <li key={n.slug}>
-                <ListingCard href={`/news/${n.slug}`} title={n.title} meta={formatDate(n.date)} label={n.pressRelease ? "press" : undefined} />
-              </li>
-            ))}
-          </ul>
-          <p>
-            <a href="/news" className="font-semibold text-[#B74217] hover:underline">All news</a>
-          </p>
-        </Section>
-      )}
-
-      <Section title="Upcoming events">
-        {upcoming.length ? (
-          <>
-            <ul className="grid gap-3">
-              {upcoming.map((e) => (
-                <li key={e.id}>
-                  <ListingCard href="/events" title={e.title} meta={eventMeta(e)} />
-                </li>
-              ))}
-            </ul>
-            <p>
-              <a href="/events" className="font-semibold text-[#B74217] hover:underline">All events</a>
-            </p>
-          </>
-        ) : (
-          <p className="text-[#585858]">No upcoming events listed at the moment.</p>
-        )}
-      </Section>
-
-      <PressBox latest={latestPress} />
       <DownloadCta />
     </PageShell>
   );
@@ -133,32 +298,24 @@ function DiscoverHub() {
 function GuideIndex() {
   useSeo({
     title: "Dog-friendly town guides | BarkFind",
-    description: `Dog-friendly cafes, pubs, walks and beaches in ${plural(manifest.length, "UK town")}, with local dog restrictions, from BarkFind.`,
+    description: `Dog-friendly cafes, pubs, walks and beaches in ${plural(guides.length, "UK town")}, with local dog restrictions, from BarkFind.`,
     path: "/dog-friendly",
     jsonLd: breadcrumbSchema([HOME, DISCOVER, GUIDES]),
   });
   const [query, setQuery] = useState("");
-  const groups = useMemo(() => groupByCounty(manifest.filter((g) => matchesTown(g, query))), [query]);
+  const list = useMemo(() => guides.filter((g) => matchesTown(g, query)), [query]);
 
   return (
-    <PageShell title="Dog-friendly town guides" subtitle="Places that welcome dogs, town by town, built from BarkFind's venue data and dog owners' reviews.">
+    <PageShell
+      title="Dog-friendly town guides"
+      subtitle="Places that welcome dogs, town by town, built from BarkFind's venue data and dog owners' reviews."
+      maxWidth={WIDE}
+    >
       <Breadcrumbs items={[HOME, DISCOVER, GUIDES]} />
       <TownSearch value={query} onChange={setQuery} />
-      {groups.length ? (
-        groups.map(({ county, items }) => (
-          <Section key={county} title={county}>
-            <ul className="grid gap-3 sm:grid-cols-2">
-              {items.map((g) => (
-                <li key={g.slug}>
-                  <ListingCard href={`/dog-friendly/${g.slug}`} title={g.town} meta={placesLabel(g.venueCount)} summary={g.summary} />
-                </li>
-              ))}
-            </ul>
-          </Section>
-        ))
-      ) : (
-        <p className="mt-8 text-[#585858]">No guide for that town yet.</p>
-      )}
+      <div className="mt-8">
+        {list.length ? <GuidesByCounty list={list} /> : <p className="text-[#585858]">No guide for that town yet.</p>}
+      </div>
       <DownloadCta />
     </PageShell>
   );
@@ -174,13 +331,34 @@ function GuidePage({ guide }: { guide: Guide }) {
     description: guide.summary,
     path,
     ogType: "article",
+    image: guide.photo?.src,
     jsonLd: breadcrumbSchema(crumbs),
   });
   const nearby = guide.nearby.map((s) => guides.find((g) => g.slug === s)).filter((g): g is Guide => Boolean(g));
 
   return (
-    <PageShell title={guide.title} subtitle={guide.county} meta={guide.updated ? `Updated ${formatDate(guide.updated)}` : undefined}>
+    <PageShell
+      title={guide.title}
+      subtitle={`${placesLabel(guide.venueCount)} · ${guide.county}`}
+      meta={guide.updated ? `Updated ${formatDate(guide.updated)}` : undefined}
+    >
       <Breadcrumbs items={crumbs} />
+      <figure className="mb-8 overflow-hidden rounded-[22px] border border-[#EDE6D6]">
+        {guide.photo ? (
+          <div className="relative">
+            <img
+              src={guide.photo.src}
+              alt={guide.photo.alt}
+              width={guide.photo.width}
+              height={guide.photo.height}
+              className="h-56 w-full object-cover md:h-72"
+            />
+            <PhotoCredit photo={guide.photo} linked />
+          </div>
+        ) : (
+          <BrandBlock town={guide.town} tall />
+        )}
+      </figure>
       <Prose html={guide.html} />
 
       {nearby.length > 0 && (
@@ -195,7 +373,7 @@ function GuidePage({ guide }: { guide: Guide }) {
         </Section>
       )}
       <p className="mt-6">
-        <a href="/dog-friendly" className="font-semibold text-[#B74217] hover:underline">All dog-friendly town guides</a>
+        <a href="/dog-friendly" className={SEE_ALL}>All dog-friendly town guides</a>
       </p>
       <DownloadCta placeCount={guide.venueCount} />
     </PageShell>
@@ -210,28 +388,34 @@ function NewsIndex() {
     description: "News and press releases from BarkFind, the UK app for finding dog-friendly places.",
     path: "/news",
   });
-  const press = news.filter((n) => n.pressRelease);
   const rest = news.filter((n) => !n.pressRelease);
-  const card = (n: NewsPost) => (
-    <li key={n.slug}>
-      <ListingCard href={`/news/${n.slug}`} title={n.title} meta={formatDate(n.date)} summary={n.summary} label={n.pressRelease ? "press" : undefined} />
-    </li>
-  );
 
   return (
-    <PageShell title="News" subtitle="What's new at BarkFind, with press releases for journalists first.">
+    <PageShell title="News" subtitle="What's new at BarkFind, with press releases for journalists first." maxWidth={WIDE}>
       <Breadcrumbs items={[HOME, DISCOVER, NEWS]} />
-      {press.length > 0 && (
+      {pressReleases.length > 0 && (
         <Section title="Press releases">
-          <ul className="grid gap-3">{press.map(card)}</ul>
+          <CardGrid>
+            {pressReleases.map((n) => (
+              <li key={n.slug}>
+                <NewsCard post={n} />
+              </li>
+            ))}
+          </CardGrid>
         </Section>
       )}
       {rest.length > 0 && (
-        <Section title={press.length ? "More news" : "Latest"}>
-          <ul className="grid gap-3">{rest.map(card)}</ul>
+        <Section title={pressReleases.length ? "More news" : "Latest"}>
+          <CardGrid>
+            {rest.map((n) => (
+              <li key={n.slug}>
+                <NewsCard post={n} />
+              </li>
+            ))}
+          </CardGrid>
         </Section>
       )}
-      <PressBox latest={press[0]} />
+      <PressBox latest={pressReleases[0]} />
       <DownloadCta />
     </PageShell>
   );
@@ -270,11 +454,11 @@ function NewsPage({ post }: { post: NewsPost }) {
       {post.pressRelease && (
         <p className="mt-8 text-sm text-[#585858]">
           Press enquiries:{" "}
-          <a href="mailto:info@barkfind.com" className="font-semibold text-[#B74217] hover:underline">info@barkfind.com</a>
+          <a href="mailto:info@barkfind.com" className={SEE_ALL}>info@barkfind.com</a>
         </p>
       )}
       <p className="mt-6">
-        <a href="/news" className="font-semibold text-[#B74217] hover:underline">All news</a>
+        <a href="/news" className={SEE_ALL}>All news</a>
       </p>
       <DownloadCta />
     </PageShell>
@@ -282,10 +466,6 @@ function NewsPage({ post }: { post: NewsPost }) {
 }
 
 // ─── /events ─────────────────────────────────────────────────────────────────
-
-function eventMeta(e: EventItem) {
-  return [formatDate(e.date, true), e.venueName, e.town].filter(Boolean).join(" · ");
-}
 
 function eventSchema(e: EventItem): Record<string, unknown> {
   return {
@@ -325,18 +505,18 @@ function EventsPage() {
       {events.length ? (
         <ul className="flex flex-col gap-5">
           {events.map((e) => (
-            <li key={e.id} className="rounded-2xl border border-stone-200 px-5 py-5">
+            <li key={e.id} id={`event-${e.id}`} className="scroll-mt-24 rounded-[22px] border border-[#EDE6D6] px-5 py-5">
               <p className="text-sm font-bold text-[#B74217]">{formatDate(e.date, true)}</p>
               <h2 className="mt-1 font-serif text-2xl text-[#1a1a1a]">{e.title}</h2>
-              {(e.venueName || e.town) && (
-                <p className="mt-1 text-sm text-[#585858]">{[e.venueName, e.town].filter(Boolean).join(", ")}</p>
+              {(e.town || e.venueName) && (
+                <p className="mt-1 text-sm text-[#6b6b6b]">{[e.town, e.venueName].filter(Boolean).join(" · ")}</p>
               )}
               <div className="mt-3">
                 <Prose html={e.html} />
               </div>
               {e.sourceUrl && (
                 <p className="mt-3 text-sm">
-                  <a href={e.sourceUrl} rel="noopener" className="font-semibold text-[#B74217] hover:underline">
+                  <a href={e.sourceUrl} rel="noopener" className={SEE_ALL}>
                     Event details
                   </a>
                 </p>
