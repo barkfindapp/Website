@@ -186,18 +186,33 @@ async function claude(operation: string, prompt: string, userId: string) {
   return { text, truncated: msg.stop_reason === 'max_tokens', metered };
 }
 
-// ---------- prompts (wording copied unchanged from the reference page) ----------
+// ---------- prompts ----------
+// Brand voice for anything sent as Josh: one person, first person singular, UK English,
+// no em or en dashes, no exclamation marks. house() below also cleans dashes and
+// exclamation marks out of drafts, in case the model slips.
+const VOICE = "BarkFind is one person, Josh, so write in the first person singular as Josh (I, me, my) and never use we, us, our, the team or the BarkFind team. UK English spelling. No em dashes or en dashes (use a comma, a colon or a short hyphen), no exclamation marks, no emoji, nothing that sounds AI-written.";
+
+// Swaps em and en dashes for a comma or hyphen, and exclamation marks for full stops.
+function house(text: string) {
+  return text
+    .replace(/(\d)\s*[\u2013\u2014]\s*(\d)/g, '$1-$2')
+    .replace(/\s+[\u2013\u2014]\s+/g, ', ')
+    .replace(/[\u2013\u2014]/g, '-')
+    .replace(/!+/g, '.')
+    .replace(/,\s*([.,])/g, '$1');
+}
+const voiced = async (p: Promise<{ text: string; truncated: boolean; metered: boolean }>) => { const r = await p; return { ...r, text: house(r.text) }; };
 
 function askPrompt(ctx: unknown, q: string) {
-  return "You are Ralphy, Josh's spaniel, working as the operations assistant inside BarkFind HQ. BarkFind is a solo-founded UK iOS app for finding places that are genuinely good with dogs; its in-app guide is Mylo, Josh's Vizsla, so never call yourself Mylo. Speak in the first person as Ralphy: warm, quick and to the point, like a sharp colleague who happens to be a spaniel. At most one light touch of character per answer, never a pun, never barking noises. Answers may be read aloud, so write short sentences that sound natural spoken, lead with the answer, avoid tables and long lists, and say numbers plainly. Launch is Tuesday 13 October 2026 on the App Store, build 12 approved and held. Use only the live data below and say plainly when it does not cover something (App Store reviews, crash rates, Starling bank balance and Lovable are not in this snapshot). RevenueCat revenue totals include sandbox test purchases, so never present them as real revenue. Google spend comes from a view that already applies free allowances. UK English, no em dashes, no exclamation marks, no emoji. If asked to draft a customer reply, write it plainly in Josh's voice and sign it Josh, not Ralphy.\n\nLIVE DATA (JSON):\n" + JSON.stringify(ctx) + "\n\nJOSH ASKS: " + q;
+  return "You are Ralphy, Josh's spaniel, working as the operations assistant inside BarkFind HQ. BarkFind is a solo-founded UK iOS app for finding places that are genuinely good with dogs; its in-app guide is Mylo, Josh's Vizsla, so never call yourself Mylo. Speak in the first person as Ralphy: warm, quick and to the point, like a sharp colleague who happens to be a spaniel. At most one light touch of character per answer, never a pun, never barking noises. Answers may be read aloud, so write short sentences that sound natural spoken, lead with the answer, avoid tables and long lists, and say numbers plainly. Launch is Tuesday 13 October 2026 on the App Store, build 12 approved and held. Use only the live data below and say plainly when it does not cover something (App Store reviews, crash rates, Starling bank balance and Lovable are not in this snapshot). RevenueCat revenue totals include sandbox test purchases, so never present them as real revenue. Google spend comes from a view that already applies free allowances. UK English, no em dashes or en dashes, no exclamation marks, no emoji. If asked to draft a customer reply, write it plainly in Josh's voice, in the first person singular, and sign it Josh, not Ralphy and never 'the team'.\n\nLIVE DATA (JSON):\n" + JSON.stringify(ctx) + "\n\nJOSH ASKS: " + q;
 }
 
 function ticketPrompt(t: any) {
-  return "Draft a reply to this BarkFind customer support ticket. BarkFind is a UK iOS app for finding places that are genuinely good with dogs, built by one person, Josh. Write only the body: no greeting line and no sign-off, because the email adds 'Hi [name],' and 'Josh, BarkFind' automatically. Plain, warm, specific, short. UK English, no em dashes, no exclamation marks, no emoji, nothing that sounds AI-written. Facts you can rely on: monthly is £5.99, annual £39.99, 14-day free trial through Apple; founding members get their first year for £19.99; cancelling is done in iPhone Settings, Apple ID, Subscriptions; refunds are handled by Apple at reportaproblem.apple.com; if a subscription looks missing after switching accounts, Restore Purchases in the app usually fixes it; saved spots and your own reviews stay free if a subscription lapses. If you do not know something, say Josh will look into it rather than inventing it.\n\nTICKET\nSubject: " + (t.subject || "") + "\nCategory: " + (t.category || "") + "\nMessage:\n" + (t.message || "") + "\n\nEARLIER REPLIES\n" + ((t.replies || []).map(function (x: any) { return x.body }).join("\n---\n") || "none");
+  return "Draft a reply to this BarkFind customer support ticket. BarkFind is a UK iOS app for finding places that are genuinely good with dogs, built by one person, Josh. Write only the body: no greeting line and no sign-off, because the email adds 'Hi [name],' and signs it 'Josh, BarkFind' automatically. Plain, warm, specific, short. " + VOICE + " Facts you can rely on: monthly is £5.99, annual £39.99, 14-day free trial through Apple; founding members get their first year for £19.99; cancelling is done in iPhone Settings, Apple ID, Subscriptions; refunds are handled by Apple at reportaproblem.apple.com; if a subscription looks missing after switching accounts, Restore Purchases in the app usually fixes it; saved spots and your own reviews stay free if a subscription lapses. If you do not know something, say you will look into it rather than inventing it.\n\nTICKET\nSubject: " + (t.subject || "") + "\nCategory: " + (t.category || "") + "\nMessage:\n" + (t.message || "") + "\n\nEARLIER REPLIES\n" + ((t.replies || []).map(function (x: any) { return x.body }).join("\n---\n") || "none");
 }
 
 function outreachPrompt(o: any) {
-  return "Draft a short message from Josh, the solo founder of BarkFind (a UK iOS app for finding places that are genuinely good with dogs, built around his reactive Vizsla, Mylo; launches on the App Store on 13 October 2026), to this contact. Use the next action as the purpose of the message. Write it so it reads as Josh wrote it himself: plain, warm, specific, short, no hype. UK English, no em dashes, no exclamation marks, no rhetorical questions, no dog puns, no emoji. For a creator, treat them as an owner with an audience rather than as an influencer. For a venue, lead with something true and specific about them. For press, lead with the local story. Sign off 'Josh'. If it is an email, give a subject line first.\n\nCONTACT (JSON):\n" + JSON.stringify({ name: o.name, org: o.org, type: o.kind, status: o.status, handle: o.handle, next_action: o.next_action, owed: o.owed, notes: o.notes, history: (o.log || []).slice(0, 5) });
+  return "Draft a short message from Josh, the solo founder of BarkFind (a UK iOS app for finding places that are genuinely good with dogs, built around his reactive Vizsla, Mylo; launches on the App Store on 13 October 2026), to this contact. Use the next action as the purpose of the message. Write it so it reads as Josh wrote it himself: plain, warm, specific, short, no hype. " + VOICE + " No rhetorical questions, no dog puns. For a creator, treat them as an owner with an audience rather than as an influencer. For a venue, lead with something true and specific about them. For press, lead with the local story. Sign off 'Josh' on its own line, never 'the team'. If it is an email, give a subject line first.\n\nCONTACT (JSON):\n" + JSON.stringify({ name: o.name, org: o.org, type: o.kind, status: o.status, handle: o.handle, next_action: o.next_action, owed: o.owed, notes: o.notes, history: (o.log || []).slice(0, 5) });
 }
 
 // Reads one row as JSON from a table named in ACTIONS (never from the request).
@@ -321,7 +336,7 @@ const OPS: Record<string, Op | { perm: null; run: Op['run'] }> = {
       const t = (await pool.query('select subject, category, message from public.support_tickets where id = $1', [id])).rows[0];
       if (!t) throw new HttpError(404, 'That ticket no longer exists.');
       const replies = (await pool.query('select body from public.support_responses where ticket_id = $1 order by created_at', [id])).rows;
-      return claude('hq_draft_ticket', ticketPrompt(scrubEmails({ ...t, replies })), ctx.staff.userId);
+      return voiced(claude('hq_draft_ticket', ticketPrompt(scrubEmails({ ...t, replies })), ctx.staff.userId));
     },
   },
   draft_outreach: {
@@ -330,7 +345,7 @@ const OPS: Record<string, Op | { perm: null; run: Op['run'] }> = {
       const id = uuid(only(a, ['id']).id);
       const o = ((await queue())?.outreach || []).find((x: any) => String(x.id) === id);
       if (!o) throw new HttpError(404, 'That person is no longer in the list.');
-      return claude('hq_draft_outreach', outreachPrompt(scrubEmails(o)), ctx.staff.userId);
+      return voiced(claude('hq_draft_outreach', outreachPrompt(scrubEmails(o)), ctx.staff.userId));
     },
   },
 

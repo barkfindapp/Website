@@ -5,7 +5,7 @@
 import type { Pool, PoolClient } from 'pg';
 import { Resend } from 'resend';
 import { HttpError, bad, only, uuid, str, oneOf, writeTx } from './hq-core.js';
-import { PERMISSIONS, LEVELS, type Level, type Perm } from './hq-staff.js';
+import { PERMISSIONS, OFFERED_LEVELS, type Level, type Perm } from './hq-staff.js';
 import type { Op, Ctx } from './hq-act.js';
 
 const SUPABASE_URL = process.env.SUPABASE_URL!;
@@ -13,7 +13,7 @@ const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY!;
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
 const INVITE_DAYS = 7;
-const TEAM_LEVELS = ['moderator', 'support', 'viewer'] as const;   // what staff_manage alone can give
+const TEAM_LEVELS = ['moderator', 'viewer'] as const;   // what staff_manage alone can give
 const EMAIL_RE = /^[^\s@]{1,64}@[^\s@]{1,190}\.[^\s@]{2,}$/;
 
 // ---------- Supabase auth admin API (service role, server side only) ----------
@@ -203,14 +203,14 @@ export function teamOps(pool: Pool): Record<string, Op | { perm: null; run: Op['
       run: async (a, ctx) => {
         only(a, []);
         const r = await pool.query(
-          `select s.user_id, s.email, s.display_name, s.level, s.status, s.grants, s.denies, s.alert_email, s.alert_push, s.note,
+          `select s.user_id, s.email, s.display_name, case when s.level = 'support' then 'moderator' else s.level end as level, s.status, s.grants, s.denies, s.alert_email, s.alert_push, s.note,
                   s.invited_at, s.accepted_at, s.last_seen_at, s.removed_at, s.updated_at,
                   coalesce(ib.display_name, ib.email) as invited_by_name,
                   exists (select 1 from auth.mfa_factors f where f.user_id = s.user_id and f.factor_type = 'totp' and f.status = 'verified') as mfa,
                   (s.status = 'invited' and s.invited_at < now() - interval '${INVITE_DAYS} days') as expired
              from public.hq_staff s left join public.hq_staff ib on ib.user_id = s.invited_by
             order by (s.status = 'removed'), array_position(array['owner','admin','moderator','support','viewer'], s.level), s.display_name`);
-        return { data: { staff: r.rows, me: ctx.staff.userId, can_admins: ctx.staff.perms.has('staff_admins'), can_grants: ctx.staff.level === 'owner', levels: ctx.staff.perms.has('staff_admins') ? LEVELS : TEAM_LEVELS, permissions: PERMISSIONS } };
+        return { data: { staff: r.rows, me: ctx.staff.userId, can_admins: ctx.staff.perms.has('staff_admins'), can_grants: ctx.staff.level === 'owner', levels: ctx.staff.perms.has('staff_admins') ? OFFERED_LEVELS : TEAM_LEVELS, permissions: PERMISSIONS } };
       },
     },
     team_invite: {
@@ -220,7 +220,7 @@ export function teamOps(pool: Pool): Record<string, Op | { perm: null; run: Op['
         const email = str(a.email, 254, { min: 3 }).toLowerCase();
         if (!EMAIL_RE.test(email)) throw bad();
         const name = str(a.name, 80, { min: 1 });
-        const level = oneOf(a.level, LEVELS) as Level;
+        const level = oneOf(a.level, OFFERED_LEVELS) as Level;
         if (isAdminLevel(level) && !ctx.staff.perms.has('staff_admins')) throw new HttpError(403, 'You do not have access to this');
         const existing = (await pool.query('select id from auth.users where lower(email) = $1 limit 1', [email])).rows[0];
         let userId: string = existing?.id;
@@ -286,7 +286,7 @@ export function teamOps(pool: Pool): Record<string, Op | { perm: null; run: Op['
       perm: 'staff_manage',
       run: async (a, ctx) => {
         only(a, ['user_id', 'level', 'password']);
-        const level = oneOf(a.level, LEVELS) as Level;
+        const level = oneOf(a.level, OFFERED_LEVELS) as Level;
         return change('Changed level', 'team_set_level', a, ctx, async (c, t) => {
           canTouch(ctx, t, level);
           if (t.level === 'owner' && level !== 'owner') await notLastOwner(c, t);
@@ -353,7 +353,7 @@ export function teamOps(pool: Pool): Record<string, Op | { perm: null; run: Op['
       run: async (a) => {
         only(a, []);
         const r = await pool.query(
-          `select s.user_id, s.display_name, s.email, s.level, s.status, s.last_seen_at,
+          `select s.user_id, s.display_name, s.email, case when s.level = 'support' then 'moderator' else s.level end as level, s.status, s.last_seen_at,
                   exists (select 1 from auth.mfa_factors f where f.user_id = s.user_id and f.factor_type = 'totp' and f.status = 'verified') as mfa,
                   (select count(*)::int from auth.mfa_challenges ch join auth.mfa_factors f on f.id = ch.factor_id
                     where f.user_id = s.user_id and ch.verified_at is null and ch.created_at > now() - interval '30 days') as unverified_codes_30d,
