@@ -17,6 +17,7 @@ type SeoConfig = {
   path: string; // canonical path, e.g. "/treats" or "/"
   image?: string; // absolute URL or site-root path
   noindex?: boolean;
+  ogType?: "website" | "article";
   jsonLd?: Record<string, unknown> | Record<string, unknown>[];
 };
 
@@ -55,7 +56,7 @@ export function useSeo(config: SeoConfig) {
     upsertMeta("name", "robots", config.noindex ? "noindex, nofollow" : "index, follow");
 
     upsertMeta("property", "og:site_name", SITE_NAME);
-    upsertMeta("property", "og:type", "website");
+    upsertMeta("property", "og:type", config.ogType ?? "website");
     upsertMeta("property", "og:title", config.title);
     upsertMeta("property", "og:description", config.description);
     upsertMeta("property", "og:url", canonical);
@@ -79,7 +80,7 @@ export function useSeo(config: SeoConfig) {
         document.head.appendChild(script);
       }
     }
-  }, [config.title, config.description, config.path, config.image, config.noindex, config.jsonLd]);
+  }, [config.title, config.description, config.path, config.image, config.noindex, config.ogType, config.jsonLd]);
 }
 
 // --- Shared structured-data building blocks ---
@@ -128,6 +129,19 @@ export function faqSchema(items: { q: string; a: string }[]): Record<string, unk
       "@type": "Question",
       name: item.q,
       acceptedAnswer: { "@type": "Answer", text: item.a },
+    })),
+  };
+}
+
+export function breadcrumbSchema(items: { name: string; path: string }[]): Record<string, unknown> {
+  return {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: items.map((item, i) => ({
+      "@type": "ListItem",
+      position: i + 1,
+      name: item.name,
+      item: `${SITE_URL}${item.path}`,
     })),
   };
 }

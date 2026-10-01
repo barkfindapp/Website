@@ -36,3 +36,7 @@ public/media/*
 
 # TypeScript build cache
 *.tsbuildinfo
+
+# Resources section build output (scripts/build-resources.mjs). Regenerated
+# from approved content on every build, never committed.
+src/data/generated/
