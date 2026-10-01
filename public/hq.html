@@ -123,6 +123,14 @@ h2.sec::before{content:"";width:8px;height:8px;border-radius:50%;background:var(
 dl.kv{margin:0;display:grid;grid-template-columns:1fr auto;gap:0}
 dl.kv dt,dl.kv dd{padding:8px 0;border-top:1px solid var(--line);font-size:14px}
 dl.kv dt{color:var(--fg2)}
+/* ⓘ beside a card title: tap to open; hover opens it where there is a mouse */
+.panel{position:relative}
+.infowrap{position:static;display:inline-block;margin-left:4px;vertical-align:1px}
+button.info{font:700 14px/1 var(--sans);color:var(--fg2);background:none;border:0;padding:2px 4px;cursor:pointer;border-radius:999px;min-width:28px;min-height:28px}
+button.info:focus-visible{outline:2px solid var(--brand);outline-offset:1px}
+.infotip{display:none;position:absolute;left:16px;right:16px;top:56px;z-index:5;background:#fff;border:1px solid var(--line-2);border-radius:12px;padding:12px 14px;box-shadow:0 8px 24px rgba(0,0,0,.12);font:500 13.5px/1.5 var(--sans);color:var(--fg);text-transform:none;letter-spacing:0}
+.infowrap.open .infotip{display:block}
+@media (hover:hover){.infowrap:hover .infotip{display:block}}
 button.fx{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer;border-bottom:1px dotted var(--line-2);font-variant-numeric:tabular-nums}
 button.fx:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
 dl.kv dd{margin:0;text-align:right;font-weight:700;color:var(--fg);font-variant-numeric:tabular-nums}
@@ -445,19 +453,18 @@ footer .mono{color:rgba(255,255,255,.75)}
       </article>
 
       <article class="panel" id="p-money">
-        <h3>Revenue <small>Money in</small></h3>
-        <div class="hero"><span class="v" id="m-active">–</span><span class="u">paying on the App Store</span></div>
+        <h3><span class="ttl">Revenue <span class="infowrap"><button type="button" class="info" aria-expanded="false" aria-controls="m-info" aria-label="About these figures">ⓘ</button><span class="infotip" id="m-info" role="note">Real App Store purchases only, from RevenueCat&#39;s hourly sync. Sandbox (test) purchases and promotional (free) subscriptions are left out. RevenueCat reports in US dollars; shown here in pounds at the day&#39;s European Central Bank rate. Tap a figure to see dollars.</span></span></span><small>Money in</small></h3>
+        <div class="hero"><span class="v" id="m-proceeds">–</span><span class="u">App Store proceeds</span></div>
+        <p class="note" id="m-none" hidden style="margin:-6px 0 0">No paid subscriptions yet</p>
         <dl class="kv" id="m-kv"></dl>
         <p class="note fxline" id="m-fx"></p>
-        <p class="note" id="m-note">Revenue counts real App Store purchases only. Sandbox (test) purchases are left out, and the figure appears once RevenueCat's sync reports production revenue on its own.</p>
       </article>
 
       <article class="panel" id="p-costs">
-        <h3>Running costs <small>Money out · this month</small></h3>
+        <h3><span class="ttl">Running costs <span class="infowrap"><button type="button" class="info" aria-expanded="false" aria-controls="k-info" aria-label="About these figures">ⓘ</button><span class="infotip" id="k-info" role="note">Metered API spend this month. Google comes from google_spend_this_month, with each free allowance applied and VAT added. Anthropic is BarkFind&#39;s own meter; check it against the Anthropic console before quoting it. Fixed subscriptions (Lovable, Supabase, Apple, domains) are in the HQ doc cost register. Both are billed in US dollars and shown in pounds at the day&#39;s European Central Bank rate. Tap a figure to see dollars.</span></span></span><small>Money out · this month</small></h3>
         <div class="hero"><span class="v" id="k-total">–</span><span class="u">metered API spend</span></div>
         <dl class="kv" id="k-kv"></dl>
         <p class="note fxline" id="k-fx"></p>
-        <p class="note">Google figures come from google_spend_this_month, which applies the free allowance per SKU and adds VAT. Anthropic is BarkFind's own meter; reconcile it against the Anthropic console before quoting it. Fixed subscriptions (Lovable, Supabase plan, Apple, domains) are in the HQ doc cost register.</p>
       </article>
 
       <article class="panel" id="p-support">
@@ -636,8 +643,12 @@ footer .mono{color:rgba(255,255,255,.75)}
   function gbp(v){var r=fx(),x=Number(v||0);if(!r)return usd(x);var g=x*r.rate;return Math.abs(g)>=1000?"£"+Math.round(g).toLocaleString("en-GB"):"£"+g.toFixed(2)}
   function money(v){return {usd:Number(v||0)}}
   function fxButton(v){var u=usd(v),g=gbp(v);return u===g?esc(u):'<button type="button" class="fx" data-a="'+esc(g)+'" data-b="'+esc(u)+'" aria-label="'+esc(g)+', tap for US dollars">'+esc(g)+'</button>'}
-  function fxLine(){var r=fx();if(!r)return "Shown in US dollars: no exchange rate is available yet.";
-    return "Converted from US dollars at $1 = £"+Number(r.rate).toFixed(2)+", "+new Date(r.date+"T12:00:00").toLocaleDateString("en-GB",{day:"numeric",month:"short"})+(r.stale?". The latest rate could not be fetched, so this is the last good one.":". Tap a figure for dollars.")}
+  function fxLine(){var r=fx();if(!r)return "In US dollars: no exchange rate yet";
+    return "$1 = £"+Number(r.rate).toFixed(2)+", "+new Date(r.date+"T12:00:00").toLocaleDateString("en-GB",{day:"numeric",month:"short"})+(r.stale?" (last good rate)":"")}
+  document.addEventListener("click",function(ev){var i=ev.target.closest("button.info"),w=i&&i.parentNode;
+    document.querySelectorAll(".infowrap.open").forEach(function(x){if(x!==w){x.classList.remove("open");x.querySelector("button.info").setAttribute("aria-expanded","false")}});
+    if(w){var on=!w.classList.contains("open");w.classList.toggle("open",on);i.setAttribute("aria-expanded",String(on))}});
+  document.addEventListener("keydown",function(ev){if(ev.key==="Escape")document.querySelectorAll(".infowrap.open").forEach(function(x){x.classList.remove("open");x.querySelector("button.info").setAttribute("aria-expanded","false")})});
   document.addEventListener("click",function(ev){var b=ev.target.closest("button.fx");if(!b)return;var now=b.textContent===b.dataset.a?b.dataset.b:b.dataset.a;b.textContent=now;b.setAttribute("aria-label",now===b.dataset.a?now+", tap for US dollars":now+", tap for pounds")});
   function ageH(ts){if(!ts)return null;return (Date.now()-new Date(ts).getTime())/36e5}
   function ageTxt(h){if(h==null)return "";return h>=48?Math.round(h/24)+" days":Math.max(1,Math.round(h))+" hours"}
@@ -767,17 +778,20 @@ footer .mono{color:rgba(255,255,255,.75)}
       ]);
       spark($("c-spark"),state.history.map(function(r){return Number(r.real||0)}));
 
-      $("m-active").textContent=n(sub.store_active);
+      // Production proceeds only (sandbox and promotional subscriptions bring in nothing).
+      var proc=rc.revenue_usd?Number(rc.revenue_usd.proceeds||0):null;
+      $("m-proceeds").innerHTML=proc==null?"–":fxButton(proc);
+      $("m-none").hidden=!(proc===0);
       kv($("m-kv"),[
+        ["Paying on the App Store",n(sub.store_active)],
         ["Production subscribers (RevenueCat)",n(rc.production_active)],
         ["On a free trial",n(sub.store_trial)],
         ["Cancelled, still entitled",n(sub.store_cancelled_entitled)],
         ["Promotional (comped)",n(sub.promotional_active)],
         ["New subscription rows, 7 days",n(sub.new_7d)],
-        rc.revenue_usd?["App Store proceeds, all time",money(rc.revenue_usd.proceeds),["ok","production"]]:["App Store proceeds, all time","not available yet",["warn","sandbox left out"]],
         ["RevenueCat last synced",(sub.revenuecat&&sub.revenuecat.synced_at)?new Date(sub.revenuecat.synced_at).toLocaleString("en-GB",{hour:"2-digit",minute:"2-digit",day:"numeric",month:"short"}):"–"]
       ]);
-      $("m-fx").textContent=fxLine();$("m-fx").hidden=!rc.revenue_usd;
+      $("m-fx").textContent=fxLine();$("m-fx").hidden=proc==null;
 
       var google=Number(c.google_month_usd_inc_vat||0), anth=Number(c.anthropic_month_usd||0);
       $("k-total").innerHTML=fxButton(google+anth);
