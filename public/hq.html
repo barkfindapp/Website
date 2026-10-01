@@ -169,6 +169,14 @@ textarea{min-height:110px;resize:vertical;line-height:1.55}
 .subhead span{font-size:12.5px;color:var(--mute)}
 .tag{font:800 11px/1 var(--sans);padding:5px 9px;border-radius:999px;background:var(--well);color:var(--fg2);text-transform:capitalize}
 .tag.warn{background:var(--warn-soft);color:var(--warn)} .tag.crit{background:var(--crit-soft);color:var(--crit)} .tag.ok{background:var(--teal-soft);color:var(--teal-dark)} .tag.info{background:var(--info-soft);color:var(--info)}
+.fbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.fbar>input[type=search]{flex:1 1 220px}
+.fbar select,.fbar input[type=date]{font:500 14.5px/1.4 var(--sans);padding:10px 12px;min-height:44px;border-radius:12px;border:1px solid var(--line-2);background:#fff;color:var(--ink);width:auto;flex:0 1 auto;max-width:210px;min-width:0}
+.fbar .fdate{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:var(--fg2)}
+.fbar .fcheck{display:flex;gap:6px;align-items:center}
+.fbar .end{margin-left:auto;flex:none}
+@media(min-width:1100px){.fbar{flex-wrap:nowrap}.fbar input[type=date]{width:150px}}
+@media(max-width:640px){.fbar{flex-direction:column;align-items:stretch}.fbar>input[type=search]{flex:none}.fbar select,.fbar input[type=date]{max-width:none;width:100%}.fbar .fdate{flex-direction:column;align-items:stretch;gap:5px}.fbar .end{margin-left:0}}
 .grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px}
 .grid2 label{display:flex;flex-direction:column;gap:5px;font-size:12px;font-weight:700;color:var(--fg2)}
 details.card summary{cursor:pointer;list-style:none;display:grid;grid-template-columns:1fr auto;gap:4px 12px;align-items:start}
@@ -1351,9 +1359,8 @@ footer .mono{color:rgba(255,255,255,.75)}
   function flagsSection(el){
     var f=fl.filter;
     el.innerHTML='<div class="filter" id="flTabs"></div>'+
-      '<div class="row"><input type="search" class="pill-in" id="flQ" placeholder="Search name, address or reason" value="'+esc(f.q)+'" style="flex:1 1 220px"><label class="note" style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="flAllTabs"'+(fl.allTabs?" checked":"")+'> Search all three tabs</label></div>'+
-      '<div class="grid2" id="flFilters"></div>'+
-      '<div class="row"><label class="note" style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="flGroup"'+(fl.group?" checked":"")+'> Group by Google type</label><button class="btn small" data-fa="clear">Clear filters</button></div>'+
+      '<div class="fbar"><input type="search" class="pill-in" id="flQ" placeholder="Search name, address or reason" value="'+esc(f.q)+'"><label class="note fcheck"><input type="checkbox" id="flAllTabs"'+(fl.allTabs?" checked":"")+'> Search all three tabs</label><label class="note fcheck"><input type="checkbox" id="flGroup"'+(fl.group?" checked":"")+'> Group by Google type</label><button class="btn small end" data-fa="clear">Clear filters</button></div>'+
+      '<div class="fbar" id="flFilters"></div>'+
       '<div id="flBody" class="stack"><div class="empty">Loading.</div></div>';
     flLoad();
   }
@@ -1363,12 +1370,12 @@ footer .mono{color:rgba(255,255,255,.75)}
       var c=r[0].data;fl.counts=c;var f=fl.filter;
       $("flTabs").innerHTML=[["to_review","To review"],["keep_excluded","Kept excluded"],["restored","Restored"]].map(function(t){return '<button class="chip" data-fa="tab" data-v="'+t[0]+'" aria-pressed="'+(f.tab===t[0]&&!(fl.allTabs&&f.q))+'">'+t[1]+' <span class="count">'+(c.tabs[t[0]]||0).toLocaleString("en-GB")+'</span></button>'}).join("")+(fl.allTabs&&f.q?'<span class="note">Searching all three tabs</span>':'');
       var opt=function(list,cur,none){return '<option value="">'+none+'</option>'+list.map(function(x){return '<option value="'+esc(x.k)+'"'+(x.k===cur?" selected":"")+'>'+esc(RULE[x.k]?RULE[x.k][0]:x.k)+' ('+x.n.toLocaleString("en-GB")+')</option>'}).join("")};
-      $("flFilters").innerHTML='<label>Rule<select data-ff="rule">'+opt(c.rules,f.rule,"Any rule")+'</select></label>'+
-        '<label>Google type<select data-ff="gtype">'+opt(c.gtypes,f.gtype,"Any Google type")+'</select></label>'+
-        '<label>BarkFind category<select data-ff="category">'+opt(c.categories,f.category,"Any category")+'</select></label>'+
-        '<label>Flagged by<select data-ff="by"><option value="">Anyone</option><option value="auto"'+(f.by==="auto"?" selected":"")+'>Automatic</option>'+c.flaggers.map(function(p){return '<option value="'+esc(p.id)+'"'+(p.id===f.by?" selected":"")+'>'+esc(p.name)+' ('+p.n+')</option>'}).join("")+'</select></label>'+
-        '<label>Flagged from<input type="date" data-ff="from" value="'+esc(f.from)+'"></label><label>Flagged to<input type="date" data-ff="to" value="'+esc(f.to)+'"></label>'+
-        '<label>Sort<select data-ff="sort"><option value="new">Newest flag</option><option value="old"'+(fl.sort==="old"?" selected":"")+'>Oldest flag</option><option value="name"'+(fl.sort==="name"?" selected":"")+'>Name</option></select></label>';
+      $("flFilters").innerHTML='<select data-ff="rule" aria-label="Rule">'+opt(c.rules,f.rule,"Any rule")+'</select>'+
+        '<select data-ff="gtype" aria-label="Google type">'+opt(c.gtypes,f.gtype,"Any Google type")+'</select>'+
+        '<select data-ff="category" aria-label="BarkFind category">'+opt(c.categories,f.category,"Any category")+'</select>'+
+        '<select data-ff="by" aria-label="Flagged by"><option value="">Flagged by anyone</option><option value="auto"'+(f.by==="auto"?" selected":"")+'>Flagged automatically</option>'+c.flaggers.map(function(p){return '<option value="'+esc(p.id)+'"'+(p.id===f.by?" selected":"")+'>'+esc(p.name)+' ('+p.n+')</option>'}).join("")+'</select>'+
+        '<label class="fdate">From<input type="date" data-ff="from" value="'+esc(f.from)+'"></label><label class="fdate">To<input type="date" data-ff="to" value="'+esc(f.to)+'"></label>'+
+        '<select data-ff="sort" aria-label="Sort"><option value="new">Newest flag</option><option value="old"'+(fl.sort==="old"?" selected":"")+'>Oldest flag</option><option value="name"'+(fl.sort==="name"?" selected":"")+'>Name</option></select>';
       if(fl.group){
         $("flBody").innerHTML='<div class="note">Open a Google type to work through it.</div>'+(c.gtypes.length?c.gtypes.map(function(g){return '<button class="card" data-fa="opengroup" data-v="'+esc(g.k)+'" style="text-align:left;cursor:pointer"><div class="row" style="justify-content:space-between"><span class="title">'+esc(g.k)+'</span><span class="tag">'+g.n.toLocaleString("en-GB")+'</span></div></button>'}).join(""):'<div class="empty">Nothing here.</div>');
         return;
@@ -1453,15 +1460,15 @@ footer .mono{color:rgba(255,255,255,.75)}
   function inboxSection(el){
     var f=ib.filter;
     el.innerHTML='<div class="tiles" id="ibTiles"></div><div class="filter" id="ibViews"></div>'+
-      '<div class="row"><input type="search" class="pill-in" id="ibQ" placeholder="Search subject, name'+(H.can("users_contact")?" or email":"")+'" value="'+esc(f.q)+'" style="flex:1 1 200px"><select id="ibKind"></select><select id="ibTag"></select>'+
-      (H.can("places_edit")?'<button class="btn small" data-ia="newchange">New listing change</button>':'')+'</div><div class="stack" id="ibList"><div class="empty">Loading.</div></div>';
+      '<div class="fbar"><input type="search" class="pill-in" id="ibQ" placeholder="Search subject, name'+(H.can("users_contact")?" or email":"")+'" value="'+esc(f.q)+'"><select id="ibKind" aria-label="Type"></select><select id="ibTag" aria-label="Tag"></select>'+
+      (H.can("places_edit")?'<button class="btn small end" data-ia="newchange">New listing change</button>':'')+'</div><div class="stack" id="ibList"><div class="empty">Loading.</div></div>';
     ibLoad();
   }
   function ibLoad(){
     if(!$("ibList"))return;var f=ib.filter;
     Promise.all([H.api("inbox_counts",{filter:f}),H.api("inbox_list",{filter:f,page:ib.page})]).then(function(r){
       var c=r[0].data, v=c.views, s=c.sla||{}, d=r[1].data;
-      $("ibTiles").innerHTML=[["Open",s.open_now||0],["Awaiting first reply",s.awaiting||0],["Older than 24h",s.ageing||0],["Average first reply",s.avg_first_h!=null?s.avg_first_h+"h":"–"],["Breaching target",v.breaching||0]].map(function(t,i){return '<div class="tile"'+(i===4&&t[1]?' style="border-color:var(--crit)"':'')+'><div class="lbl">'+t[0]+'</div><div class="val"'+(i===4&&t[1]?' style="color:var(--crit)"':'')+'>'+t[1]+'</div></div>'}).join("");
+      $("ibTiles").innerHTML=[["Open",v.open||0],["Awaiting first reply",s.awaiting||0],["Older than 24h",s.ageing||0],["Average first reply",s.avg_first_h!=null?s.avg_first_h+"h":"–"],["Breaching target",v.breaching||0]].map(function(t,i){return '<div class="tile"'+(i===4&&t[1]?' style="border-color:var(--crit)"':'')+'><div class="lbl">'+t[0]+'</div><div class="val"'+(i===4&&t[1]?' style="color:var(--crit)"':'')+'>'+t[1]+'</div></div>'}).join("");
       $("ibViews").innerHTML=VIEW.map(function(x){var n=x[0]==="closed"?"":v[x[0]];return '<button class="chip" data-ia="view" data-v="'+x[0]+'" aria-pressed="'+(f.view===x[0])+'">'+x[1]+(n?' <span class="count">'+n+'</span>':'')+'</button>'}).join("");
       $("ibKind").innerHTML='<option value="">All types</option>'+c.kinds.map(function(k){return '<option value="'+k+'"'+(k===f.kind?" selected":"")+'>'+KIND[k]+'</option>'}).join("");
       $("ibTag").innerHTML='<option value="">All tags</option>'+c.tags.map(function(t){return '<option'+(t===f.tag?" selected":"")+'>'+esc(t)+'</option>'}).join("");
