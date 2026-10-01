@@ -407,6 +407,7 @@ footer .mono{color:rgba(255,255,255,.75)}
     <button role="tab" id="t-today" aria-selected="true" data-go="today">Today</button>
     <button role="tab" id="t-act" aria-selected="false" data-go="act">Act<span class="count" id="actCount">0</span></button>
     <button role="tab" id="t-users" aria-selected="false" data-go="users" hidden>Users</button>
+    <button role="tab" id="t-content" aria-selected="false" data-go="content" hidden>Content<span class="count" id="ceCount">0</span></button>
     <button role="tab" id="t-outreach" aria-selected="false" data-go="outreach">Outreach<span class="count" id="outCount">0</span></button>
     <button role="tab" id="t-admin" aria-selected="false" data-go="admin" hidden>Admin</button>
     <button role="tab" id="t-consoles" aria-selected="false" data-go="consoles">Consoles</button>
@@ -514,6 +515,18 @@ footer .mono{color:rgba(255,255,255,.75)}
     <button class="chip" data-s="banned" aria-pressed="false">Banned</button>
   </div>
   <div class="stack" id="userList"><div class="empty">Loading customers.</div></div>
+ </div>
+
+ <div data-tab="content" class="stack" hidden>
+  <p class="note" style="margin:0">Website pieces that are approved go live on barkfind.com at the next website deploy, and leave it if moved back to needs edit or deleted. Nothing here posts to social media: Exported only records that a person has posted it.</p>
+  <div class="tiles" id="ceTiles"></div>
+  <nav class="filter subnav" id="ceNav" aria-label="Content sections">
+    <button class="chip" data-sec="queue" aria-pressed="true">Queue</button>
+    <button class="chip" data-sec="new" aria-pressed="false">New post</button>
+    <button class="chip" data-sec="generate" aria-pressed="false">Generate</button>
+    <button class="chip" data-sec="runs" aria-pressed="false">Recent runs</button>
+  </nav>
+  <div class="stack" id="cePane"><div class="empty">Loading.</div></div>
  </div>
 
  <div data-tab="outreach" class="stack" hidden>
@@ -950,11 +963,12 @@ footer .mono{color:rgba(255,255,255,.75)}
   function applyPerms(){
     var c=HQ.can, show=function(id,on){var e=$(id);if(e)e.hidden=!on};
     show("t-act",c("safety")||c("privacy")||c("reviews")||c("reports")||c("claims")||c("support_read")||c("places_moderate")||c("places_delete"));
-    show("t-users",c("users_view"));show("t-outreach",c("outreach"));show("t-admin",c("staff_manage"));
+    show("t-users",c("users_view"));show("t-content",c("content"));show("t-outreach",c("outreach"));show("t-admin",c("staff_manage"));
     show("p-money",c("money"));show("p-costs",c("money"));show("p-renewals",c("renewals"));
     var ask=document.querySelector("section.cta");if(ask)ask.hidden=!c("ask_ralphy");
     show("miniForm",c("ask_ralphy"));show("miniLinks",c("ask_ralphy"));
     if(window.HQAct)HQAct.init();
+    if(window.HQContent)HQContent.init();
   }
 
   // ---------- tabs ----------
@@ -966,10 +980,11 @@ footer .mono{color:rgba(255,255,255,.75)}
     window.scrollTo(0,0);
     if(t==="act"&&window.HQAct)HQAct.show();
     if(t==="users"&&window.HQUsers)HQUsers.show();
+    if(t==="content"&&window.HQContent)HQContent.show();
     if(t==="admin"&&window.HQAdmin)HQAdmin.show();
   }
   document.querySelector(".tabs").addEventListener("click",function(ev){var b=ev.target.closest("button[data-go]");if(b)go(b.dataset.go)});
-  document.addEventListener("click",function(ev){var a=ev.target.closest('a[href^="#"]');if(!a)return;var t=a.getAttribute("href").slice(1);if(["today","act","users","outreach","admin","consoles"].indexOf(t)>=0){ev.preventDefault();go(t)}});
+  document.addEventListener("click",function(ev){var a=ev.target.closest('a[href^="#"]');if(!a)return;var t=a.getAttribute("href").slice(1);if(["today","act","users","content","outreach","admin","consoles"].indexOf(t)>=0){ev.preventDefault();go(t)}});
   var startTab=(location.hash||"").slice(1);
 
   $("refresh").addEventListener("click",load);
@@ -1063,7 +1078,7 @@ footer .mono{color:rgba(255,255,255,.75)}
     checking=true;gate("checking","Checking access.");
     api("history").then(function(r){state.history=r.data||[];return api("me")}).then(function(m){
         HQ.perms=(m.data&&m.data.perms)||[];HQ.me=m.data||{};ready=true;applyPerms();gate("app");
-        if(["act","users","outreach","admin","consoles"].indexOf(startTab)>=0)go(startTab);load()})
+        if(["act","users","content","outreach","admin","consoles"].indexOf(startTab)>=0)go(startTab);load()})
       .catch(function(e){if(e.code!=="denied"&&e.code!=="auth"&&e.code!=="mfa")gate("signin",e.message)})
       .then(function(){checking=false});
   }
@@ -1797,6 +1812,262 @@ footer .mono{color:rgba(255,255,255,.75)}
         .catch(function(e){H.note(card,false,(e&&e.message)||"That did not work.")}).then(function(){b.disabled=false});
     }
   });
+})();
+</script>
+<script>
+// ---------- Content engine (queue, New post, Generate, Recent runs) ----------
+// Rules from docs/content-contract.md: statuses are draft, needs_edit, approved, exported;
+// approving a website piece publishes it on the next website deploy; generation starts in the
+// database and HQ reads content_runs, treating 10 minutes unfinished as failed.
+(function(){
+  var $=function(id){return document.getElementById(id)}, H=window.HQ, esc=H.esc;
+  var ST={draft:"Draft",needs_edit:"Needs edit",approved:"Approved",exported:"Exported"};
+  var STC={draft:"",needs_edit:"warn",approved:"ok",exported:"ok"};
+  var GEN={release_notes:"Release notes",restriction_spotlight:"Restriction spotlights",location_page:"Area pages"};
+  var ce={sec:"queue",rows:[],counts:{},onWebsite:0,f:{status:"",channel:"",type:"",q:""},open:null,dirty:false,
+    pending:{},runs:null,timer:null,loaded:false,preview:null,newType:"news"};
+  function pretty(k){return String(k||"").replace(/_/g," ").replace(/^\w/,function(c){return c.toUpperCase()})}
+  function web(r){return r.channel==="website_blog"}
+  function live(r){return web(r)&&(r.status==="approved"||r.status==="exported")}
+  function fail(el,e){el.innerHTML='<div class="empty">'+esc((e&&e.message)||"That did not load. Try again.")+'</div>'}
+  function busy(b,p,card,after){b.disabled=true;return p.then(function(r){H.note(card,r&&r.ok!==false,(r&&r.message)||"Done.");if(after)after(r)}).catch(function(e){H.note(card,false,(e&&e.message)||"That did not work.")}).then(function(){b.disabled=false})}
+
+  // ---------- tiles and nav ----------
+  function tiles(){
+    var c=ce.counts;
+    $("ceTiles").innerHTML=[["Drafts",c.draft||0],["Needs edit",c.needs_edit||0],["Approved",c.approved||0],["Exported",c.exported||0],["On the website",ce.onWebsite||0]]
+      .map(function(t){return '<div class="tile"><div class="lbl">'+t[0]+'</div><div class="val">'+t[1]+'</div></div>'}).join("");
+    var n=$("ceCount");n.textContent=c.draft||0;n.className="count"+(c.draft?" hot":"");
+  }
+  function loadList(){
+    return H.api("content_list").then(function(r){ce.rows=r.data.rows;ce.counts=r.data.counts;ce.onWebsite=r.data.on_website;tiles();return r});
+  }
+  $("ceNav").addEventListener("click",function(ev){var b=ev.target.closest("[data-sec]");if(!b)return;ce.sec=b.dataset.sec;
+    this.querySelectorAll("[data-sec]").forEach(function(x){x.setAttribute("aria-pressed",x===b?"true":"false")});render()});
+  function render(){
+    var el=$("cePane");
+    if(ce.sec==="queue"){queue(el);return}
+    if(ce.sec==="new"){newPost(el);return}
+    if(ce.sec==="generate"){generate(el);return}
+    runsView(el);
+  }
+
+  // ---------- queue ----------
+  function queue(el){
+    var f=ce.f;
+    var chans=[], types=[];ce.rows.forEach(function(r){if(chans.indexOf(r.channel)<0)chans.push(r.channel);if(types.indexOf(r.content_type)<0)types.push(r.content_type)});chans.sort();types.sort();
+    el.innerHTML='<div class="filter" id="ceStatus">'+[["","All"],["draft","Drafts"],["needs_edit","Needs edit"],["approved","Approved"],["exported","Exported"]].map(function(s){
+        var n=s[0]?(ce.counts[s[0]]||0):0;return '<button class="chip" data-st="'+s[0]+'" aria-pressed="'+(f.status===s[0])+'">'+s[1]+(n?' <span class="count">'+n+'</span>':'')+'</button>'}).join("")+'</div>'+
+      '<div class="fbar"><input type="search" class="pill-in" id="ceQ" placeholder="Search titles" value="'+esc(f.q)+'">'+
+      '<select id="ceChan" aria-label="Channel"><option value="">All channels</option>'+chans.map(function(c){return '<option value="'+esc(c)+'"'+(c===f.channel?" selected":"")+'>'+esc(pretty(c))+'</option>'}).join("")+'</select>'+
+      '<select id="ceType" aria-label="Type"><option value="">All types</option>'+types.map(function(t){return '<option value="'+esc(t)+'"'+(t===f.type?" selected":"")+'>'+esc(pretty(t))+'</option>'}).join("")+'</select>'+
+      '<button class="btn small end" data-ce="tonew">New post</button></div><div class="stack" id="ceList"></div>';
+    list();
+  }
+  function list(){
+    var f=ce.f, q=f.q.toLowerCase();
+    var rows=ce.rows.filter(function(r){return (!f.status||r.status===f.status)&&(!f.channel||r.channel===f.channel)&&(!f.type||r.content_type===f.type)&&(!q||String(r.title||"").toLowerCase().indexOf(q)>=0)});
+    var box=$("ceList");if(!box)return;
+    box.innerHTML=rows.length?'<div class="note">'+rows.length+(rows.length===1?" piece":" pieces")+(ce.rows.length>=300?" (newest 300)":"")+'</div>'+rows.map(function(r){
+      var m=r.meta||{};
+      return '<button class="card" data-ce="open" data-id="'+esc(r.id)+'" style="text-align:left;cursor:pointer"><div class="meta"><span class="tag '+STC[r.status]+'">'+esc(ST[r.status]||r.status)+'</span>'+
+        (live(r)?'<span class="tag ok plain">On the website</span>':'')+'<span class="tag plain">'+esc(pretty(r.channel))+'</span><span class="tag plain">'+esc(pretty(r.content_type))+'</span>'+
+        (r.ai_generated?'':'<span class="tag plain">Written by a person</span>')+'<span>'+esc(H.when(r.created_at))+'</span></div>'+
+        '<div class="title">'+esc(r.title||"(untitled)")+'</div>'+
+        (r.content_type==="event"&&m.event_date?'<div class="note">Event on '+esc(H.day(m.event_date))+(m.town?", "+esc(m.town):"")+'</div>':'')+
+        (r.source_ref?'<div class="note">'+esc(String(r.source_ref).replace(/^area:/,"Area: "))+'</div>':'')+
+        (r.published_url?'<div class="note">'+esc(r.published_url)+'</div>':'')+'</button>'}).join(""):
+      '<div class="empty">Nothing here. Drafts appear when a review, restriction or claim is approved, when you generate, or from New post.</div>';
+  }
+  $("cePane").addEventListener("click",function(ev){
+    var st=ev.target.closest("[data-st]");if(st){ce.f.status=st.dataset.st;$("ceStatus").querySelectorAll("[data-st]").forEach(function(x){x.setAttribute("aria-pressed",x===st?"true":"false")});list();return}
+    var b=ev.target.closest("[data-ce]");if(!b)return;var w=b.dataset.ce, card=b.closest(".card")||$("cePane");
+    if(w==="open"){openPiece(b.dataset.id);return}
+    if(w==="tonew"){ce.sec="new";$("ceNav").querySelectorAll("[data-sec]").forEach(function(x){x.setAttribute("aria-pressed",x.dataset.sec==="new"?"true":"false")});render();return}
+    if(w==="newtype"){ce.newType=b.dataset.v;newPost($("cePane"));return}
+    if(w==="create"){createPost(b,card);return}
+    if(w==="gen"&&b.dataset.v==="release_notes"&&!$("ceDiff").value.trim()){H.note(card,false,"Paste the diff first.");return}
+    if(b.dataset.confirm&&!H.armed(b))return;
+    if(w==="gen"){startGen(b,card,b.dataset.v);return}
+    if(w==="preview"){areaPreview(b,card);return}
+    if(w==="refreshruns"){runsView($("cePane"));return}
+  });
+  $("cePane").addEventListener("input",function(ev){if(ev.target.id==="ceQ"){ce.f.q=ev.target.value.trim();list()}});
+  $("cePane").addEventListener("change",function(ev){var t=ev.target;if(t.id==="ceChan"){ce.f.channel=t.value;list()}if(t.id==="ceType"){ce.f.type=t.value;list()}});
+
+  // ---------- one piece, in the side panel ----------
+  function fieldsFor(type,m){
+    m=m||{};
+    if(type==="event")return '<div class="grid2"><label>Event date (required)<input type="date" data-cf="event_date" value="'+esc(m.event_date||"")+'"></label>'+
+      '<label>Source link (required, https)<input type="text" data-cf="source_url" value="'+esc(m.source_url||"")+'" placeholder="The organiser\'s event page"></label>'+
+      '<label>Town<input type="text" data-cf="town" maxlength="80" value="'+esc(m.town||"")+'"></label><label>Venue<input type="text" data-cf="venue_name" maxlength="120" value="'+esc(m.venue_name||"")+'"></label></div>';
+    if(type==="news")return '<div class="grid2"><label>Published date (optional)<input type="date" data-cf="published_date" value="'+esc(m.published_date||"")+'"></label>'+
+      '<label class="fcheck" style="flex-direction:row;align-items:center;gap:8px;margin-top:18px"><input type="checkbox" data-cf="press_release"'+(m.press_release?" checked":"")+' style="width:20px;height:20px"> Press release</label></div>';
+    return "";
+  }
+  function readFields(root,type){
+    var o={};if(type!=="news"&&type!=="event")return o;
+    root.querySelectorAll("[data-cf]").forEach(function(i){var k=i.dataset.cf;o[k]=i.type==="checkbox"?i.checked:i.value.trim()});
+    if(type==="event"){if(!/^\d{4}-\d{2}-\d{2}$/.test(o.event_date||""))return {err:"Events need a date."};if(!/^https:\/\/\S+$/i.test(o.source_url||""))return {err:"Events need a source link starting with https://"};
+      if(!o.town)delete o.town;if(!o.venue_name)delete o.venue_name}
+    if(type==="news"){if(!o.published_date)delete o.published_date}
+    return o;
+  }
+  function openPiece(id){
+    var bg=$("sheetBg");bg.classList.add("wide");$("sheetTitle").textContent="Content";$("sheetBody").innerHTML='<div class="empty">Loading.</div>';bg.hidden=false;document.body.style.overflow="hidden";
+    ce.dirty=false;
+    H.api("content_get",{id:id}).then(function(r){var p=r.data;ce.open=p;pieceView(p)}).catch(function(e){$("sheetBody").innerHTML='<div class="empty">'+esc(e.message||"That did not load.")+'</div>'});
+  }
+  function pieceView(p){
+    var w=web(p), st=p.status, m=p.meta||{};
+    $("sheetTitle").textContent=p.title||"(untitled)";
+    var btns=[];
+    if(st==="draft"||st==="needs_edit")btns.push('<button class="btn ok small" data-ce="approve" data-confirm="'+(w?"Confirm: goes live on the next deploy":"Confirm approve")+'">'+(w?"Approve: goes live on the next website deploy":"Approve")+'</button>');
+    if(st!=="needs_edit")btns.push('<button class="btn small" data-ce="reject" data-confirm="Confirm needs edit">'+(live(p)?"Reject (needs edit): takes it off the website at the next deploy":"Reject (needs edit)")+'</button>');
+    btns.push('<button class="btn danger small" data-ce="delete" data-confirm="Confirm delete">Delete</button>');
+    $("sheetBody").innerHTML='<div class="card" data-ce-piece><div class="meta"><span class="tag '+STC[st]+'">'+esc(ST[st]||st)+'</span>'+(live(p)?'<span class="tag ok plain">On the website from the next deploy</span>':'')+
+        '<span class="tag plain">'+esc(pretty(p.channel))+'</span><span class="tag plain">'+esc(pretty(p.content_type))+'</span><span class="tag plain">'+(p.ai_generated?"Drafted by Claude":"Written by a person")+'</span></div>'+
+        '<dl class="kvs"><dt>Created</dt><dd>'+esc(H.when(p.created_at))+'</dd>'+(p.approved_at?'<dt>Approved</dt><dd>'+esc(H.when(p.approved_at))+(p.approved_by_name?" by "+esc(p.approved_by_name):"")+'</dd>':'')+
+        (p.source_ref?'<dt>Source</dt><dd>'+esc(p.source_ref)+'</dd>':'')+(p.published_url?'<dt>Posted at</dt><dd><a href="'+esc(p.published_url)+'" target="_blank" rel="noopener noreferrer">'+esc(p.published_url)+'</a></dd>':'')+'</dl>'+
+        (w&&st!=="exported"?'<p class="note" style="margin:0">'+(live(p)?"This is approved, so the website build publishes it. Saved edits show after the next deploy.":"This is a website piece. Approving it means it goes live on barkfind.com at the next website deploy.")+'</p>':'')+
+        '<label class="note">Title</label><input type="text" class="pill-in" data-ce-title maxlength="300" value="'+esc(p.title||"")+'">'+
+        fieldsFor(p.content_type,m)+
+        '<label class="note">Text (Markdown)</label><textarea data-ce-body style="min-height:340px;font-family:ui-monospace,Menlo,monospace;font-size:13.5px">'+esc(p.body_md||"")+'</textarea>'+
+        '<div class="row"><button class="btn primary small" data-ce="save">Save edits</button></div><div class="row">'+btns.join("")+'</div></div>'+
+      (st==="approved"?'<div class="card" data-ce-exp><div class="subhead"><h3 style="font-size:18px">Mark exported</h3></div><p class="note" style="margin:0">Only once you have checked it is live or posted. Add the link if there is one.</p>'+
+        '<input type="text" class="pill-in" data-ce-url placeholder="https://"><div class="row"><button class="btn small" data-ce="exported" data-confirm="Confirm exported">Mark exported</button></div></div>':'');
+  }
+  $("sheetBody").addEventListener("input",function(ev){if(ce.open&&ev.target.closest("[data-ce-piece]"))ce.dirty=true});
+  $("sheetBody").addEventListener("click",function(ev){
+    var b=ev.target.closest("button[data-ce]");if(!b||!ce.open)return;var p=ce.open, card=b.closest(".card"), w=b.dataset.ce, root=$("sheetBody");
+    if(w==="approve"&&ce.dirty){H.note(card,false,"Save your edits first, then approve.");return}
+    if(b.dataset.confirm&&!H.armed(b))return;
+    var after=function(r){if(r&&r.ok===false)return;ce.dirty=false;loadList().then(function(){if(ce.sec==="queue")list()});
+      if(w==="delete"){setTimeout(function(){$("sheetBg").hidden=true;document.body.style.overflow=""},900);return}
+      H.api("content_get",{id:p.id}).then(function(x){ce.open=x.data;pieceView(x.data);var c=root.querySelector("[data-ce-piece]");if(c)H.note(c,true,r.message)}).catch(function(){})};
+    if(w==="save"){
+      var title=root.querySelector("[data-ce-title]").value.trim(), body=root.querySelector("[data-ce-body]").value;
+      if(!title||!body.trim()){H.note(card,false,"Add a title and some text.");return}
+      var args={id:p.id,title:title,body_md:body}, fx=readFields(root,p.content_type);
+      if(fx.err){H.note(card,false,fx.err);return}
+      for(var k in fx)args[k]=fx[k];
+      busy(b,H.api("content_save",args),card,after);return}
+    if(w==="approve"){busy(b,H.api("content_set_status",{id:p.id,status:"approved"}),card,after);return}
+    if(w==="reject"){busy(b,H.api("content_set_status",{id:p.id,status:"needs_edit"}),card,after);return}
+    if(w==="exported"){var u=root.querySelector("[data-ce-url]").value.trim();if(u&&!/^https:\/\/\S+$/i.test(u)){H.note(card,false,"Links must start with https://");return}
+      busy(b,H.api("content_exported",{id:p.id,url:u}),card,after);return}
+    if(w==="delete"){busy(b,H.api("content_delete",{id:p.id}),card,after);return}
+  });
+
+  // ---------- New post (news and events for the website) ----------
+  function newPost(el){
+    var t=ce.newType;
+    el.innerHTML='<div class="card" data-ce-new><div class="subhead"><h3>New post for the website</h3></div>'+
+      '<p class="note" style="margin:0">News and events typed in by a person. It saves as a draft in the queue; nothing appears on barkfind.com until it is approved and the website is deployed.</p>'+
+      '<div class="filter">'+[["news","News"],["event","Event"]].map(function(x){return '<button class="chip" data-ce="newtype" data-v="'+x[0]+'" aria-pressed="'+(t===x[0])+'">'+x[1]+'</button>'}).join("")+'</div>'+
+      '<label class="note">Title</label><input type="text" class="pill-in" id="ceNewTitle" maxlength="300">'+fieldsFor(t,{})+
+      '<label class="note">Text (Markdown)</label><textarea id="ceNewBody" style="min-height:260px"></textarea>'+
+      '<div class="row"><button class="btn primary" data-ce="create">Save as draft</button></div></div>';
+  }
+  function createPost(b,card){
+    var title=$("ceNewTitle").value.trim(), body=$("ceNewBody").value;
+    if(!title||!body.trim()){H.note(card,false,"Add a title and some text.");return}
+    var fx=readFields(card,ce.newType);if(fx.err){H.note(card,false,fx.err);return}
+    var args={type:ce.newType,title:title,body_md:body};for(var k in fx)args[k]=fx[k];
+    busy(b,H.api("content_new",args),card,function(r){if(!r||r.ok===false)return;$("ceNewTitle").value="";$("ceNewBody").value="";card.querySelectorAll("[data-cf]").forEach(function(i){if(i.type==="checkbox")i.checked=false;else i.value=""});loadList()});
+  }
+
+  // ---------- Generate ----------
+  function genStatus(type){
+    var pd=ce.pending[type], runs=(ce.runs&&ce.runs.runs)||[];
+    var run=runs.filter(function(r){return r.source_type===type&&r.triggered_by==="hq"})[0];
+    if(pd&&!pd.run){var mins=(Date.now()-pd.at)/60000;
+      if(mins>=10)return '<div class="msg bad">No run started within 10 minutes, so treat it as failed. Try again, and if it keeps happening the generator may be down.</div>';
+      return '<div class="msg good">Starting. Waiting for the generator to pick it up.</div>'}
+    if(!run)return "";
+    return '<div class="msg '+(run.state==="done"||run.state==="running"?"good":"bad")+'">'+runLine(run)+'</div>';
+  }
+  function runLine(r){
+    var when=H.when(r.started_at), n=r.pieces_created||0, f=r.pieces_failed||0;
+    if(r.state==="running")return "Drafting since "+esc(when)+". This can take a few minutes.";
+    if(r.state==="failed")return "Started "+esc(when)+" and not finished after 10 minutes, so treat it as failed."+(r.error_detail?" "+esc(r.error_detail):"");
+    if(r.state==="refused")return "Refused, "+esc(when)+": "+esc(r.error_detail||"no reason given");
+    return "Finished "+esc(H.when(r.finished_at))+": "+n+(n===1?" piece":" pieces")+" drafted"+(f?", "+f+" failed":"")+"."+(r.error_detail?" "+esc(r.error_detail):"");
+  }
+  function generate(el){
+    el.innerHTML='<p class="note" style="margin:0">Each run drafts pieces into the queue as drafts. Nothing is published until a person approves it. Results show here and under Recent runs.</p>'+
+      '<div class="card" data-gen="release_notes"><div class="subhead"><h3>Release notes</h3></div><p class="note" style="margin:0">Paste the code changes for a build. Claude writes the What\'s New notes from them and nothing else.</p>'+
+        '<input type="text" class="pill-in" id="ceBuild" maxlength="80" placeholder="Build label, for example build 10"><textarea id="ceDiff" placeholder="Paste the diff here" style="min-height:160px;font-family:ui-monospace,Menlo,monospace;font-size:13px"></textarea>'+
+        '<div class="row"><button class="btn primary small" data-ce="gen" data-v="release_notes" data-confirm="Confirm: draft release notes">Draft release notes</button></div><div data-gen-status></div></div>'+
+      '<div class="card" data-gen="restriction_spotlight"><div class="subhead"><h3>Restriction spotlights</h3></div><p class="note" style="margin:0">Drafts posts for approved council restrictions that do not have one yet.</p>'+
+        '<div class="row"><button class="btn primary small" data-ce="gen" data-v="restriction_spotlight" data-confirm="Confirm: draft spotlights">Draft missing spotlights</button></div><div data-gen-status></div></div>'+
+      '<div class="card" data-gen="location_page"><div class="subhead"><h3>Area pages</h3></div><p class="note" style="margin:0">One page per town for the website, best-covered towns first, up to 5 a run. A town needs 5 venues that pass the quality bar (opening hours and a verdict), and runs refuse below 20 such venues overall.</p>'+
+        '<div class="row"><button class="btn small" data-ce="preview">Check what the next batch would draft</button></div><div id="cePreview"></div>'+
+        '<div class="row"><button class="btn primary small" data-ce="gen" data-v="location_page" data-confirm="Confirm: draft up to 5 area pages">Generate next batch</button></div><div data-gen-status></div></div>';
+    if(ce.preview)showPreview(ce.preview);
+    paintGen();
+    if(!ce.runs)pollRuns();
+  }
+  function paintGen(){document.querySelectorAll("#cePane [data-gen]").forEach(function(c){var s=c.querySelector("[data-gen-status]");if(s)s.innerHTML=genStatus(c.dataset.gen)})}
+  function showPreview(d){
+    var s=d.stats||{}, sc=(d.scope||[]).map(function(x){return x.value+(x.label?" ("+x.label+")":"")}).join(", ")||"none";
+    $("cePreview").innerHTML='<div class="prior">Scope: '+esc(sc)+'.<br>'+(s.in_scope||0)+' places in scope, '+(s.eligible||0)+' venues pass the quality bar, '+(s.areas_ready||0)+' towns have enough for a page, '+(s.areas_remaining||0)+' still without one.<br>'+
+      (d.below_floor?'Below the floor of '+d.floor+' venues, so a run would refuse and draft nothing.':(d.areas.length?'The next run would draft '+d.areas.length+(d.areas.length===1?" page":" pages")+': '+esc(d.areas.map(function(a){return a.town+" ("+a.visitable_count+" venues)"}).join(", "))+'.':'Every town with enough venues already has a page, so a run would draft nothing.'))+'</div>';
+  }
+  function areaPreview(b,card){
+    b.disabled=true;$("cePreview").innerHTML='<div class="note">Checking. This takes a few seconds.</div>';
+    H.api("content_area_preview").then(function(r){ce.preview=r.data;showPreview(r.data)}).catch(function(e){$("cePreview").innerHTML='<div class="msg bad">'+esc(e.message||"That did not load.")+'</div>'}).then(function(){b.disabled=false});
+  }
+  function startGen(b,card,type){
+    var args={source_type:type};
+    if(type==="release_notes"){var diff=$("ceDiff").value;if(!diff.trim()){H.note(card,false,"Paste the diff first.");return}if(diff.length>60000){H.note(card,false,"That diff is too long. Keep it under 60,000 characters.");return}
+      args.diff=diff;var lbl=$("ceBuild").value.trim();if(lbl)args.build_label=lbl}
+    b.disabled=true;
+    H.api("content_generate",args).then(function(r){
+      ce.pending[type]={at:Date.now(),since:new Date(r.started_at).getTime(),run:null};
+      if(type==="release_notes"){$("ceDiff").value=""}
+      paintGen();pollRuns();
+    }).catch(function(e){H.note(card,false,(e&&e.message)||"That did not start.")}).then(function(){b.disabled=false});
+  }
+
+  // ---------- Recent runs, and polling while anything is going ----------
+  function visible(){var t=document.querySelector('[data-tab="content"]');return t&&!t.hidden}
+  function pollRuns(){
+    clearTimeout(ce.timer);
+    return H.api("content_runs").then(function(r){
+      ce.runs=r.data;var runs=r.data.runs, again=false;
+      Object.keys(ce.pending).forEach(function(t){var pd=ce.pending[t];
+        if(!pd.run){var m=runs.filter(function(x){return x.source_type===t&&x.triggered_by==="hq"&&new Date(x.started_at).getTime()>=pd.since-5000})[0];
+          if(m)pd.run=m.id;else if(Date.now()-pd.at<600000)again=true}
+      });
+      if(runs.some(function(x){return x.state==="running"}))again=true;
+      // A run that just finished: refresh the queue so its drafts appear.
+      var done=Object.keys(ce.pending).some(function(t){var pd=ce.pending[t],x=pd.run&&runs.filter(function(y){return y.id===pd.run})[0];if(x&&x.state!=="running"&&!pd.counted){pd.counted=true;return true}return false});
+      if(done)loadList();
+      if(ce.sec==="generate")paintGen();
+      if(ce.sec==="runs")paintRuns();
+      if(again&&visible())ce.timer=setTimeout(pollRuns,5000);
+    }).catch(function(){if(visible())ce.timer=setTimeout(pollRuns,15000)});
+  }
+  function paintRuns(){
+    var el=$("ceRuns");if(!el||!ce.runs)return;var runs=ce.runs.runs;
+    el.innerHTML=runs.length?runs.map(function(r){var cls=r.state==="done"?"ok":r.state==="running"?"warn":"crit";
+      return '<div class="card'+(r.state==="failed"||r.state==="refused"?" crit":"")+'"><div class="meta"><span class="tag '+cls+'">'+esc({done:"done",running:"running",failed:"failed",refused:"refused",partial:"some failed"}[r.state]||r.state)+'</span><span class="tag plain">'+esc(GEN[r.source_type]||pretty(r.source_type))+'</span><span>'+esc(r.triggered_by)+'</span><span>'+esc(H.when(r.started_at))+'</span></div>'+
+        '<div class="note">'+runLine(r)+'</div></div>'}).join(""):'<div class="empty">No runs yet.</div>';
+  }
+  function runsView(el){
+    el.innerHTML='<div class="row" style="justify-content:space-between"><span class="note">The last 25 generation runs, from any source: HQ, the triggers and the weekly cron. A run unfinished after 10 minutes counts as failed.</span><button class="btn small" data-ce="refreshruns">Refresh</button></div><div class="stack" id="ceRuns"><div class="empty">Loading.</div></div>';
+    if(ce.runs)paintRuns();
+    pollRuns();
+  }
+
+  window.HQContent={
+    show:function(){
+      if(!ce.loaded){ce.loaded=true;$("cePane").innerHTML='<div class="empty">Loading.</div>';loadList().then(render).catch(function(e){ce.loaded=false;fail($("cePane"),e)});pollRuns();return}
+      render();pollRuns();
+    },
+    init:function(){if(H.can("content"))loadList().catch(function(){})}
+  };
 })();
 </script>
 </body>
