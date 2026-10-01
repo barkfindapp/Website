@@ -2,6 +2,7 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "cleanUrls": true,
+  "trailingSlash": false,
   "redirects": [
     { "source": "/", "has": [{ "type": "host", "value": "hq.barkfind.com" }], "destination": "/hq", "permanent": false },
     {

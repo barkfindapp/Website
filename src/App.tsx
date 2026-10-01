@@ -51,6 +51,8 @@ export default function App() {
       </Suspense>
     );
   }
-  const Page = ROUTES[path];
+  // Exact-match lookup on the path without a trailing slash, so /privacy/ shows
+  // the privacy page rather than falling through to the homepage.
+  const Page = ROUTES[clean];
   return Page ? <Page /> : <LandingPage />;
 }
