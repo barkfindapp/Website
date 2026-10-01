@@ -17,6 +17,7 @@ import { announceOps } from './_lib/hq-announce.js';
 import { placeOps } from './_lib/hq-places.js';
 import { usdToGbp, type Fx } from './_lib/hq-fx.js';
 import { rewardOps } from './_lib/hq-rewards.js';
+import { insightOps } from './_lib/hq-insights.js';
 import { HttpError, bad, obj, only, uuid, str, oneOf, date, bool, scrubEmails, writeTx, toTrash } from './_lib/hq-core.js';
 
 const DB_URL = process.env.SUPABASE_DB_URL!;
@@ -395,6 +396,7 @@ const OPS: Record<string, Op | { perm: null; run: Op['run'] }> = {
   ...announceOps(pool),
   ...placeOps(pool),
   ...rewardOps(pool),
+  ...insightOps(pool),
 };
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
