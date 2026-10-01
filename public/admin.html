@@ -378,30 +378,6 @@ a.evidence { color:var(--rust); font-size:12px; word-break:break-all; }
       </div>
       <div id="cePieces"><div class="loading">Loading…</div></div>
     </div>
-    <div class="panel"><h2>New post</h2>
-      <div class="muted" style="margin-bottom:8px">News and events for the website, typed in by a person. It saves as a draft in the queue above; nothing appears on barkfind.com until it is approved and the site is redeployed.</div>
-      <div style="display:flex;flex-direction:column;gap:8px;max-width:720px">
-        <div class="toolbar" style="margin:0">
-          <select id="npType" class="mini-select" onchange="npTypeChanged()"><option value="news">News</option><option value="event">Event</option></select>
-        </div>
-        <input id="npTitle" class="note-in" placeholder="Title" />
-        <textarea id="npBody" class="reply-box" placeholder="Body (Markdown)" style="margin-top:0;min-height:160px"></textarea>
-        <div id="npNewsFields" style="display:flex;flex-wrap:wrap;gap:8px;align-items:center">
-          <label class="muted">Publish date <input id="npPubDate" type="date" class="note-in" style="width:auto" /></label>
-          <label class="muted"><input id="npPress" type="checkbox" /> Press release</label>
-        </div>
-        <div id="npEventFields" style="display:none;flex-direction:column;gap:8px">
-          <label class="muted">Event date (required) <input id="npEventDate" type="date" class="note-in" style="width:auto" /></label>
-          <input id="npTown" class="note-in" placeholder="Town" />
-          <input id="npVenue" class="note-in" placeholder="Venue name" />
-          <input id="npSource" class="note-in" placeholder="Source link (required), e.g. the organiser's event page" />
-        </div>
-        <div class="toolbar" style="margin:0">
-          <button class="btn on" onclick="npCreate()">Save as draft</button>
-          <span id="npMsg" class="muted"></span>
-        </div>
-      </div>
-    </div>
     <div class="panel"><h2>Generate release notes</h2>
       <div class="muted" style="margin-bottom:8px">Paste the Lovable diff for the build range. The draft only describes what the diff shows; anything unclear is flagged rather than guessed.</div>
       <div style="display:flex;flex-direction:column;gap:8px;max-width:720px">
@@ -1665,41 +1641,6 @@ async function ceDeletePiece(id){
   if(btn && !btn.classList.contains('armed')){ btn.textContent='Confirm delete'; btn.classList.add('armed'); setTimeout(()=>{ if(btn){ btn.textContent='Delete'; btn.classList.remove('armed'); } },3000); return; }
   _ceOpen=null;
   deferAction('Content piece removed', `DELETE FROM content_pieces WHERE id='${sqlLit(id)}' -- ${Date.now()}`, ()=>loadContent(), card);
-}
-/* New post: manual news and events for the website resources section. Inserts a
-   draft content_pieces row through runSQL (same audited write path as the queue);
-   the website build only ever reads approved or exported rows. */
-function npTypeChanged(){
-  const ev=document.getElementById('npType').value==='event';
-  document.getElementById('npEventFields').style.display=ev?'flex':'none';
-  document.getElementById('npNewsFields').style.display=ev?'none':'flex';
-}
-async function npCreate(){
-  const v=id=>((document.getElementById(id)||{}).value||'').trim();
-  const msg=document.getElementById('npMsg');
-  const type=v('npType'), title=v('npTitle'), body=v('npBody');
-  if(!title||!body){ msg.textContent='Title and body are required.'; return; }
-  const meta={};
-  if(type==='event'){
-    const d=v('npEventDate'), src=v('npSource');
-    if(!/^\d{4}-\d{2}-\d{2}$/.test(d)){ msg.textContent='Events need a date.'; return; }
-    if(!/^https?:\/\/\S+$/i.test(src)){ msg.textContent='Events need a source link starting with https://'; return; }
-    meta.event_date=d; meta.source_url=src;
-    if(v('npTown')) meta.town=v('npTown');
-    if(v('npVenue')) meta.venue_name=v('npVenue');
-  } else if(type==='news'){
-    if(v('npPubDate')) meta.published_date=v('npPubDate');
-    if(document.getElementById('npPress').checked) meta.press_release=true;
-  } else { msg.textContent='Choose news or event.'; return; }
-  msg.textContent='Saving…';
-  try{
-    const safe=String(body).replace(/\$cbody\$/g,'');
-    await runSQL(`INSERT INTO content_pieces (channel, content_type, source_type, title, body_md, status, ai_generated, meta) VALUES ('website_blog', '${sqlLit(type)}', 'manual', '${sqlLit(title)}', $cbody$${safe}$cbody$, 'draft', false, '${sqlLit(JSON.stringify(meta))}'::jsonb)`);
-    ['npTitle','npBody','npPubDate','npEventDate','npTown','npVenue','npSource'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
-    document.getElementById('npPress').checked=false;
-    msg.textContent='Saved as a draft. Approve it in the queue, then redeploy the site.';
-    await loadContent();
-  }catch(e){ msg.textContent=''; showGlobalErr(e); }
 }
 async function loadCeStats(){
   try{
