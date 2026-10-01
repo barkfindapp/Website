@@ -2,9 +2,12 @@
 //
 // Runs before `vite build`. Reads approved content from Supabase ONCE, at build
 // time, and writes two JSON files the React pages import:
-//   src/data/generated/guides-manifest.json  small search manifest (town, slug,
-//                                            county, venue count, summary)
-//   src/data/generated/resources.json        rendered pages, routes, sitemap rows
+//   src/data/generated/discover-manifest.json  small search manifest: guides
+//                                              (town, county, count, summary),
+//                                              events and news (title, type,
+//                                              town, date)
+//   src/data/generated/resources.json          rendered pages, routes, sitemap rows
+// plus one licensed photo per town guide in public/guide-photos/ (see PHOTOS).
 // No public page ever talks to the database: the site ships these files only.
 //
 // Editorial gate: only channel = 'website_blog' rows with status 'approved' or
@@ -22,7 +25,7 @@
 //
 // County labels come from scripts/county-map.mjs (see the note there).
 
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Marked } from "marked";
@@ -30,6 +33,7 @@ import { countyForDistrict, UNMAPPED_COUNTY } from "./county-map.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const OUT_DIR = join(__dirname, "..", "src", "data", "generated");
+const PHOTO_DIR = join(__dirname, "..", "public", "guide-photos");
 const TIME_ZONE = "Europe/London";
 
 // ---------- helpers ----------
@@ -73,17 +77,88 @@ function stripMarkdown(s) {
     .trim();
 }
 
+// Words that would put a rating or a Mylo verdict on a card. Cards never carry
+// those (they are the app's job), so a summary sentence containing one is skipped.
+const NOT_ON_CARDS = /\b(paws?|mylo|google|rated|ratings?|stars?|verdicts?)\b|\d\.\d/i;
+
 // First sentence of the first real paragraph, for summaries and meta descriptions.
-function summarise(md, max = 170) {
-  const para = String(md || "")
+// `cardSafe` moves on to the next sentence that carries no rating or verdict.
+function summarise(md, max = 170, { cardSafe = false } = {}) {
+  const paras = String(md || "")
     .split(/\n\s*\n/)
     .map((p) => p.trim())
-    .find((p) => p && !p.startsWith("#"));
-  const text = stripMarkdown(para || "");
-  const sentence = (text.match(/^.+?[.?!](\s|$)/) || [text])[0].trim();
+    .filter((p) => p && !p.startsWith("#"));
+  const sentences = paras
+    .slice(0, 3)
+    .flatMap((p) => stripMarkdown(p).match(/[^.?!]+[.?!]+(\s|$)|[^.?!]+$/g) || [])
+    .map((x) => x.trim())
+    .filter(Boolean);
+  const sentence = (cardSafe ? sentences.find((x) => !NOT_ON_CARDS.test(x)) : sentences[0]) || "";
   if (sentence.length <= max) return sentence;
   return sentence.slice(0, max - 1).replace(/\s+\S*$/, "") + "…";
 }
+
+// Highlight chips come only from the guide's own section headings, through a
+// fixed word list: a heading that matches nothing gives no chip. Outdoor
+// highlights first, at most three.
+const HIGHLIGHTS = [
+  ["Beaches", /\b(beach(es)?|coast(al)?|seafront)\b/i],
+  ["Woodland", /\b(woods?|woodland|forests?)\b/i],
+  ["Parks", /\b(parks?|green spaces?)\b/i],
+  ["Walks", /\b(walks?|trails?)\b/i],
+  ["Pubs", /\b(pubs?|bars?|inns?)\b/i],
+  ["Cafes", /\b(cafes?|cafés?|coffee|tea rooms?)\b/i],
+  ["Restaurants", /\brestaurants?\b/i],
+  ["Places to stay", /\b(staying|stay|accommodation|hotels?)\b/i],
+];
+function highlightsFrom(md) {
+  const headings = (String(md || "").match(/^#{2,3}\s+.+$/gm) || [])
+    .map((h) => h.replace(/^#+\s+/, ""))
+    .filter((h) => !/what to know/i.test(h));
+  return HIGHLIGHTS.filter(([, re]) => headings.some((h) => re.test(h))).map(([label]) => label).slice(0, 3);
+}
+
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+function dayMonth(iso) {
+  const m = String(iso || "").match(/^\d{4}-(\d{2})-(\d{2})/);
+  return m ? `${Number(m[2])} ${MONTHS[Number(m[1]) - 1]}` : "";
+}
+
+// The teal restriction chip: built from approved location_restrictions rows,
+// never paraphrased from guide text, and only when the guide itself cites that
+// authority. Seasonal rules first, then year-round; bans before lead rules.
+function ruleChip(rows, body, today) {
+  const text = String(body || "");
+  const usable = (rows || []).filter((r) => {
+    if (!r.authority || !text.includes(r.authority)) return false;
+    if (r.applies_annually === false && r.ends_on && isoDate(r.ends_on) < today) return false;
+    return true;
+  });
+  if (!usable.length) return null;
+  const groups = new Map();
+  for (const r of usable) {
+    const seasonal = Boolean(r.starts_on && r.ends_on);
+    const key = [r.name, r.restriction_type, seasonal ? isoDate(r.starts_on).slice(5) : "", seasonal ? isoDate(r.ends_on).slice(5) : ""].join("|");
+    if (!groups.has(key)) groups.set(key, { ...r, seasonal, rows: [] });
+    groups.get(key).rows.push(r);
+  }
+  const score = (g) => (g.seasonal ? 0 : 2) + (g.restriction_type === "dogs_banned" ? 0 : 1);
+  const best = [...groups.values()].sort((a, b) => score(a) - score(b) || b.rows.length - a.rows.length)[0];
+  const verb = best.restriction_type === "dogs_banned" ? "no dogs" : "dogs on lead";
+  const area = best.rows.length === 1 && best.area_description ? best.area_description.split(":")[0].trim() : null;
+  const partial = best.rows.length > 1 || (area && /\barea\b/i.test(area));
+  const label = partial ? `${best.name}: ${verb} in some areas` : `${area || best.name}: ${verb}`;
+  const dates = best.seasonal ? `${partial ? "," : ""} ${dayMonth(isoDate(best.starts_on))} to ${dayMonth(isoDate(best.ends_on))}` : "";
+  return { text: `${label}${dates}`, authority: best.authority, checked: isoDate(best.checked_on) };
+}
+
+const LICENCE_URLS = {
+  "CC BY-SA 2.0": "https://creativecommons.org/licenses/by-sa/2.0/",
+  "CC BY-SA 3.0": "https://creativecommons.org/licenses/by-sa/3.0/",
+  "CC BY-SA 4.0": "https://creativecommons.org/licenses/by-sa/4.0/",
+  "CC BY 2.0": "https://creativecommons.org/licenses/by/2.0/",
+  "CC BY 4.0": "https://creativecommons.org/licenses/by/4.0/",
+};
 
 // Markdown -> HTML. Raw HTML in the source is escaped, never passed through, and
 // a leading H1 is dropped because the page template already renders the title.
@@ -149,6 +224,31 @@ const GEO_SQL = `
   WHERE town = ANY($1) AND district IS NOT NULL
   GROUP BY town, district`;
 
+// PHOTOS: one licensed photo per town. Only Geograph images with both a licence
+// and a credit recorded qualify; Google and venue-website images never do.
+// Beaches and parks first, then the best-reviewed place.
+const PHOTO_SQL = `
+  SELECT DISTINCT ON (town) town, name, image_url, image_credit, image_credit_url, image_licence
+  FROM (
+    SELECT public.content_town_of(address) AS town, name, category, review_count,
+           image_url, image_credit, image_credit_url, image_licence
+    FROM public.locations
+    WHERE image_source = 'geograph'
+      AND image_url IS NOT NULL AND image_licence IS NOT NULL AND image_credit IS NOT NULL
+      AND COALESCE(flagged, false) = false
+  ) x
+  WHERE town = ANY($1)
+  ORDER BY town, (category IN ('beach','park')) DESC, review_count DESC NULLS LAST, name`;
+
+const RULES_SQL = `
+  SELECT public.content_town_of(l.address) AS town, l.name, r.restriction_type,
+         r.area_description, r.starts_on, r.ends_on, r.applies_annually, r.authority, r.checked_on
+  FROM public.location_restrictions r
+  JOIN public.locations l ON l.id = r.location_id
+  WHERE r.status = 'approved'
+    AND r.restriction_type IN ('dogs_banned', 'lead_required')
+    AND public.content_town_of(l.address) = ANY($1)`;
+
 async function readFromDatabase(url) {
   const { default: pg } = await import("pg");
   const client = new pg.Client({ connectionString: url, ssl: { rejectUnauthorized: false } });
@@ -159,21 +259,29 @@ async function readFromDatabase(url) {
     const pieces = (await client.query(PIECES_SQL)).rows;
     const towns = [...new Set(pieces.filter((p) => p.content_type === "location_page").map((p) => townFromRef(p.source_ref)).filter(Boolean))];
     const geoRows = towns.length ? (await client.query(GEO_SQL, [towns])).rows : [];
+    const photoRows = towns.length ? (await client.query(PHOTO_SQL, [towns])).rows : [];
+    const ruleRows = towns.length ? (await client.query(RULES_SQL, [towns])).rows : [];
     await client.query("COMMIT");
-    return { pieces, geo: geoFromRows(geoRows) };
+    const photos = Object.fromEntries(photoRows.map((r) => [r.town, r]));
+    const rules = {};
+    for (const r of ruleRows) (rules[r.town] ||= []).push(r);
+    return { pieces, geo: geoFromRows(geoRows), photos, rules };
   } finally {
     await client.end().catch(() => {});
   }
 }
 
-// Fixture shape: { "pieces": [ content_pieces rows ], "geo": { "<Town>": { "district": "BS23", "venues": 40, "lat": 51.3, "lng": -2.9 } } }
+// Fixture shape: { "pieces": [ content_pieces rows ],
+//   "geo": { "<Town>": { "district": "BS23", "venues": 40, "lat": 51.3, "lng": -2.9 } },
+//   "photos": { "<Town>": { name, image_url, image_credit, image_credit_url, image_licence } },
+//   "rules": { "<Town>": [ { name, restriction_type, area_description, starts_on, ends_on, applies_annually, authority, checked_on } ] } }
 // Rows are filtered exactly as the SQL would, so fixtures can hold drafts too.
 async function readFromFixture(path) {
   const raw = JSON.parse(await readFile(path, "utf8"));
   const pieces = (raw.pieces || [])
     .filter((p) => p.channel === "website_blog" && ["approved", "exported"].includes(p.status) && ["location_page", "news", "event"].includes(p.content_type))
     .map((p) => ({ meta: {}, ...p }));
-  return { pieces, geo: raw.geo || {} };
+  return { pieces, geo: raw.geo || {}, photos: raw.photos || {}, rules: raw.rules || {} };
 }
 
 function geoFromRows(rows) {
@@ -203,7 +311,7 @@ function townFromRef(ref) {
 
 // ---------- build ----------
 
-function buildGuides(pieces, geo, warnings) {
+function buildGuides(pieces, { geo, photos = {}, rules = {} }, today, warnings) {
   const bySlug = new Map();
   for (const p of pieces.filter((x) => x.content_type === "location_page")) {
     const town = townFromRef(p.source_ref);
@@ -232,7 +340,12 @@ function buildGuides(pieces, geo, warnings) {
       lat: g.lat ?? null,
       lng: g.lng ?? null,
       venueCount: Number(g.venues) || 0, // venues passing the quality bar in this town
-      summary: summarise(p.body_md),
+      summary: summarise(p.body_md, 170, { cardSafe: true }),
+      highlights: highlightsFrom(p.body_md),
+      rule: ruleChip(rules[town], p.body_md, today),
+      photoSource: photos[town] || null, // downloaded in main(); never shipped as a URL
+      photo: null,
+      approvedAt: p.approved_at ? new Date(p.approved_at).toISOString() : null,
       updated: isoDate(p.updated_at) || isoDate(p.approved_at),
       html: renderMarkdown(p.body_md),
     });
@@ -266,6 +379,7 @@ function buildNews(pieces) {
         title: p.title || "Untitled",
         date: isoDate(meta.published_date) || isoDate(p.approved_at) || isoDate(p.created_at),
         pressRelease: meta.press_release === true,
+        approvedAt: p.approved_at ? new Date(p.approved_at).toISOString() : null,
         summary: summarise(p.body_md),
         updated: isoDate(p.updated_at),
         html: renderMarkdown(p.body_md),
@@ -301,6 +415,58 @@ function buildEvents(pieces, today, warnings) {
     .sort((a, b) => a.date.localeCompare(b.date));
 }
 
+// Three tries with a short pause, so one network blip does not cost a town its photo.
+async function fetchWithRetry(url, tries = 3) {
+  let last;
+  for (let i = 0; i < tries; i++) {
+    try {
+      const res = await fetch(url, { signal: AbortSignal.timeout(20000) });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return Buffer.from(await res.arrayBuffer());
+    } catch (err) {
+      last = err;
+      await new Promise((r) => setTimeout(r, 1000 * (i + 1)));
+    }
+  }
+  throw last;
+}
+
+// Copies each guide's licensed photo into public/guide-photos/ at build time, so
+// public pages never request anything from Supabase. Resized only, never
+// cropped (the card frame does the fitting). A failed download is a warning and
+// the card falls back to the plain brand style.
+async function attachPhotos(guides, warnings) {
+  await rm(PHOTO_DIR, { recursive: true, force: true });
+  const withSource = guides.filter((g) => g.photoSource);
+  if (!withSource.length) return;
+  await mkdir(PHOTO_DIR, { recursive: true });
+  const { default: sharp } = await import("sharp");
+  for (const g of withSource) {
+    const src = g.photoSource;
+    try {
+      const buf = await fetchWithRetry(src.image_url);
+      const file = `${g.slug}.webp`;
+      const info = await sharp(buf)
+        .rotate()
+        .resize({ width: 800, withoutEnlargement: true })
+        .webp({ quality: 78 })
+        .toFile(join(PHOTO_DIR, file));
+      g.photo = {
+        src: `/guide-photos/${file}`,
+        width: info.width,
+        height: info.height,
+        alt: `${src.name}, ${g.town}`,
+        credit: src.image_credit,
+        creditUrl: /^https?:\/\//i.test(src.image_credit_url || "") ? src.image_credit_url : null,
+        licence: src.image_licence,
+        licenceUrl: LICENCE_URLS[src.image_licence] || null,
+      };
+    } catch (err) {
+      warnings.push(`photo for ${g.town} not used (${err?.message || err}); plain brand card instead`);
+    }
+  }
+}
+
 async function main() {
   const warnings = [];
   const today = ukToday();
@@ -318,10 +484,12 @@ async function main() {
   } else {
     source = "none (SUPABASE_DB_URL not set)";
     warnings.push("SUPABASE_DB_URL is not set: building the resources section with no content");
-    data = { pieces: [], geo: {} };
+    data = { pieces: [], geo: {}, photos: {}, rules: {} };
   }
 
-  const guides = buildGuides(data.pieces, data.geo, warnings);
+  const guides = buildGuides(data.pieces, data, today, warnings);
+  await attachPhotos(guides, warnings);
+  for (const g of guides) delete g.photoSource;
   const news = buildNews(data.pieces);
   const events = buildEvents(data.pieces, today, warnings);
 
@@ -339,11 +507,17 @@ async function main() {
   }
   if (events.length) pages.push({ path: "/events", lastmod: today, changefreq: "weekly", priority: "0.5" });
 
-  const manifest = guides.map(({ town, slug, county, venueCount, summary }) => ({ town, slug, county, venueCount, summary }));
+  // One search manifest for the Discover hub: guides, events and news.
+  const manifest = {
+    guides: guides.map(({ town, slug, county, venueCount, summary }) => ({ town, slug, county, venueCount, summary })),
+    events: events.map(({ id, title, date, town, venueName }) => ({ id, title, date, town, venueName })),
+    news: news.map(({ slug, title, date, pressRelease, summary }) => ({ slug, title, date, pressRelease, summary })),
+  };
   const resources = { generatedAt: new Date().toISOString(), today, guides, news, events, pages };
 
   await mkdir(OUT_DIR, { recursive: true });
-  await writeFile(join(OUT_DIR, "guides-manifest.json"), JSON.stringify(manifest, null, 2) + "\n");
+  await rm(join(OUT_DIR, "guides-manifest.json"), { force: true });
+  await writeFile(join(OUT_DIR, "discover-manifest.json"), JSON.stringify(manifest, null, 2) + "\n");
   await writeFile(join(OUT_DIR, "resources.json"), JSON.stringify(resources, null, 2) + "\n");
 
   for (const w of warnings) console.warn(`resources: warning: ${w}`);

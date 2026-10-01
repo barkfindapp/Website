@@ -1,4 +1,5 @@
 import { APP_STORE_URL, LAUNCHED } from "../../data/launch";
+import { dateParts, formatDate, type EventItem, type Guide, type GuidePhoto, type NewsPost } from "./data";
 
 // Shared furniture for the resources section: breadcrumbs, the one download
 // call to action each page carries, listing cards and rendered article bodies.
@@ -99,15 +100,25 @@ export function Prose({ html }: { html: string }) {
   return <div className="bf-prose" dangerouslySetInnerHTML={{ __html: html }} />;
 }
 
-export function TownSearch({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+export function TownSearch({
+  value,
+  onChange,
+  label = "Search town guides",
+  placeholder = "Type a town",
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  label?: string;
+  placeholder?: string;
+}) {
   return (
     <label className="block">
-      <span className="sr-only">Search town guides</span>
+      <span className="sr-only">{label}</span>
       <input
         type="search"
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        placeholder="Type a town"
+        placeholder={placeholder}
         autoComplete="off"
         className="w-full rounded-full border border-stone-300 bg-white px-5 py-3 text-base text-[#1a1a1a] placeholder:text-[#8a8a8a] focus:outline-none focus:border-[#B74217] focus:ring-2 focus:ring-[#B74217]/20"
       />
@@ -152,5 +163,158 @@ export function PressBox({ latest }: { latest?: { slug: string; title: string } 
         </li>
       </ul>
     </section>
+  );
+}
+
+// ─── Discover cards ─────────────────────────────────────────────────────────
+// One card family in three variants (town guide, event, news/press), modelled
+// on the app's Saved Places card: rounded white card, soft shadow, bold name,
+// small grey line, cream pill chips. Never on these cards: Google photos or
+// ratings, BarkFind ratings, Mylo verdicts or single-place cards.
+
+const CARD =
+  "group block h-full overflow-hidden rounded-[22px] border border-[#EDE6D6] bg-white shadow-[0_2px_10px_rgba(0,0,0,0.05)] transition hover:shadow-[0_4px_16px_rgba(0,0,0,0.08)] hover:border-[#B74217]/30";
+
+function CardLabel({ children, sponsored }: { children: React.ReactNode; sponsored?: boolean }) {
+  return (
+    <>
+      {sponsored && (
+        <span className="mb-2 inline-block rounded-full bg-[#1a1a1a] px-2.5 py-0.5 text-xs font-bold text-white">Paid partnership</span>
+      )}
+      <p className="mb-1.5 text-[11px] font-extrabold uppercase tracking-[0.06em] text-[#B74217]">{children}</p>
+    </>
+  );
+}
+
+export function Chip({ children }: { children: React.ReactNode }) {
+  return (
+    <span className="rounded-full border border-[#EDE6D6] bg-[#F5F1E9] px-[11px] py-1 text-xs font-bold text-[#1a1a1a]">{children}</span>
+  );
+}
+
+// Photo credit, always shown with the photo. On cards it is plain text (the
+// whole card is a link); on guide pages the credit and licence are links.
+export function PhotoCredit({ photo, linked }: { photo: GuidePhoto; linked?: boolean }) {
+  const link = "underline underline-offset-2 hover:text-white";
+  return (
+    <span className="absolute bottom-1.5 right-2 max-w-[90%] truncate rounded-md bg-black/45 px-1.5 py-0.5 text-[10px] text-white/95">
+      Photo:{" "}
+      {linked && photo.creditUrl ? (
+        <a href={photo.creditUrl} rel="noopener" className={link}>{photo.credit}</a>
+      ) : (
+        photo.credit
+      )}
+      ,{" "}
+      {linked && photo.licenceUrl ? (
+        <a href={photo.licenceUrl} rel="license noopener" className={link}>{photo.licence}</a>
+      ) : (
+        photo.licence
+      )}
+    </span>
+  );
+}
+
+// No licensed photo: town name in DM Serif Display on cream, terracotta rule.
+export function BrandBlock({ town, tall }: { town: string; tall?: boolean }) {
+  return (
+    <div className={`flex ${tall ? "h-56 md:h-72" : "h-[170px]"} flex-col items-center justify-center border-b border-[#EDE6D6] bg-[#F5F1E9] px-4 text-center`}>
+      <span className="font-serif text-[32px] leading-tight text-[#1a1a1a]">{town}</span>
+      <i aria-hidden="true" className="mt-2.5 block h-[3px] w-11 rounded-sm bg-[#B74217]" />
+    </div>
+  );
+}
+
+export function GuideCard({ guide, sponsored }: { guide: Guide; sponsored?: boolean }) {
+  return (
+    <a href={`/dog-friendly/${guide.slug}`} className={CARD}>
+      {guide.photo ? (
+        <div className="relative h-[170px] bg-[#F5F1E9]">
+          <img src={guide.photo.src} alt={guide.photo.alt} width={guide.photo.width} height={guide.photo.height} loading="lazy" className="h-full w-full object-cover" />
+          <PhotoCredit photo={guide.photo} />
+        </div>
+      ) : (
+        <BrandBlock town={guide.town} />
+      )}
+      <div className="px-[18px] pb-[18px] pt-4">
+        <CardLabel sponsored={sponsored}>Town guide</CardLabel>
+        <p className="text-[19px] font-extrabold text-[#1a1a1a]">{guide.town}</p>
+        <p className="mb-2.5 mt-0.5 text-sm text-[#6b6b6b]">{placesLabel(guide.venueCount)} · {guide.county}</p>
+        {guide.summary && <p className="mb-3 text-sm leading-normal text-[#1a1a1a] line-clamp-3">{guide.summary}</p>}
+        {guide.highlights.length > 0 && (
+          <div className="flex flex-wrap gap-1.5">{guide.highlights.map((h) => <Chip key={h}>{h}</Chip>)}</div>
+        )}
+        {guide.rule && (
+          <p
+            className="mt-2.5 rounded-xl bg-[#E6F2F1] px-[11px] py-2 text-xs font-bold text-[#2c6f6c]"
+            title={`${guide.rule.authority}${guide.rule.checked ? `, checked ${formatDate(guide.rule.checked)}` : ""}`}
+          >
+            {guide.rule.text}
+          </p>
+        )}
+      </div>
+    </a>
+  );
+}
+
+export function DateBlock({ iso, compact }: { iso: string; compact?: boolean }) {
+  const p = dateParts(iso);
+  return compact ? (
+    <span aria-hidden="true" className="flex h-16 w-14 flex-shrink-0 flex-col items-center justify-center rounded-2xl bg-[#B74217] text-white">
+      <b className="text-[10px] tracking-[0.1em]">{p.day}</b>
+      <strong className="font-serif text-2xl font-normal leading-none">{p.date}</strong>
+      <b className="text-[10px] tracking-[0.1em]">{p.month}</b>
+    </span>
+  ) : (
+    <div aria-hidden="true" className="flex h-[110px] flex-col items-center justify-center bg-[#B74217] text-white">
+      <b className="text-[13px] tracking-[0.1em]">{p.day}</b>
+      <strong className="font-serif text-[40px] font-normal leading-none">{p.date}</strong>
+      <b className="text-[13px] tracking-[0.1em]">{p.month}</b>
+    </div>
+  );
+}
+
+export function EventCard({ event }: { event: EventItem }) {
+  return (
+    <a href={`/events#event-${event.id}`} className={CARD}>
+      <DateBlock iso={event.date} />
+      <div className="px-[18px] pb-[18px] pt-4">
+        <CardLabel>Event</CardLabel>
+        <p className="text-[19px] font-extrabold text-[#1a1a1a]">{event.title}</p>
+        <p className="mb-2.5 mt-0.5 text-sm text-[#6b6b6b]">
+          <span className="sr-only">{formatDate(event.date, true)} · </span>
+          {[event.town, event.venueName].filter(Boolean).join(" · ")}
+        </p>
+        {event.summary && <p className="text-sm leading-normal text-[#1a1a1a] line-clamp-3">{event.summary}</p>}
+      </div>
+    </a>
+  );
+}
+
+// Compact event row for lists: date badge, title, town and venue.
+export function EventRow({ event }: { event: Pick<EventItem, "id" | "title" | "date" | "town" | "venueName"> }) {
+  return (
+    <a href={`/events#event-${event.id}`} className="flex items-center gap-4 rounded-2xl border border-[#EDE6D6] bg-white p-3 pr-4 transition hover:border-[#B74217]/30">
+      <DateBlock iso={event.date} compact />
+      <span className="min-w-0">
+        <span className="sr-only">{formatDate(event.date, true)}: </span>
+        <span className="block font-extrabold text-[#1a1a1a]">{event.title}</span>
+        {(event.town || event.venueName) && (
+          <span className="block text-sm text-[#6b6b6b]">{[event.town, event.venueName].filter(Boolean).join(" · ")}</span>
+        )}
+      </span>
+    </a>
+  );
+}
+
+export function NewsCard({ post }: { post: Pick<NewsPost, "slug" | "title" | "date" | "pressRelease" | "summary"> }) {
+  return (
+    <a href={`/news/${post.slug}`} className={CARD}>
+      <div className="px-[18px] pb-[18px] pt-4">
+        <CardLabel>{post.pressRelease ? "Press release" : "News"}</CardLabel>
+        <p className="text-[19px] font-extrabold text-[#1a1a1a]">{post.title}</p>
+        {post.date && <p className="mb-2.5 mt-0.5 text-sm text-[#6b6b6b]">{formatDate(post.date)}</p>}
+        {post.summary && <p className="text-sm leading-normal text-[#1a1a1a] line-clamp-3">{post.summary}</p>}
+      </div>
+    </a>
   );
 }
