@@ -32,6 +32,7 @@ const ROUTES = [
   "/terms",
   "/delete-account",
   "/confirmed",
+  "/creators", // shared by link: needs its own title and noindex in the HTML
 ];
 
 // Discover section: the published pages listed by scripts/build-resources.mjs

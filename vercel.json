@@ -34,6 +34,10 @@
       "headers": [{ "key": "X-Robots-Tag", "value": "noindex, nofollow" }]
     },
     {
+      "source": "/creators",
+      "headers": [{ "key": "X-Robots-Tag", "value": "noindex, nofollow" }]
+    },
+    {
       "source": "/beta",
       "headers": [{ "key": "X-Robots-Tag", "value": "noindex, nofollow" }]
     },
