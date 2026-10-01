@@ -251,7 +251,7 @@ export function actOps(pool: Pool, deps: Deps): Record<string, Op> {
                     count(*) filter (where t.status in ('open', 'in_progress')) as open_now,
                     count(*) filter (where t.status in ('open', 'in_progress') and t.created_at < now() - interval '24 hours') as ageing,
                     count(*) filter (where fr.first_reply is null and t.status <> 'resolved') as awaiting
-               from public.support_tickets t left join (select ticket_id, min(created_at) first_reply from public.support_responses group by ticket_id) fr on fr.ticket_id = t.id`),
+               from public.support_tickets t left join (select ticket_id, min(created_at) first_reply from public.support_responses where direction = 'out' group by ticket_id) fr on fr.ticket_id = t.id`),
         ]);
         return {
           data: {

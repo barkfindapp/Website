@@ -5,7 +5,7 @@
 // Each kind is only listed for people with its permission. Emails need users_contact.
 import type { Pool, PoolClient } from 'pg';
 import { Resend } from 'resend';
-import { HttpError, bad, only, uuid, str, oneOf, writeTx } from './hq-core.js';
+import { HttpError, bad, only, uuid, str, oneOf, writeTx, scrubEmails } from './hq-core.js';
 import type { Op, Ctx } from './hq-act.js';
 import type { Perm } from './hq-staff.js';
 
@@ -26,48 +26,57 @@ const LISTING_FIELDS = ['name', 'address', 'opening_hours', 'dog_policy', 'dog_p
 const DOG_POLICIES = ['welcome', 'restricted', 'not_allowed'] as const;
 
 // One row per request, whatever its kind: the same columns from every table.
-// Severity targets for the first reply: urgent 2h, high 8h, normal 24h, low 3 days.
+// Severity targets for a reply: urgent 2h, high 8h, normal 24h, low 3 days, counted from
+// due_from. For a ticket that is when it came in if we have not replied yet, or when the
+// customer's first unanswered emailed reply arrived after our last reply (support_responses
+// direction 'in'); null when nothing is waiting on us. A failed send is not a reply.
+// Other kinds: from created_at until they are decided.
+const OUT = "r.direction = 'out' and r.status <> 'failed'";
 const UNION = `
   select 'support_ticket'::text as kind, t.id, t.created_at, t.subject as title, t.full_name as person, t.email, t.user_id, null::uuid as location_id,
          case when t.status = 'resolved' then 'closed' when t.status = 'waiting' then 'waiting' else 'open' end as state,
          t.priority as severity, t.assigned_to, t.snoozed_until, t.tags,
-         (select min(r.created_at) from public.support_responses r where r.ticket_id = t.id) as first_reply_at, t.category as detail
+         rr.first_out as first_reply_at, t.category as detail,
+         case when rr.last_out is null then t.created_at else rr.next_in end as due_from
     from public.support_tickets t
+    left join lateral (select min(r.created_at) filter (where ${OUT}) as first_out, max(r.created_at) filter (where ${OUT}) as last_out,
+                              min(r.created_at) filter (where r.direction = 'in' and r.created_at > (select max(o.created_at) from public.support_responses o where o.ticket_id = t.id and o.direction = 'out' and o.status <> 'failed')) as next_in
+                         from public.support_responses r where r.ticket_id = t.id) rr on true
   union all
   select 'listing_change', c.id, c.created_at, 'Change to ' || coalesce(l.name, 'a place'), c.requester_name, c.requester_email, c.requested_by, c.location_id,
          case when c.status <> 'pending' then 'closed' when m.waiting_since is not null then 'waiting' else 'open' end,
-         coalesce(m.severity, 'normal'), m.assigned_to, m.snoozed_until, coalesce(m.tags, '{}'), c.decided_at, c.source
+         coalesce(m.severity, 'normal'), m.assigned_to, m.snoozed_until, coalesce(m.tags, '{}'), c.decided_at, c.source, case when c.decided_at is null then c.created_at end
     from public.listing_change_requests c left join public.locations l on l.id = c.location_id
     left join public.hq_inbox_meta m on m.kind = 'listing_change' and m.ref_id = c.id
   union all
   select 'business_claim', b.id, b.created_at, 'Claim for ' || coalesce(l.name, 'a place'), b.claimant_name, b.claimant_email, b.user_id, b.location_id,
          case when b.status <> 'pending' then 'closed' when m.waiting_since is not null then 'waiting' else 'open' end,
-         coalesce(m.severity, 'normal'), m.assigned_to, m.snoozed_until, coalesce(m.tags, '{}'), null::timestamptz, null
+         coalesce(m.severity, 'normal'), m.assigned_to, m.snoozed_until, coalesce(m.tags, '{}'), null::timestamptz, null, b.created_at
     from public.business_claims b left join public.locations l on l.id = b.location_id
     left join public.hq_inbox_meta m on m.kind = 'business_claim' and m.ref_id = b.id
   union all
   select 'place_report', r.id, r.created_at, coalesce(l.name, 'A place') || ': ' || r.reason, null, null, r.user_id, r.location_id,
          case when r.status <> 'open' then 'closed' when m.waiting_since is not null then 'waiting' else 'open' end,
-         coalesce(m.severity, 'normal'), m.assigned_to, m.snoozed_until, coalesce(m.tags, '{}'), null::timestamptz, null
+         coalesce(m.severity, 'normal'), m.assigned_to, m.snoozed_until, coalesce(m.tags, '{}'), null::timestamptz, null, r.created_at
     from public.location_reports r left join public.locations l on l.id = r.location_id
     left join public.hq_inbox_meta m on m.kind = 'place_report' and m.ref_id = r.id
   union all
   select 'user_report', u.id, u.created_at, 'Report about ' || coalesce(p.full_name, 'a customer'), null, null, u.reported_user_id, null,
          case when u.status <> 'pending' then 'closed' when m.waiting_since is not null then 'waiting' else 'open' end,
-         coalesce(m.severity, 'normal'), m.assigned_to, m.snoozed_until, coalesce(m.tags, '{}'), null::timestamptz, u.reason
+         coalesce(m.severity, 'normal'), m.assigned_to, m.snoozed_until, coalesce(m.tags, '{}'), null::timestamptz, u.reason, u.created_at
     from public.user_reports u left join public.profiles p on p.user_id = u.reported_user_id
     left join public.hq_inbox_meta m on m.kind = 'user_report' and m.ref_id = u.id
   union all
   select 'privacy_request', q.id, q.created_at, initcap(q.request_type) || ' request', null, q.email, q.user_id, null,
          case when q.status not in ('pending', 'in_progress') then 'closed' when m.waiting_since is not null then 'waiting' else 'open' end,
-         coalesce(m.severity, 'urgent'), m.assigned_to, m.snoozed_until, coalesce(m.tags, '{}'), null::timestamptz, q.request_type
+         coalesce(m.severity, 'urgent'), m.assigned_to, m.snoozed_until, coalesce(m.tags, '{}'), null::timestamptz, q.request_type, q.created_at
     from public.privacy_requests q left join public.hq_inbox_meta m on m.kind = 'privacy_request' and m.ref_id = q.id
   union all
   select 'treat_claim', tc.id, tc.claimed_at, 'Treat claim: ' || replace(tc.tier, '_', ' '), null, null, tc.user_id, null,
          case when tc.status <> 'pending' then 'closed' when m.waiting_since is not null then 'waiting' else 'open' end,
-         coalesce(m.severity, 'normal'), m.assigned_to, m.snoozed_until, coalesce(m.tags, '{}'), tc.fulfilled_at, tc.tier
+         coalesce(m.severity, 'normal'), m.assigned_to, m.snoozed_until, coalesce(m.tags, '{}'), tc.fulfilled_at, tc.tier, case when tc.fulfilled_at is null then tc.claimed_at end
     from public.treat_claims tc left join public.hq_inbox_meta m on m.kind = 'treat_claim' and m.ref_id = tc.id`;
-const DUE = `x.created_at + case x.severity when 'urgent' then interval '2 hours' when 'high' then interval '8 hours' when 'low' then interval '3 days' else interval '24 hours' end`;
+const DUE = `x.due_from + case x.severity when 'urgent' then interval '2 hours' when 'high' then interval '8 hours' when 'low' then interval '3 days' else interval '24 hours' end`;
 const SNOOZED = `(x.snoozed_until is not null and x.snoozed_until > now())`;
 
 type InboxFilter = { view: typeof VIEWS[number]; kind: string; tag: string; q: string };
@@ -179,14 +188,14 @@ export function inboxOps(pool: Pool): Record<string, Op> {
                   count(*) filter (where x.state = 'open' and not ${SNOOZED})::int as open,
                   count(*) filter (where x.state = 'waiting' and not ${SNOOZED})::int as waiting,
                   count(*) filter (where x.state <> 'closed' and ${SNOOZED})::int as snoozed,
-                  count(*) filter (where x.state = 'open' and not ${SNOOZED} and x.first_reply_at is null and ${DUE} < now())::int as breaching
+                  count(*) filter (where x.state = 'open' and not ${SNOOZED} and x.due_from is not null and ${DUE} < now())::int as breaching
              from (${UNION}) x where ${base.sql}`, [...base.params, ctx.staff.userId]);
         const sla = has(ctx, 'support_read') ? (await pool.query(
-          `select round((avg(extract(epoch from (fr.first_reply - t.created_at)) / 3600) filter (where fr.first_reply is not null))::numeric, 1) as avg_first_h,
-                  count(*) filter (where t.status in ('open', 'in_progress', 'waiting'))::int as open_now,
-                  count(*) filter (where t.status in ('open', 'in_progress') and t.created_at < now() - interval '24 hours')::int as ageing,
-                  count(*) filter (where fr.first_reply is null and t.status <> 'resolved')::int as awaiting
-             from public.support_tickets t left join (select ticket_id, min(created_at) first_reply from public.support_responses group by ticket_id) fr on fr.ticket_id = t.id`)).rows[0] : {};
+          `select round((avg(extract(epoch from (x.first_reply_at - x.created_at)) / 3600) filter (where x.first_reply_at is not null))::numeric, 1) as avg_first_h,
+                  count(*) filter (where x.state <> 'closed')::int as open_now,
+                  count(*) filter (where x.state = 'open' and x.created_at < now() - interval '24 hours')::int as ageing,
+                  count(*) filter (where x.state <> 'closed' and x.due_from is not null)::int as awaiting
+             from (${UNION}) x where x.kind = 'support_ticket'`)).rows[0] : {};
         const tags = (await pool.query(`select distinct unnest(x.tags) as t from (${UNION}) x where ${base.sql} order by 1 limit 100`, base.params)).rows.map((x) => x.t);
         return { data: { views: r.rows[0], sla, tags, kinds: KINDS.filter((k) => canSee(ctx, k)) } };
       },
@@ -198,9 +207,9 @@ export function inboxOps(pool: Pool): Record<string, Op> {
         const f = readInboxFilter(a.filter);
         const page = Number.isInteger(a.page) && (a.page as number) >= 0 && (a.page as number) < 1000 ? a.page as number : 0;
         const w = inboxWhere(ctx, f);
-        const order = f.view === 'closed' ? 'x.created_at desc' : `(case when x.first_reply_at is null then ${DUE} else 'infinity'::timestamptz end), x.created_at`;
+        const order = f.view === 'closed' ? 'x.created_at desc' : `(case when x.due_from is not null then ${DUE} else 'infinity'::timestamptz end), x.created_at`;
         const r = await pool.query(
-          `select x.kind, x.id, x.created_at, x.title, x.person, x.email, x.state, x.severity, x.assigned_to, x.snoozed_until, x.tags, x.first_reply_at, x.detail,
+          `select x.kind, x.id, x.created_at, x.title, x.person, x.email, x.state, x.severity, x.assigned_to, x.snoozed_until, x.tags, x.first_reply_at, x.detail, x.due_from,
                   ${DUE} as due_at, coalesce(s.display_name, s.email) as assignee,
                   (select coalesce(jsonb_agg(coalesce(vs.display_name, vs.email)), '[]') from public.hq_viewing v join public.hq_staff vs on vs.user_id = v.user_id
                     where v.kind = x.kind and v.ref_id = x.id and v.user_id <> $${w.params.length + 1} and v.seen_at > now() - interval '60 seconds') as viewers
@@ -220,11 +229,19 @@ export function inboxOps(pool: Pool): Record<string, Op> {
         const row: any = st.row, extra: any = {};
         if (kind === 'support_ticket') {
           const [resp, notes, macros] = await Promise.all([
-            pool.query('select body, status, error, created_at from public.support_responses where ticket_id = $1 order by created_at', [id]),
+            pool.query('select direction, body, body_full, from_email, status, error, created_at from public.support_responses where ticket_id = $1 order by created_at', [id]),
             pool.query('select body, created_at from public.support_notes where ticket_id = $1 order by created_at', [id]),
             pool.query('select id, title, body from public.support_macros order by title'),
           ]);
-          Object.assign(extra, { responses: resp.rows, notes: notes.rows, macros: macros.rows });
+          // Customer replies by email: flag a different sender, and without users_contact
+          // hide the address and any addresses inside the text.
+          const contact = has(ctx, 'users_contact'), ticketEmail = String(row.email || '').trim().toLowerCase();
+          const responses = resp.rows.map((x: any) => {
+            const from = String(x.from_email || '').trim().toLowerCase();
+            const out = { ...x, from_differs: x.direction === 'in' && !!from && !!ticketEmail && from !== ticketEmail };
+            return contact ? out : { ...scrubEmails(out), from_email: null };
+          });
+          Object.assign(extra, { responses, notes: notes.rows, macros: macros.rows });
         }
         if (kind === 'listing_change') {
           const loc = (await pool.query(`select id, name, address, opening_hours, dog_policy, dog_policy_note, website, image_url, flagged, locked_fields, place_id from public.locations where id = $1`, [row.location_id])).rows[0] || null;
