@@ -2423,7 +2423,9 @@ footer .mono{color:rgba(255,255,255,.75)}
 // ---------- Users: Rewards (read only, as /admin's Rewards tab) ----------
 (function(){
   var $=function(id){return document.getElementById(id)}, H=window.HQ, esc=H.esc;
-  var TIER={extend_30:"30 extra days",discount_25:"25% off",year_free:"A year free"};
+  // Every treat tier, in this order, shown even before anyone claims it.
+  var TIERS=[["discount_25","25% off a month (monthly)"],["discount_50","50% off a month (monthly)"],["extend_30","30 free days (yearly)"],["extend_90","90 free days (yearly)"],["year_free","A year free"]];
+  var TIER={};TIERS.forEach(function(t){TIER[t[0]]=t[1]});
   var ST={pending:"waiting",fulfilled:"fulfilled",cancelled:"cancelled",failed:"failed"};
   var STC={pending:"warn",fulfilled:"ok",cancelled:"",failed:"crit"};
   function tierName(t){return TIER[t]||String(t||"–").replace(/_/g," ")}
@@ -2439,8 +2441,9 @@ footer .mono{color:rgba(255,255,255,.75)}
       el.innerHTML='<div class="tiles">'+tile("Promo codes",t.codes,(t.codes_claimed||0)+" claimed")+tile("Treat claims",t.treats,(t.treats_fulfilled||0)+" fulfilled"+(t.treats_pending?", "+t.treats_pending+" waiting":""))+
           tile("10-review milestone",t.m10)+tile("20-review",t.m20)+tile("50-review",t.m50)+'</div>'+
         '<div class="subhead"><h3>Treat claims by tier</h3></div>'+
-        (d.tiers.length?d.tiers.map(function(x){return '<div class="card"><div class="row" style="justify-content:space-between"><span class="title">'+esc(tierName(x.tier))+'</span><span class="tag plain">'+x.total+(x.total===1?" claim":" claims")+'</span></div><div class="meta">'+
-          Object.keys(x.by_status||{}).map(function(k){return '<span class="tag plain '+(STC[k]||"")+'">'+x.by_status[k]+' '+esc(ST[k]||k)+'</span>'}).join("")+'</div></div>'}).join(""):'<div class="empty">No treat claims yet.</div>')+
+        (function(){var by={};d.tiers.forEach(function(x){by[x.tier]=x});
+          return TIERS.map(function(t){return by[t[0]]||{tier:t[0],total:0,by_status:{}}}).concat(d.tiers.filter(function(x){return !TIER[x.tier]})).map(function(x){return '<div class="card"><div class="row" style="justify-content:space-between"><span class="title">'+esc(tierName(x.tier))+'</span><span class="tag plain">'+x.total+(x.total===1?" claim":" claims")+'</span></div><div class="meta">'+
+          (x.total?Object.keys(x.by_status||{}).map(function(k){return '<span class="tag plain '+(STC[k]||"")+'">'+x.by_status[k]+' '+esc(ST[k]||k)+'</span>'}).join(""):'<span class="note">No claims yet</span>')+'</div></div>'}).join("")})()+
         '<div class="subhead"><h3>Latest treat claims</h3></div>'+
         (d.recent.length?d.recent.map(function(x){return '<div class="card"><div class="meta"><span class="tag plain '+(STC[x.status]||"")+'">'+esc(ST[x.status]||x.status||"")+'</span><span>'+esc(tierName(x.tier))+'</span><span>claimed '+esc(day(x.claimed_at))+'</span>'+(x.fulfilled_at?'<span>fulfilled '+esc(day(x.fulfilled_at))+'</span>':'')+(x.points_at_claim!=null?'<span>'+x.points_at_claim+' points</span>':'')+'</div>'+
           (x.failure_reason?'<div class="note">'+esc(x.failure_reason)+'</div>':'')+'<div class="row">'+who(x.user_id,x.full_name)+'</div></div>'}).join(""):'<div class="empty">None yet.</div>')+
