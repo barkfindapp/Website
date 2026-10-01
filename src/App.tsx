@@ -15,10 +15,10 @@ import { lazy, Suspense } from "react";
 // visitor downloads. Keeps the codes out of everything except the creator pages.
 const CreatorPage = lazy(() => import("./pages/CreatorPage"));
 
-// Resources section (/resources, /dog-friendly, /news, /events). Its build-time
+// Discover section (/discover, /dog-friendly, /news, /events). Its build-time
 // content JSON ships in this chunk only, so the homepage bundle does not grow.
 const ResourcesRoutes = lazy(() => import("./pages/resources/ResourcesRoutes"));
-const RESOURCE_SECTIONS = ["/resources", "/dog-friendly", "/news", "/events"];
+const RESOURCE_SECTIONS = ["/discover", "/dog-friendly", "/news", "/events"];
 
 const ROUTES: Record<string, () => JSX.Element> = {
   "/mockup": MockupCapture,

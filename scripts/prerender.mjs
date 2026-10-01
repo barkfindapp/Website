@@ -34,8 +34,8 @@ const ROUTES = [
   "/confirmed",
 ];
 
-// Resources section: the published pages listed by scripts/build-resources.mjs
-// (/resources, /dog-friendly and each town guide, /news and each post, /events).
+// Discover section: the published pages listed by scripts/build-resources.mjs
+// (/discover, /dog-friendly and each town guide, /news and each post, /events).
 async function resourceRoutes() {
   const file = join(__dirname, "..", "src", "data", "generated", "resources.json");
   if (!existsSync(file)) return [];

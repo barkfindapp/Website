@@ -16,7 +16,7 @@ import {
   type Guide,
   type NewsPost,
 } from "./data";
-import { Breadcrumbs, DownloadCta, ListingCard, Prose, TownSearch, placesLabel, type Crumb } from "./parts";
+import { Breadcrumbs, DownloadCta, ListingCard, PressBox, Prose, TownSearch, placesLabel, plural, type Crumb } from "./parts";
 
 // Router for the resources section. Every page here renders from build-time
 // JSON (see ./data.ts). A path with no published piece behind it falls through
@@ -24,13 +24,13 @@ import { Breadcrumbs, DownloadCta, ListingCard, Prose, TownSearch, placesLabel, 
 // "coming soon" pages.
 
 const HOME: Crumb = { name: "Home", path: "/" };
-const RESOURCES: Crumb = { name: "Resources", path: "/resources" };
+const DISCOVER: Crumb = { name: "Discover", path: "/discover" };
 const GUIDES: Crumb = { name: "Dog-friendly guides", path: "/dog-friendly" };
 const NEWS: Crumb = { name: "News", path: "/news" };
 const EVENTS: Crumb = { name: "Events", path: "/events" };
 
 export default function ResourcesRoutes({ path }: { path: string }) {
-  if (path === "/resources") return <ResourcesLanding />;
+  if (path === "/discover") return <DiscoverHub />;
   if (path === "/dog-friendly") return guides.length ? <GuideIndex /> : <LandingPage />;
   if (path.startsWith("/dog-friendly/")) {
     const guide = guideBySlug(path.slice("/dog-friendly/".length));
@@ -45,22 +45,23 @@ export default function ResourcesRoutes({ path }: { path: string }) {
   return <LandingPage />;
 }
 
-// ─── /resources ──────────────────────────────────────────────────────────────
+// ─── /discover ───────────────────────────────────────────────────────────────
 
-function ResourcesLanding() {
+function DiscoverHub() {
   useSeo({
-    title: "Resources for dog owners | BarkFind",
-    description: "Dog-friendly town guides, BarkFind news and upcoming events for dog owners in the UK.",
-    path: "/resources",
+    title: "Discover dog-friendly places, news and events | BarkFind",
+    description: "Dog-friendly town guides, news and events from BarkFind, free to read.",
+    path: "/discover",
   });
   const [query, setQuery] = useState("");
   const matches = useMemo(() => manifest.filter((g) => matchesTown(g, query)), [query]);
   const latestNews = news.slice(0, 3);
+  const latestPress = news.find((n) => n.pressRelease);
   const upcoming = events.slice(0, 5);
 
   return (
-    <PageShell title="Resources" subtitle="Town guides for dog owners, news from BarkFind and upcoming events.">
-      <Breadcrumbs items={[HOME, RESOURCES]} />
+    <PageShell title="Discover" subtitle="Dog-friendly town guides, news and events from BarkFind.">
+      <Breadcrumbs items={[HOME, DISCOVER]} />
 
       {manifest.length > 0 && (
         <Section title="Dog-friendly town guides">
@@ -81,7 +82,7 @@ function ResourcesLanding() {
           ) : null}
           <p>
             <a href="/dog-friendly" className="font-semibold text-[#B74217] hover:underline">
-              Browse all {manifest.length} town guides
+              {manifest.length === 1 ? "Browse 1 town guide" : `Browse all ${plural(manifest.length, "town guide")}`}
             </a>
           </p>
         </Section>
@@ -121,6 +122,7 @@ function ResourcesLanding() {
         )}
       </Section>
 
+      <PressBox latest={latestPress} />
       <DownloadCta />
     </PageShell>
   );
@@ -131,16 +133,16 @@ function ResourcesLanding() {
 function GuideIndex() {
   useSeo({
     title: "Dog-friendly town guides | BarkFind",
-    description: `Dog-friendly cafes, pubs, walks and beaches in ${manifest.length} UK towns, with local dog restrictions, from BarkFind.`,
+    description: `Dog-friendly cafes, pubs, walks and beaches in ${plural(manifest.length, "UK town")}, with local dog restrictions, from BarkFind.`,
     path: "/dog-friendly",
-    jsonLd: breadcrumbSchema([HOME, RESOURCES, GUIDES]),
+    jsonLd: breadcrumbSchema([HOME, DISCOVER, GUIDES]),
   });
   const [query, setQuery] = useState("");
   const groups = useMemo(() => groupByCounty(manifest.filter((g) => matchesTown(g, query))), [query]);
 
   return (
     <PageShell title="Dog-friendly town guides" subtitle="Places that welcome dogs, town by town, built from BarkFind's venue data and dog owners' reviews.">
-      <Breadcrumbs items={[HOME, RESOURCES, GUIDES]} />
+      <Breadcrumbs items={[HOME, DISCOVER, GUIDES]} />
       <TownSearch value={query} onChange={setQuery} />
       {groups.length ? (
         groups.map(({ county, items }) => (
@@ -166,7 +168,7 @@ function GuideIndex() {
 
 function GuidePage({ guide }: { guide: Guide }) {
   const path = `/dog-friendly/${guide.slug}`;
-  const crumbs = [HOME, RESOURCES, GUIDES, { name: guide.town, path }];
+  const crumbs = [HOME, DISCOVER, GUIDES, { name: guide.town, path }];
   useSeo({
     title: `${guide.title} | BarkFind`,
     description: guide.summary,
@@ -195,7 +197,7 @@ function GuidePage({ guide }: { guide: Guide }) {
       <p className="mt-6">
         <a href="/dog-friendly" className="font-semibold text-[#B74217] hover:underline">All dog-friendly town guides</a>
       </p>
-      <DownloadCta />
+      <DownloadCta placeCount={guide.venueCount} />
     </PageShell>
   );
 }
@@ -218,13 +220,9 @@ function NewsIndex() {
 
   return (
     <PageShell title="News" subtitle="What's new at BarkFind, with press releases for journalists first.">
-      <Breadcrumbs items={[HOME, RESOURCES, NEWS]} />
+      <Breadcrumbs items={[HOME, DISCOVER, NEWS]} />
       {press.length > 0 && (
         <Section title="Press releases">
-          <p>
-            For press enquiries, email{" "}
-            <a href="mailto:info@barkfind.com" className="font-semibold text-[#B74217] hover:underline">info@barkfind.com</a>.
-          </p>
           <ul className="grid gap-3">{press.map(card)}</ul>
         </Section>
       )}
@@ -233,6 +231,7 @@ function NewsIndex() {
           <ul className="grid gap-3">{rest.map(card)}</ul>
         </Section>
       )}
+      <PressBox latest={press[0]} />
       <DownloadCta />
     </PageShell>
   );
@@ -266,7 +265,7 @@ function NewsPage({ post }: { post: NewsPost }) {
       eyebrow={post.pressRelease ? "Press release" : undefined}
       meta={post.date ? formatDate(post.date) : undefined}
     >
-      <Breadcrumbs items={[HOME, RESOURCES, NEWS, { name: post.title, path }]} />
+      <Breadcrumbs items={[HOME, DISCOVER, NEWS, { name: post.title, path }]} />
       <Prose html={post.html} />
       {post.pressRelease && (
         <p className="mt-8 text-sm text-[#585858]">
@@ -322,7 +321,7 @@ function EventsPage() {
 
   return (
     <PageShell title="Events" subtitle="Upcoming events for dog owners.">
-      <Breadcrumbs items={[HOME, RESOURCES, EVENTS]} />
+      <Breadcrumbs items={[HOME, DISCOVER, EVENTS]} />
       {events.length ? (
         <ul className="flex flex-col gap-5">
           {events.map((e) => (

@@ -30,7 +30,7 @@ const MAIN_LINKS = [
   { label: "Features", href: "/#features" },
   { label: "Pricing", href: "/#pricing" },
   { label: "For Businesses", href: "/business" },
-  { label: "Resources", href: "/resources" },
+  { label: "Discover", href: "/discover" },
   { label: "Support", href: "/support" },
 ];
 
@@ -63,7 +63,7 @@ function PageNav({ currentPath }: { currentPath: string }) {
 
   const isActive = (href: string) =>
     currentPath === href ||
-    (href === "/resources" && /^\/(resources|dog-friendly|news|events)(\/|$)/.test(currentPath));
+    (href === "/discover" && /^\/(discover|dog-friendly|news|events)(\/|$)/.test(currentPath));
   const legalActive = LEGAL_LINKS.some((l) => l.href === currentPath);
 
   const linkClass = (active: boolean) =>
@@ -232,7 +232,7 @@ export default function PageShell({
           <div className="flex flex-wrap justify-center gap-6">
             <a href="/" className="hover:text-white transition-colors">Home</a>
             <a href="/treats" className="hover:text-white transition-colors">Treats</a>
-            <a href="/resources" className="hover:text-white transition-colors">Resources</a>
+            <a href="/discover" className="hover:text-white transition-colors">Discover</a>
             <a href="/support" className="hover:text-white transition-colors">Support</a>
             <a href="/business" className="hover:text-white transition-colors">Business</a>
             <a href="/privacy" className="hover:text-white transition-colors">Privacy</a>

@@ -1,4 +1,4 @@
-// Build step for the resources section (/resources, /dog-friendly, /news, /events).
+// Build step for the Discover section (/discover, /dog-friendly, /news, /events).
 //
 // Runs before `vite build`. Reads approved content from Supabase ONCE, at build
 // time, and writes two JSON files the React pages import:
@@ -328,7 +328,7 @@ async function main() {
   // Routes to prerender and list in the sitemap. Index pages only count as
   // pages once they have something on them; individual pages only exist for
   // published pieces.
-  const pages = [{ path: "/resources", lastmod: today, changefreq: "weekly", priority: "0.7" }];
+  const pages = [{ path: "/discover", lastmod: today, changefreq: "weekly", priority: "0.7" }];
   if (guides.length) {
     pages.push({ path: "/dog-friendly", lastmod: today, changefreq: "weekly", priority: "0.8" });
     for (const g of guides) pages.push({ path: `/dog-friendly/${g.slug}`, lastmod: g.updated || today, changefreq: "monthly", priority: "0.8" });
