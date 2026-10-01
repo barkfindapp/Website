@@ -123,6 +123,8 @@ h2.sec::before{content:"";width:8px;height:8px;border-radius:50%;background:var(
 dl.kv{margin:0;display:grid;grid-template-columns:1fr auto;gap:0}
 dl.kv dt,dl.kv dd{padding:8px 0;border-top:1px solid var(--line);font-size:14px}
 dl.kv dt{color:var(--fg2)}
+button.fx{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer;border-bottom:1px dotted var(--line-2);font-variant-numeric:tabular-nums}
+button.fx:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
 dl.kv dd{margin:0;text-align:right;font-weight:700;color:var(--fg);font-variant-numeric:tabular-nums}
 dd .flag{display:inline-block;margin-left:6px;font:800 10.5px/1 var(--sans);padding:4px 7px;border-radius:999px;vertical-align:1px}
 .flag.warn{color:var(--warn);background:var(--warn-soft)} .flag.crit{color:var(--crit);background:var(--crit-soft)} .flag.ok{color:var(--ok);background:var(--ok-soft)}
@@ -446,13 +448,15 @@ footer .mono{color:rgba(255,255,255,.75)}
         <h3>Revenue <small>Money in</small></h3>
         <div class="hero"><span class="v" id="m-active">–</span><span class="u">paying on the App Store</span></div>
         <dl class="kv" id="m-kv"></dl>
-        <p class="note" id="m-note">RevenueCat revenue totals include sandbox purchases until launch, so they are not real money yet.</p>
+        <p class="note fxline" id="m-fx"></p>
+        <p class="note" id="m-note">Revenue counts real App Store purchases only. Sandbox (test) purchases are left out, and the figure appears once RevenueCat's sync reports production revenue on its own.</p>
       </article>
 
       <article class="panel" id="p-costs">
         <h3>Running costs <small>Money out · this month</small></h3>
-        <div class="hero"><span class="v" id="k-total">–</span><span class="u">metered API spend, USD</span></div>
+        <div class="hero"><span class="v" id="k-total">–</span><span class="u">metered API spend</span></div>
         <dl class="kv" id="k-kv"></dl>
+        <p class="note fxline" id="k-fx"></p>
         <p class="note">Google figures come from google_spend_this_month, which applies the free allowance per SKU and adds VAT. Anthropic is BarkFind's own meter; reconcile it against the Anthropic console before quoting it. Fixed subscriptions (Lovable, Supabase plan, Apple, domains) are in the HQ doc cost register.</p>
       </article>
 
@@ -625,6 +629,16 @@ footer .mono{color:rgba(255,255,255,.75)}
   function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
   function n(v){v=Number(v||0);return v.toLocaleString("en-GB")}
   function usd(v){return "$"+Number(v||0).toFixed(2)}
+  // Money from Anthropic, Google and RevenueCat is stored in US dollars; HQ shows it in pounds
+  // at the day's rate (state.snap.fx, from the server). Pounds to the penny, whole pounds from
+  // 1,000. Tapping a figure shows the original dollars. Without a rate, dollars are shown.
+  function fx(){return state.snap&&state.snap.fx}
+  function gbp(v){var r=fx(),x=Number(v||0);if(!r)return usd(x);var g=x*r.rate;return Math.abs(g)>=1000?"£"+Math.round(g).toLocaleString("en-GB"):"£"+g.toFixed(2)}
+  function money(v){return {usd:Number(v||0)}}
+  function fxButton(v){var u=usd(v),g=gbp(v);return u===g?esc(u):'<button type="button" class="fx" data-a="'+esc(g)+'" data-b="'+esc(u)+'" aria-label="'+esc(g)+', tap for US dollars">'+esc(g)+'</button>'}
+  function fxLine(){var r=fx();if(!r)return "Shown in US dollars: no exchange rate is available yet.";
+    return "Converted from US dollars at $1 = £"+Number(r.rate).toFixed(2)+", "+new Date(r.date+"T12:00:00").toLocaleDateString("en-GB",{day:"numeric",month:"short"})+(r.stale?". The latest rate could not be fetched, so this is the last good one.":". Tap a figure for dollars.")}
+  document.addEventListener("click",function(ev){var b=ev.target.closest("button.fx");if(!b)return;var now=b.textContent===b.dataset.a?b.dataset.b:b.dataset.a;b.textContent=now;b.setAttribute("aria-label",now===b.dataset.a?now+", tap for US dollars":now+", tap for pounds")});
   function ageH(ts){if(!ts)return null;return (Date.now()-new Date(ts).getTime())/36e5}
   function ageTxt(h){if(h==null)return "";return h>=48?Math.round(h/24)+" days":Math.max(1,Math.round(h))+" hours"}
 
@@ -663,7 +677,7 @@ footer .mono{color:rgba(255,255,255,.75)}
   function kv(el,rows){
     el.innerHTML=rows.map(function(r){
       var f=r[2]?'<span class="flag '+r[2][0]+'">'+esc(r[2][1])+'</span>':"";
-      return "<dt>"+esc(r[0])+"</dt><dd>"+esc(r[1])+f+"</dd>";
+      return "<dt>"+esc(r[0])+"</dt><dd>"+(r[1]&&typeof r[1]==="object"&&"usd" in r[1]?fxButton(r[1].usd):esc(r[1]))+f+"</dd>";
     }).join("");
   }
 
@@ -701,7 +715,7 @@ footer .mono{color:rgba(255,255,255,.75)}
     if(q.listing_submissions_pending>0)items.push(["info",q.listing_submissions_pending+" suggested place(s) waiting","Users have suggested new listings.","https://www.barkfind.com/admin","Review"]);
     if(q.treat_claims_pending>0)items.push(["warn",q.treat_claims_pending+" treat claim(s) stuck pending","A pending claim locks the user's points until it is confirmed or failed. The 15-minute sweep should clear these.","https://supabase.com/dashboard/project/"+PROJECT+"/editor","Inspect"]);
     if(h.revenuecat_sync_age_minutes>90)items.push(["warn","RevenueCat data is "+h.revenuecat_sync_age_minutes+" minutes old","The hourly revenuecat-sync job may be failing.","https://supabase.com/dashboard/project/"+PROJECT+"/functions","Check function"]);
-    if(Number(c.google_month_usd_inc_vat)>50)items.push(["warn","Google spend is "+usd(c.google_month_usd_inc_vat)+" inc VAT this month","Budget alert is £100. Check google_spend_this_month before quoting a figure.","https://console.cloud.google.com/billing","Open billing"]);
+    if(Number(c.google_month_usd_inc_vat)>50)items.push(["warn","Google spend is "+gbp(c.google_month_usd_inc_vat)+" inc VAT this month","Budget alert is £100. Check google_spend_this_month before quoting a figure.","https://console.cloud.google.com/billing","Open billing"]);
     if(state.email&&state.email.bounce_rate>5)items.push(["info","Email bounce rate "+state.email.bounce_rate.toFixed(1)+"%",state.email.bounced+" of "+state.email.sent+" emails bounced in 30 days. On volumes this small one bad address does it, but check it is not a real customer.","https://resend.com/emails","Open Resend"]);
     var as=s.app_store||{};
     if(as.low_ratings_unanswered_30d>0)items.push(["warn",as.low_ratings_unanswered_30d+" App Store review(s) of 3 stars or fewer without a reply","A public reply often turns these around. Reply in App Store Connect, Ratings and Reviews.","https://appstoreconnect.apple.com/apps/6782144377/distribution/activity/ios/ratingsResponses","Reply"]);
@@ -760,20 +774,22 @@ footer .mono{color:rgba(255,255,255,.75)}
         ["Cancelled, still entitled",n(sub.store_cancelled_entitled)],
         ["Promotional (comped)",n(sub.promotional_active)],
         ["New subscription rows, 7 days",n(sub.new_7d)],
-        ["RevenueCat proceeds, all time",rc.revenue_usd?usd(rc.revenue_usd.proceeds):"–",["warn","incl. sandbox"]],
+        rc.revenue_usd?["App Store proceeds, all time",money(rc.revenue_usd.proceeds),["ok","production"]]:["App Store proceeds, all time","not available yet",["warn","sandbox left out"]],
         ["RevenueCat last synced",(sub.revenuecat&&sub.revenuecat.synced_at)?new Date(sub.revenuecat.synced_at).toLocaleString("en-GB",{hour:"2-digit",minute:"2-digit",day:"numeric",month:"short"}):"–"]
       ]);
+      $("m-fx").textContent=fxLine();$("m-fx").hidden=!rc.revenue_usd;
 
       var google=Number(c.google_month_usd_inc_vat||0), anth=Number(c.anthropic_month_usd||0);
-      $("k-total").textContent=usd(google+anth);
-      var ops=c.anthropic_month_by_op||{}, top=Object.keys(ops).sort(function(a,b){return ops[b]-ops[a]}).slice(0,3).map(function(k){return k.replace(/_/g," ")+" "+usd(ops[k])}).join(", ");
+      $("k-total").innerHTML=fxButton(google+anth);
+      var ops=c.anthropic_month_by_op||{}, top=Object.keys(ops).sort(function(a,b){return ops[b]-ops[a]}).slice(0,3).map(function(k){return k.replace(/_/g," ")+" "+gbp(ops[k])}).join(", ");
       kv($("k-kv"),[
-        ["Google Maps and Places, inc VAT",usd(google),google===0?["ok","inside free tier"]:null],
-        ["Anthropic (Mylo, summaries, moderation)",usd(anth)],
-        ["Anthropic, last 7 days",usd(c.anthropic_7d_usd)],
+        ["Google Maps and Places, inc VAT",money(google),google===0?["ok","inside free tier"]:null],
+        ["Anthropic (Mylo, summaries, moderation)",money(anth)],
+        ["Anthropic, last 7 days",money(c.anthropic_7d_usd)],
         ["Biggest Anthropic uses",top||"none yet"],
         ["Paid Google sweeps, 24 hours",n(c.search_sweeps_24h)+" of 1,500 cap"]
       ]);
+      $("k-fx").textContent=fxLine();
 
       var waiting=(q.support_open||0)+(q.privacy_open||0)+(q.reviews_pending||0)+(q.user_reports_pending||0)+(q.location_reports_open||0)+(q.business_claims_pending||0)+(q.listing_submissions_pending||0);
       $("s-open").textContent=n(waiting);
