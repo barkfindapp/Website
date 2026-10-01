@@ -165,6 +165,12 @@ export function flagOps(pool: Pool): Record<string, Op> {
         return writeTx(pool, ctx.staff.userId, async (c, audit) => {
           const ids = await resolveIds(c, sel, eligible('delete'));
           if (!ids.length) throw new HttpError(409, 'Only places in Kept excluded can be deleted.');
+          // Their Google place IDs go on the blocklist so the scanners do not add them again;
+          // the rows added are kept with each place in the trash so a restore can lift them.
+          const blocked = (await c.query(
+            `insert into public.location_place_id_blocklist (place_id, reason, kept_location_id, created_by)
+             select l.place_id, 'deleted', null, $2 from public.locations l where l.id = any($1::uuid[]) and l.place_id is not null
+             on conflict (place_id) do nothing returning place_id`, [ids, ctx.staff.userId])).rows.map((x) => x.place_id);
           await c.query(
             `insert into public.hq_trash (entity, entity_id, row_data, related, deleted_by)
              select 'locations', l.id::text, to_jsonb(l), jsonb_build_object(
@@ -180,13 +186,14 @@ export function flagOps(pool: Pool): Record<string, Op> {
                  'location_restrictions', (select coalesce(jsonb_agg(to_jsonb(x)), '[]') from public.location_restrictions x where x.location_id = l.id),
                  'dog_policy_reviews', (select coalesce(jsonb_agg(to_jsonb(x)), '[]') from public.dog_policy_reviews x where x.location_id = l.id),
                  'mylo_backfill_queue', (select coalesce(jsonb_agg(to_jsonb(x)), '[]') from public.mylo_backfill_queue x where x.location_id = l.id),
-                 'geograph_requeue', (select coalesce(jsonb_agg(to_jsonb(x)), '[]') from public.geograph_requeue x where x.location_id = l.id)),
+                 'geograph_requeue', (select coalesce(jsonb_agg(to_jsonb(x)), '[]') from public.geograph_requeue x where x.location_id = l.id),
+                 'place_id_blocklist', (select coalesce(jsonb_agg(to_jsonb(b)), '[]') from public.location_place_id_blocklist b where b.place_id = l.place_id and b.place_id = any($3::text[]))),
                $2
-               from public.locations l where l.id = any($1::uuid[])`, [ids, ctx.staff.userId]);
+               from public.locations l where l.id = any($1::uuid[])`, [ids, ctx.staff.userId, blocked]);
           await c.query('delete from public.locations where id = any($1::uuid[])', [ids]);
           await audit({ action: 'flags_delete', entity: 'locations', entityId: ids.length === 1 ? ids[0] : null,
             detail: `Deleted ${ids.length} kept-excluded place${ids.length === 1 ? '' : 's'} to trash (${filterLabel(sel.filter)})`.slice(0, 300),
-            before: { filter: sel.filter, ids }, after: null });
+            before: { filter: sel.filter, ids }, after: { place_ids_blocked: blocked.length } });
           return { ok: true, message: `Deleted ${ids.length} place${ids.length === 1 ? '' : 's'}. They are in the trash.`, count: ids.length };
         });
       },

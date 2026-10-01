@@ -14,6 +14,7 @@ import { flagOps } from './_lib/hq-flags.js';
 import { inboxOps } from './_lib/hq-inbox.js';
 import { contentOps } from './_lib/hq-content.js';
 import { announceOps } from './_lib/hq-announce.js';
+import { placeOps } from './_lib/hq-places.js';
 import { HttpError, bad, obj, only, uuid, str, oneOf, date, bool, scrubEmails, writeTx, toTrash } from './_lib/hq-core.js';
 
 const DB_URL = process.env.SUPABASE_DB_URL!;
@@ -366,6 +367,7 @@ const OPS: Record<string, Op | { perm: null; run: Op['run'] }> = {
   ...inboxOps(pool),
   ...contentOps(pool),
   ...announceOps(pool),
+  ...placeOps(pool),
 };
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -405,7 +407,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const token = String(req.headers.authorization || '').replace(/^Bearer\s+/i, '');
     return res.status(200).json(await op.run(args, { staff: gate.staff, token, hqUrl: hqUrlFor(req) }));
   } catch (e: any) {
-    if (e instanceof HttpError) return res.status(e.status).json({ error: e.message });
+    if (e instanceof HttpError) return res.status(e.status).json(e.code ? { error: e.message, code: e.code } : { error: e.message });
     console.error('hq', e?.message || e);
     return res.status(500).json({ error: 'Something went wrong on the server. Try again.' });
   }

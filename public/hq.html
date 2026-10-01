@@ -417,6 +417,7 @@ footer .mono{color:rgba(255,255,255,.75)}
     <button role="tab" id="t-today" aria-selected="true" data-go="today">Today</button>
     <button role="tab" id="t-act" aria-selected="false" data-go="act">Act<span class="count" id="actCount">0</span></button>
     <button role="tab" id="t-users" aria-selected="false" data-go="users" hidden>Users</button>
+    <button role="tab" id="t-places" aria-selected="false" data-go="places" hidden>Places</button>
     <button role="tab" id="t-content" aria-selected="false" data-go="content" hidden>Content<span class="count" id="ceCount">0</span></button>
     <button role="tab" id="t-comms" aria-selected="false" data-go="comms" hidden>Comms</button>
     <button role="tab" id="t-outreach" aria-selected="false" data-go="outreach">Outreach<span class="count" id="outCount">0</span></button>
@@ -526,6 +527,16 @@ footer .mono{color:rgba(255,255,255,.75)}
     <button class="chip" data-s="banned" aria-pressed="false">Banned</button>
   </div>
   <div class="stack" id="userList"><div class="empty">Loading customers.</div></div>
+ </div>
+
+ <div data-tab="places" class="stack" hidden>
+  <p class="note" style="margin:0">Every change here is recorded with your name. A field you edit is locked so automatic updates cannot overwrite it; deletes and merges go to the trash.</p>
+  <nav class="filter subnav" id="plNav" aria-label="Places sections">
+    <button class="chip" data-sec="list" aria-pressed="true">All places</button>
+    <button class="chip" data-sec="dups" aria-pressed="false">Duplicates</button>
+    <button class="chip" data-sec="add" aria-pressed="false">Add a place</button>
+  </nav>
+  <div class="stack" id="plPane"><div class="empty">Loading.</div></div>
  </div>
 
  <div data-tab="content" class="stack" hidden>
@@ -651,7 +662,7 @@ footer .mono{color:rgba(255,255,255,.75)}
         if(r.status===401&&j&&j.code==="mfa"){window.hqMfa&&window.hqMfa();throw {code:"mfa",message:"Enter your 6-digit code"}}
         if(r.status===401){window.hqGate&&window.hqGate("signin");throw {code:"auth",message:"Your session has ended. Sign in again."}}
         if(r.status===403){window.hqGate&&window.hqGate("denied");throw {code:"denied",message:"This account does not have access."}}
-        if(!r.ok||!j)throw {code:"http",message:(j&&j.error)||"The server did not answer. Try again."};
+        if(!r.ok||!j)throw {code:"http",message:(j&&j.error)||"The server did not answer. Try again.",reason:(j&&j.code)||""};
         return j;
       })});
   }
@@ -978,7 +989,7 @@ footer .mono{color:rgba(255,255,255,.75)}
   function applyPerms(){
     var c=HQ.can, show=function(id,on){var e=$(id);if(e)e.hidden=!on};
     show("t-act",c("safety")||c("privacy")||c("reviews")||c("reports")||c("claims")||c("support_read")||c("places_moderate")||c("places_delete"));
-    show("t-users",c("users_view"));show("t-content",c("content"));show("t-comms",c("announce"));show("t-outreach",c("outreach"));show("t-admin",c("staff_manage"));
+    show("t-users",c("users_view"));show("t-places",c("places_edit"));show("t-content",c("content"));show("t-comms",c("announce"));show("t-outreach",c("outreach"));show("t-admin",c("staff_manage"));
     show("p-money",c("money"));show("p-costs",c("money"));show("p-renewals",c("renewals"));
     var ask=document.querySelector("section.cta");if(ask)ask.hidden=!c("ask_ralphy");
     show("miniForm",c("ask_ralphy"));show("miniLinks",c("ask_ralphy"));
@@ -995,12 +1006,13 @@ footer .mono{color:rgba(255,255,255,.75)}
     window.scrollTo(0,0);
     if(t==="act"&&window.HQAct)HQAct.show();
     if(t==="users"&&window.HQUsers)HQUsers.show();
+    if(t==="places"&&window.HQPlaces)HQPlaces.show();
     if(t==="content"&&window.HQContent)HQContent.show();
     if(t==="comms"&&window.HQComms)HQComms.show();
     if(t==="admin"&&window.HQAdmin)HQAdmin.show();
   }
   document.querySelector(".tabs").addEventListener("click",function(ev){var b=ev.target.closest("button[data-go]");if(b)go(b.dataset.go)});
-  document.addEventListener("click",function(ev){var a=ev.target.closest('a[href^="#"]');if(!a)return;var t=a.getAttribute("href").slice(1);if(["today","act","users","content","comms","outreach","admin","consoles"].indexOf(t)>=0){ev.preventDefault();go(t)}});
+  document.addEventListener("click",function(ev){var a=ev.target.closest('a[href^="#"]');if(!a)return;var t=a.getAttribute("href").slice(1);if(["today","act","users","places","content","comms","outreach","admin","consoles"].indexOf(t)>=0){ev.preventDefault();go(t)}});
   var startTab=(location.hash||"").slice(1);
 
   $("refresh").addEventListener("click",load);
@@ -1094,7 +1106,7 @@ footer .mono{color:rgba(255,255,255,.75)}
     checking=true;gate("checking","Checking access.");
     api("history").then(function(r){state.history=r.data||[];return api("me")}).then(function(m){
         HQ.perms=(m.data&&m.data.perms)||[];HQ.me=m.data||{};ready=true;applyPerms();gate("app");
-        if(["act","users","content","comms","outreach","admin","consoles"].indexOf(startTab)>=0)go(startTab);load()})
+        if(["act","users","places","content","comms","outreach","admin","consoles"].indexOf(startTab)>=0)go(startTab);load()})
       .catch(function(e){if(e.code!=="denied"&&e.code!=="auth"&&e.code!=="mfa")gate("signin",e.message)})
       .then(function(){checking=false});
   }
@@ -2158,6 +2170,206 @@ footer .mono{color:rgba(255,255,255,.75)}
     busy(d,H.api("announce_delete",{id:c.dataset.anid}),c,function(r){if(r&&r.ok!==false)setTimeout(list,900)});
   });
   window.HQComms={show:function(){if(!an.loaded){an.loaded=true;render()}else{list();H.api("announce_preview").then(function(r){an.counts=r.data;segs();prev()}).catch(function(){})}}};
+})();
+</script>
+<script>
+// ---------- Places: search, detail and edit, add, duplicates ----------
+// Every write is a named op on /api/hq; edits lock the fields a person changed.
+(function(){
+  var $=function(id){return document.getElementById(id)}, H=window.HQ, esc=H.esc;
+  var CATS=["park","cafe","pub","bar","restaurant","beach","pet-store","vet","groomer"];
+  var STATUS=[["all","All places"],["live","Live"],["flagged","Flagged"],["verified","Verified"],["unverified","Not verified"],["sponsored","Sponsored"],["no_photo","No photo"],["locked","Has locks"]];
+  var SORT=[["name","Name"],["rating","Best rated"],["newest","Newest"]];
+  var LOCKNAME={name:"Name",address:"Address",opening_hours:"Opening hours",website:"Website",image_url:"Photo",dog_policy:"Dog policy",category:"Category"};
+  var DOG={"":"Not set",welcome:"Dogs welcome",restricted:"Restricted",not_allowed:"Not allowed"};
+  var pl={sec:"list",f:{q:"",category:"",status:"all",sort:"name"},page:0,open:null,dups:null,loaded:false,timer:null};
+  function pretty(s){return String(s||"").replace(/-/g," ").replace(/^\w/,function(c){return c.toUpperCase()})}
+  function busy(b,p,card,after){b.disabled=true;return p.then(function(r){H.note(card,r&&r.ok!==false,(r&&r.message)||"Done.");if(after)after(r)}).catch(function(e){H.note(card,false,(e&&e.message)||"That did not work.");if(after)after(null,e)}).then(function(){b.disabled=false})}
+  function maps(p){return p.latitude!=null?"https://www.google.com/maps/search/?api=1&query="+p.latitude+","+p.longitude+(p.place_id?"&query_place_id="+encodeURIComponent(p.place_id):""):""}
+  function sel(id,opts,v,label){return '<select id="'+id+'" aria-label="'+label+'">'+opts.map(function(o){return '<option value="'+o[0]+'"'+(o[0]===v?" selected":"")+'>'+o[1]+'</option>'}).join("")+'</select>'}
+
+  $("plNav").addEventListener("click",function(ev){var b=ev.target.closest("[data-sec]");if(!b)return;go(b.dataset.sec)});
+  function go(s){pl.sec=s;$("plNav").querySelectorAll("[data-sec]").forEach(function(x){x.setAttribute("aria-pressed",x.dataset.sec===s?"true":"false")});render()}
+  function nav(){$("plNav").querySelector('[data-sec="dups"]').hidden=!H.can("places_delete");$("plNav").querySelector('[data-sec="add"]').hidden=!H.can("places_edit")}
+  function render(){var el=$("plPane");if(pl.sec==="dups")dupsView(el);else if(pl.sec==="add")addView(el);else listView(el)}
+
+  // ---------- list ----------
+  function listView(el){
+    var f=pl.f;
+    el.innerHTML='<div class="fbar"><input type="search" class="pill-in" id="plQ" placeholder="Search name, address or id" value="'+esc(f.q)+'">'+
+      sel("plCat",[["","All categories"]].concat(CATS.map(function(c){return [c,pretty(c)]})),f.category,"Category")+sel("plStatus",STATUS,f.status,"Show")+sel("plSort",SORT,f.sort,"Sort")+'</div><div class="stack" id="plList"><div class="empty">Loading.</div></div>';
+    load();
+  }
+  function load(){
+    var f=pl.f;
+    H.api("places_list",{q:f.q,category:f.category,status:f.status,sort:f.sort,page:pl.page}).then(function(r){
+      var d=r.data, from=d.page*d.page_size, box=$("plList");if(!box)return;
+      box.innerHTML='<div class="note">'+(d.total?(from+1).toLocaleString("en-GB")+" to "+Math.min(from+d.page_size,d.total).toLocaleString("en-GB")+" of "+d.total.toLocaleString("en-GB"):"Nothing matches")+'</div>'+
+        d.rows.map(function(x){return '<button class="card" data-pl="open" data-id="'+esc(x.id)+'" style="text-align:left;cursor:pointer;width:100%"><div class="meta"><span class="tag plain">'+esc(pretty(x.category))+'</span>'+
+          (x.flagged?'<span class="tag crit">Flagged</span>':'')+(x.is_verified?'<span class="tag ok plain">Verified</span>':'')+(x.is_sponsored?'<span class="tag info plain">Sponsored</span>':'')+(x.locked?'<span class="tag plain">Locked fields</span>':'')+(x.has_photo?'':'<span class="tag plain warn">No photo</span>')+
+          (x.barkfind_rating!=null?'<span>'+Number(x.barkfind_rating).toFixed(1)+' paws</span>':'')+(x.review_count?'<span>'+x.review_count+' reviews</span>':'')+'</div>'+
+          '<div class="title">'+esc(x.name)+'</div>'+(x.address?'<div class="note">'+esc(x.address)+'</div>':'')+(x.flagged&&x.flag_reason?'<div class="note">'+esc(String(x.flag_reason).slice(0,120))+'</div>':'')+'</button>'}).join("")+
+        (d.total>d.page_size?'<div class="row" style="justify-content:space-between"><span></span><div class="row">'+(d.page>0?'<button class="btn small" data-pl="prev">Previous</button>':'')+(from+d.page_size<d.total?'<button class="btn small" data-pl="next">Next</button>':'')+'</div></div>':'');
+    }).catch(function(e){var b=$("plList");if(b)b.innerHTML='<div class="empty">'+esc(e.message||"That did not load.")+'</div>'});
+  }
+  $("plPane").addEventListener("input",function(ev){if(ev.target.id!=="plQ")return;clearTimeout(pl.timer);pl.timer=setTimeout(function(){pl.f.q=ev.target.value.trim();pl.page=0;load()},300)});
+  $("plPane").addEventListener("change",function(ev){var t=ev.target,m={plCat:"category",plStatus:"status",plSort:"sort"}[t.id];if(m){pl.f[m]=t.value;pl.page=0;load()}});
+
+  // ---------- one place ----------
+  function openPlace(id){
+    var bg=$("sheetBg");bg.classList.add("wide");$("sheetTitle").textContent="Place";$("sheetBody").innerHTML='<div class="empty">Loading.</div>';bg.hidden=false;document.body.style.overflow="hidden";
+    H.api("place_detail",{id:id}).then(function(r){pl.open=r.data;placeView(r.data)}).catch(function(e){$("sheetBody").innerHTML='<div class="empty">'+esc(e.message||"That did not load.")+'</div>'});
+  }
+  function lockLine(p){
+    var out=(p.locked_fields||[]).map(function(f){return [f,LOCKNAME[f]||f]});if(p.category_locked)out.unshift(["category","Category"]);
+    if(!out.length)return '<div class="note">Nothing is locked. Automatic updates can change any field.</div>';
+    return '<div class="note">Locked fields keep a person\'s choice; automatic updates cannot change them.'+(p.details_set_at?' Details last set '+esc(H.when(p.details_set_at))+(p.details_set_by_name?' by '+esc(p.details_set_by_name):''):'')+(p.category_locked&&p.category_set_at?'. Category set '+esc(H.when(p.category_set_at))+(p.category_set_by_name?' by '+esc(p.category_set_by_name):''):'')+'.</div>'+
+      '<div class="row">'+out.map(function(x){return '<span class="tag plain">'+esc(x[1])+'</span>'+(H.can("places_edit")?'<button class="btn small" data-pl="unlock" data-f="'+x[0]+'" data-confirm="Confirm unlock">Unlock</button>':'')}).join("")+'</div>';
+  }
+  function placeView(p){
+    var rv=p.reviews||{}, edit=H.can("places_edit"), mu=maps(p);
+    $("sheetTitle").textContent=p.name;
+    var h='<div class="ib-cols" style="display:grid;gap:14px"><div class="stack" style="gap:14px">'+
+      '<div class="card"><div class="meta"><span class="tag plain">'+esc(pretty(p.category))+'</span>'+(p.flagged?'<span class="tag crit">Flagged</span>':'<span class="tag ok plain">Live</span>')+(p.is_verified?'<span class="tag ok plain">Verified'+(p.barkfind_verified?' by BarkFind':' by Google')+'</span>':'')+(p.is_sponsored?'<span class="tag info plain">Sponsored</span>':'')+'</div>'+
+        '<div class="title">'+esc(p.name)+'</div>'+(p.address?'<div class="note">'+esc(p.address)+'</div>':'')+
+        (p.flagged?'<div class="prior">Flagged '+esc(H.when(p.flagged_at))+(p.flagged_by_name?' by '+esc(p.flagged_by_name):'')+': '+esc(p.flag_reason||"")+'. Restore it from Act, Flagged places.</div>':'')+
+        '<dl class="kvs"><dt>BarkFind rating</dt><dd>'+(p.barkfind_rating!=null?Number(p.barkfind_rating).toFixed(1)+" paws":"none yet")+'</dd><dt>Google rating</dt><dd>'+(p.google_rating!=null?p.google_rating:"none")+'</dd>'+
+        '<dt>Reviews</dt><dd>'+(rv.reviews||0)+' ('+(rv.approved||0)+' approved'+(rv.pending?', '+rv.pending+' waiting':'')+')</dd><dt>Favourites</dt><dd>'+(p.favourites||0)+'</dd>'+
+        '<dt>Open reports</dt><dd>'+(p.open_reports||0)+'</dd><dt>Claims</dt><dd>'+(p.claims||0)+'</dd><dt>Restrictions</dt><dd>'+(p.restrictions||0)+'</dd>'+(p.pending_changes?'<dt>Listing changes waiting</dt><dd>'+p.pending_changes+'</dd>':'')+
+        '<dt>Added</dt><dd>'+esc(H.when(p.created_at))+'</dd><dt>Id</dt><dd style="overflow-wrap:anywhere">'+esc(p.id)+'</dd></dl>'+
+        (mu?'<div class="row"><a class="btn small" href="'+esc(mu)+'" target="_blank" rel="noopener noreferrer">Open in Google Maps</a>'+(p.website?'<a class="btn small" href="'+esc(p.website)+'" target="_blank" rel="noopener noreferrer">Website</a>':'')+'</div>':'')+'</div>'+
+      '<div class="card" data-pl-card="locks"><div class="subhead"><h3 style="font-size:18px">Locks</h3></div>'+lockLine(p)+'</div>'+
+      (edit?'<div class="card" data-pl-card="edit"><div class="subhead"><h3 style="font-size:18px">Edit</h3></div><p class="note" style="margin:0">Fields you change are locked, so automatic updates will not overwrite them.</p>'+fields(p)+'<div class="row"><button class="btn primary small" data-pl="save">Save changes</button></div></div>':'')+
+      '</div><div class="stack" style="gap:14px">'+
+      (edit?'<div class="card" data-pl-card="toggles"><div class="subhead"><h3 style="font-size:18px">Switches</h3></div>'+
+        '<div class="row"><button class="btn small'+(p.is_sponsored?' ok':'')+'" data-pl="toggle" data-f="is_sponsored" data-on="'+(!p.is_sponsored)+'">'+(p.is_sponsored?"Sponsored: on":"Sponsored: off")+'</button>'+
+        '<button class="btn small'+(p.barkfind_verified?' ok':'')+'" data-pl="toggle" data-f="barkfind_verified" data-on="'+(!p.barkfind_verified)+'">'+(p.barkfind_verified?"BarkFind verified: on":"BarkFind verified: off")+'</button></div>'+
+        (p.google_verified?'<div class="note">Google also verifies this place, so it shows as verified either way.</div>':'')+'</div>':'')+
+      (H.can("places_moderate")&&!p.flagged?'<div class="card" data-pl-card="flag"><div class="subhead"><h3 style="font-size:18px">Flag</h3></div><p class="note" style="margin:0">Hides it from the app. It goes to Flagged places, where it can be restored.</p>'+
+        '<select data-pl-reason>'+(p.flag_reasons||[]).map(function(x){return '<option>'+esc(x)+'</option>'}).join("")+'</select><input type="text" class="pill-in" data-pl-note maxlength="300" placeholder="Note (optional)">'+
+        '<div class="row"><button class="btn danger small" data-pl="flag" data-confirm="Confirm flag">Flag place</button></div></div>':'')+
+      (H.can("places_delete")?'<div class="card" data-pl-card="delete"><div class="subhead"><h3 style="font-size:18px">Delete</h3></div><p class="note" style="margin:0">Removes it with its reviews, favourites, reports and claims. Everything goes to the trash and can be put back.</p><div class="row"><button class="btn danger small" data-pl="delete" data-confirm="Confirm delete">Delete place</button></div></div>':'')+
+      '<div class="card"><div class="subhead"><h3 style="font-size:18px">Recent reviews</h3></div>'+((p.recent_reviews||[]).length?p.recent_reviews.map(function(x){return '<div class="prior"><div class="note">'+(x.paw_rating||"–")+' paws · '+esc(x.status)+' · '+esc(H.when(x.created_at))+'</div>'+esc(x.text||"(no text)")+'</div>'}).join(""):'<div class="note">None yet.</div>')+'</div>'+
+      '</div></div>';
+    $("sheetBody").innerHTML=h;
+  }
+  function fields(p){
+    var am=(p.amenities||[]).join(", "), oh=Array.isArray(p.opening_hours)?p.opening_hours.join("\n"):"";
+    return '<div class="grid2"><label>Name<input type="text" data-pf="name" maxlength="200" value="'+esc(p.name||"")+'"></label>'+
+      '<label>Category<select data-pf="category">'+CATS.map(function(c){return '<option value="'+c+'"'+(c===p.category?" selected":"")+'>'+pretty(c)+'</option>'}).join("")+'</select></label>'+
+      '<label>Address<input type="text" data-pf="address" maxlength="300" value="'+esc(p.address||"")+'"></label>'+
+      '<label>Website<input type="text" data-pf="website" maxlength="500" value="'+esc(p.website||"")+'" placeholder="https://"></label>'+
+      '<label>Photo link (https)<input type="text" data-pf="image_url" maxlength="500" value="'+esc(p.image_url||"")+'"></label>'+
+      '<label>Dog policy<select data-pf="dog_policy">'+Object.keys(DOG).map(function(k){return '<option value="'+k+'"'+(k===(p.dog_policy||"")?" selected":"")+'>'+DOG[k]+'</option>'}).join("")+'</select></label>'+
+      '<label>Dog policy note<input type="text" data-pf="dog_policy_note" maxlength="300" value="'+esc(p.dog_policy_note||"")+'"></label>'+
+      '<label>Amenities (comma separated)<input type="text" data-pf="amenities" value="'+esc(am)+'"></label></div>'+
+      '<label class="note">Opening hours, one line per day</label><textarea data-pf="opening_hours" style="min-height:120px">'+esc(oh)+'</textarea>'+
+      '<label class="note">Description</label><textarea data-pf="description" maxlength="2000">'+esc(p.description||"")+'</textarea>';
+  }
+  function readFields(root){
+    var o={};root.querySelectorAll("[data-pf]").forEach(function(i){var k=i.dataset.pf,v=i.value;
+      if(k==="amenities")o[k]=v.split(",").map(function(s){return s.trim()}).filter(Boolean);
+      else if(k==="opening_hours")o[k]=v.split("\n").map(function(s){return s.trim()}).filter(Boolean);
+      else o[k]=v.trim()});
+    return o;
+  }
+  // Only what changed, so unchanged fields are not locked.
+  function changes(p,o){var c={};Object.keys(o).forEach(function(k){var a=o[k],b=p[k];if(k==="amenities"||k==="opening_hours"){if(JSON.stringify(a)!==JSON.stringify(b||[]))c[k]=a}else if((a||"")!==(b||""))c[k]=a});return c}
+  function checkFields(o){
+    if("name" in o&&!o.name)return "Give it a name.";
+    if(o.website&&!/^https?:\/\/\S+$/i.test(o.website))return "The website must start with https:// or http://";
+    if(o.image_url&&!/^https:\/\/\S+$/i.test(o.image_url))return "The photo link must start with https://";
+    if(o.opening_hours&&o.opening_hours.length>14)return "Opening hours: at most 14 lines.";
+    return "";
+  }
+  $("sheetBody").addEventListener("click",function(ev){
+    var b=ev.target.closest("button[data-pl]");if(!b||!pl.open)return;var p=pl.open, w=b.dataset.pl, card=b.closest(".card")||$("sheetBody");
+    if(w==="save"){var ch=changes(p,readFields(card)),err=checkFields(ch);if(err){H.note(card,false,err);return}if(!Object.keys(ch).length){H.note(card,false,"Nothing has changed.");return}
+      ch.id=p.id;busy(b,H.api("place_save",ch),card,refresh);return}
+    if(w==="toggle"){busy(b,H.api("place_toggle",{id:p.id,field:b.dataset.f,on:b.dataset.on==="true"}),card,refresh);return}
+    if(b.dataset.confirm&&!H.armed(b))return;
+    if(w==="unlock"){busy(b,H.api("place_unlock",{id:p.id,field:b.dataset.f}),card,refresh);return}
+    if(w==="flag"){busy(b,H.api("place_flag",{id:p.id,reason:card.querySelector("[data-pl-reason]").value,note:card.querySelector("[data-pl-note]").value.trim()}),card,refresh);return}
+    if(w==="delete"){busy(b,H.api("place_delete",{id:p.id}),card,function(r){if(!r||r.ok===false)return;setTimeout(function(){$("sheetBg").hidden=true;document.body.style.overflow="";if(pl.sec==="list")load();if(pl.sec==="dups")dupsView($("plPane"))},900)});return}
+  });
+  function refresh(r){if(!r||r.ok===false)return;var msg=r.message;H.api("place_detail",{id:pl.open.id}).then(function(x){pl.open=x.data;placeView(x.data);var c=$("sheetBody").querySelector(".card");if(c)H.note(c,true,msg);if(pl.sec==="list")load()}).catch(function(){})}
+
+  // ---------- duplicates ----------
+  function dupsView(el){
+    el.innerHTML='<p class="note" style="margin:0">Places with the same name that are within 150 m of each other or at the same address. Pick the one to keep: merging moves reviews, favourites, ratings, reports, claims and restrictions onto it, and puts the copies in the trash.</p><div class="stack" id="plDups"><div class="empty">Checking every place. This takes a few seconds.</div></div>';
+    H.api("dups_list").then(function(r){pl.dups=r.data.groups;paintDups()}).catch(function(e){$("plDups").innerHTML='<div class="empty">'+esc(e.message||"That did not load.")+'</div>'});
+  }
+  function dist(a,b){if(a.latitude==null||b.latitude==null)return null;var R=6371000,t=Math.PI/180,dl=(b.latitude-a.latitude)*t,dn=(b.longitude-a.longitude)*t,x=Math.sin(dl/2)*Math.sin(dl/2)+Math.cos(a.latitude*t)*Math.cos(b.latitude*t)*Math.sin(dn/2)*Math.sin(dn/2);return Math.round(2*R*Math.asin(Math.sqrt(x)))}
+  function paintDups(){
+    var g=pl.dups||[];
+    $("plDups").innerHTML=g.length?'<div class="note">'+g.length+(g.length===1?" group":" groups")+'</div>'+g.map(function(grp,gi){
+      var keep=grp.keep||grp.suggested_keep, k=grp.members.filter(function(m){return m.id===keep})[0]||grp.members[0];
+      return '<div class="card" data-dg="'+gi+'"><div class="title">'+esc(grp.members[0].name)+' <span class="note">'+grp.members.length+' copies</span></div>'+
+        grp.members.map(function(m){var d=m.id===k.id?null:dist(k,m);return '<label class="card" style="padding:10px 12px;gap:4px;cursor:pointer"><span class="row" style="gap:8px;flex-wrap:nowrap;align-items:flex-start"><input type="radio" name="keep'+gi+'" value="'+esc(m.id)+'"'+(m.id===k.id?" checked":"")+' style="width:20px;height:20px;flex:none;margin-top:2px"><span class="stack" style="gap:4px;min-width:0">'+
+          '<span class="meta"><span class="tag plain">'+(m.id===k.id?"Keep":"Merge into the kept one")+'</span><span class="tag plain">'+esc(pretty(m.category))+'</span>'+(m.flagged?'<span class="tag crit">Flagged</span>':'')+(m.locked?'<span class="tag plain">Locked fields</span>':'')+(m.has_photo?'':'<span class="tag plain warn">No photo</span>')+
+          (d!=null?'<span>'+d+' m away</span>':'')+'</span><span class="note">'+esc(m.address||"(no address)")+'</span><span class="note">'+m.reviews+' reviews · '+m.favourites+' favourites · '+m.signals+' ratings · added '+esc(H.when(m.created_at))+'</span>'+
+          '<span><button type="button" class="btn small" data-pl="view" data-id="'+esc(m.id)+'">View</button></span></span></span></label>'}).join("")+
+        '<div class="row"><button class="btn danger small" data-pl="merge" data-confirm="Confirm: merge '+(grp.members.length-1)+' into the kept one">Merge '+(grp.members.length-1)+' into the kept one</button><button class="btn small" data-pl="notdup" data-confirm="Confirm: not duplicates">Not duplicates</button></div></div>'}).join(""):'<div class="empty">No duplicates found.</div>';
+  }
+  $("plPane").addEventListener("change",function(ev){var r=ev.target;if(r.type!=="radio"||!pl.dups)return;var c=r.closest("[data-dg]");if(!c)return;pl.dups[+c.dataset.dg].keep=r.value;paintDups()});
+  $("plPane").addEventListener("click",function(ev){
+    var b=ev.target.closest("[data-pl]");if(!b)return;var w=b.dataset.pl;
+    if(w==="open"||w==="view"){ev.preventDefault();openPlace(b.dataset.id);return}
+    if(w==="prev"){pl.page--;load();return}if(w==="next"){pl.page++;load();return}
+    if(w==="lookup"){lookup(b);return}
+    if(w==="add"||w==="addforce"){addPlace(b,w==="addforce");return}
+    var c=b.closest("[data-dg]");if(!c)return;var grp=pl.dups[+c.dataset.dg];
+    if(!H.armed(b))return;
+    if(w==="merge"){var keep=grp.keep||grp.suggested_keep;busy(b,H.api("dups_merge",{keep:keep,drop:grp.members.map(function(m){return m.id}).filter(function(id){return id!==keep})}),c,function(r){if(r&&r.ok!==false){grp.done=true;setTimeout(function(){c.remove()},2500)}});return}
+    if(w==="notdup"){busy(b,H.api("dups_ignore",{ids:grp.members.map(function(m){return m.id})}),c,function(r){if(r&&r.ok!==false)setTimeout(function(){c.remove()},1500)});return}
+  });
+
+  // ---------- add ----------
+  function addView(el){
+    el.innerHTML='<div class="card" data-pl-card="add"><div class="subhead"><h3>Add a place</h3></div><p class="note" style="margin:0">It shows in the app straight away. Paste a Google Maps link to fill in where it is (or type the latitude and longitude), then find it on Google so it is stored with its Google place ID.</p>'+
+      fields({category:"pub"})+'<div class="grid2"><label>Google Maps link<input type="text" id="plMaps" placeholder="https://www.google.com/maps/..."></label><label>Latitude<input type="text" id="plLat" inputmode="decimal"></label><label>Longitude<input type="text" id="plLng" inputmode="decimal"></label></div>'+
+      '<div class="row"><button class="btn small" data-pl="lookup">Find on Google</button></div><div class="stack" id="plMatches" style="gap:8px"></div>'+
+      '<div class="row"><button class="btn primary" data-pl="add" disabled>Add place</button></div></div>';
+  }
+  var BLOCKED={merged:"merged into another place",deleted:"deleted"};
+  function coordsFrom(){var lat=parseFloat($("plLat").value),lng=parseFloat($("plLng").value);return lat>=49.8&&lat<=61.1&&lng>=-8.7&&lng<=2.1?{lat:lat,lng:lng}:null}
+  function lookup(b){
+    var card=b.closest(".card"), o=readFields(card), at=coordsFrom();
+    if(!o.name||o.name.length<2){H.note(card,false,"Give it a name first.");return}
+    if(!at){H.note(card,false,"Add where it is first: a Google Maps link, or a UK latitude and longitude.");return}
+    $("plMatches").innerHTML='<div class="note">Looking it up on Google.</div>';card.querySelector('[data-pl="add"]').disabled=true;
+    b.disabled=true;
+    H.api("place_lookup",{name:o.name,address:o.address||"",latitude:at.lat,longitude:at.lng}).then(function(r){
+      var m=r.data.matches;
+      $("plMatches").innerHTML=m.length?m.map(function(x,i){
+        return '<label class="card" style="padding:10px 12px;gap:4px'+(x.status==="new"?';cursor:pointer':'')+'"><span class="row" style="gap:8px;flex-wrap:nowrap;align-items:flex-start">'+
+          (x.status==="new"?'<input type="radio" name="plMatch" value="'+esc(x.place_id)+'" style="width:20px;height:20px;flex:none;margin-top:2px"'+(i===0?' checked':'')+'>':'')+
+          '<span class="stack" style="gap:4px;min-width:0"><span class="title" style="font-size:15px">'+esc(x.name)+'</span><span class="note">'+esc(x.address)+' · '+x.metres+' m from where you put it</span>'+
+          (x.status==="exists"?'<span class="note" style="color:var(--warn)">Already in BarkFind'+(x.existing.flagged?' (flagged)':'')+'.</span><span><button type="button" class="btn small" data-pl="view" data-id="'+esc(x.existing.id)+'">Open it</button></span>':'')+
+          (x.status==="blocked"?'<span class="note" style="color:var(--crit)">Blocked: this Google place was '+BLOCKED[x.blocked.reason]+' on '+esc(H.day(String(x.blocked.at).slice(0,10)))+', so it cannot be added again.</span>'+(x.blocked.kept_location_id?'<span><button type="button" class="btn small" data-pl="view" data-id="'+esc(x.blocked.kept_location_id)+'">Open the kept place</button></span>':''):'')+
+          '</span></span></label>'}).join(""):'<div class="note">Google has no match within 1 km. Check the name and the location, then try again.</div>';
+      card.querySelector('[data-pl="add"]').disabled=!card.querySelector('input[name="plMatch"]:checked');
+    }).catch(function(e){$("plMatches").innerHTML='<div class="msg bad">'+esc(e.message||"That did not work.")+'</div>'}).then(function(){b.disabled=false});
+  }
+  // Reads coordinates from a Google Maps link (…/@lat,lng,… or …!3dlat!4dlng or ?q=lat,lng).
+  $("plPane").addEventListener("input",function(ev){if(ev.target.id!=="plMaps")return;var u=ev.target.value,m=/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/.exec(u)||/@(-?\d+\.\d+),(-?\d+\.\d+)/.exec(u)||/[?&](?:q|query|ll)=(-?\d+\.\d+),\s*(-?\d+\.\d+)/.exec(u);if(m){$("plLat").value=m[1];$("plLng").value=m[2]}});
+  function addPlace(b,force){
+    var card=b.closest("[data-pl-card]"), o=readFields(card), err=checkFields(o), at=coordsFrom(), pick=card.querySelector('input[name="plMatch"]:checked');
+    if(!o.name){H.note(card,false,"Give it a name.");return}if(err){H.note(card,false,err);return}
+    if(!at){H.note(card,false,"Add where it is: a Google Maps link, or a UK latitude and longitude.");return}
+    if(!pick){H.note(card,false,"Find it on Google first and choose the match.");return}
+    Object.keys(o).forEach(function(k){if(o[k]===""||(Array.isArray(o[k])&&!o[k].length))delete o[k]});
+    o.latitude=at.lat;o.longitude=at.lng;o.place_id=pick.value;if(force)o.confirm=true;
+    var old=card.querySelector('[data-pl="addforce"]');if(old)old.remove();
+    busy(b,H.api("place_add",o),card,function(r,e){
+      if(r&&r.ok!==false){var id=r.id;card.querySelectorAll("input,textarea").forEach(function(i){i.value=""});$("plMatches").innerHTML="";b.disabled=true;setTimeout(function(){openPlace(id)},600);return}
+      var why=(e&&e.reason)||"";
+      if(why.indexOf("exists:")===0){var ex=why.slice(7);setTimeout(function(){openPlace(ex)},900);return}
+      if(why==="near_duplicate"){var f=document.createElement("button");f.className="btn small";f.dataset.pl="addforce";f.textContent="Add anyway";b.parentNode.appendChild(f)}
+    });
+  }
+
+  window.HQPlaces={show:function(){nav();if(!pl.loaded){pl.loaded=true;render()}else if(pl.sec==="list")load()}};
 })();
 </script>
 </body>
