@@ -2382,7 +2382,16 @@ footer .mono{color:rgba(255,255,255,.75)}
     }).catch(function(e){$("plMatches").innerHTML='<div class="msg bad">'+esc(e.message||"That did not work.")+'</div>'}).then(function(){b.disabled=false});
   }
   // Reads coordinates from a Google Maps link (…/@lat,lng,… or …!3dlat!4dlng or ?q=lat,lng).
-  $("plPane").addEventListener("input",function(ev){if(ev.target.id!=="plMaps")return;var u=ev.target.value,m=/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/.exec(u)||/@(-?\d+\.\d+),(-?\d+\.\d+)/.exec(u)||/[?&](?:q|query|ll)=(-?\d+\.\d+),\s*(-?\d+\.\d+)/.exec(u);if(m){$("plLat").value=m[1];$("plLng").value=m[2]}});
+  // Full Google Maps links are read here; short links (maps.app.goo.gl, goo.gl/maps) are followed on the server.
+  var mapsTimer=null;
+  $("plPane").addEventListener("input",function(ev){if(ev.target.id!=="plMaps")return;var u=ev.target.value.trim(),card=ev.target.closest("[data-pl-card]"),m=/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/.exec(u)||/@(-?\d+\.\d+),(-?\d+\.\d+)/.exec(u)||/[?&](?:q|query|ll)=(-?\d+\.\d+),\s*(-?\d+\.\d+)/.exec(u);
+    clearTimeout(mapsTimer);
+    if(m){$("plLat").value=m[1];$("plLng").value=m[2];return}
+    if(!/^https:\/\/(maps\.app\.goo\.gl\/|goo\.gl\/maps\/)\S+$/i.test(u))return;
+    mapsTimer=setTimeout(function(){H.note(card,true,"Opening the short link.");
+      H.api("place_resolve_link",{url:u}).then(function(r){var d=r.data;if($("plMaps").value.trim()!==u)return;$("plLat").value=d.latitude;$("plLng").value=d.longitude;
+        var nm=card.querySelector('[data-pf="name"]');if(nm&&!nm.value&&d.name)nm.value=d.name;H.note(card,true,"Position read from the link: "+d.latitude.toFixed(5)+", "+d.longitude.toFixed(5)+".")})
+        .catch(function(e){H.note(card,false,(e&&e.message)||"That link could not be read.")})},400)});
   function addPlace(b,force){
     var card=b.closest("[data-pl-card]"), o=readFields(card), err=checkFields(o), at=coordsFrom(), pick=card.querySelector('input[name="plMatch"]:checked');
     if(!o.name){H.note(card,false,"Give it a name.");return}if(err){H.note(card,false,err);return}

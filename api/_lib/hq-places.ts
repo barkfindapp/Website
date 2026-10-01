@@ -86,6 +86,46 @@ async function placeLookup(body: Record<string, unknown>): Promise<any> {
   if (j && j.status) throw new HttpError(502, `Google refused the lookup (status ${clean(j.status)}${j.detail ? ', ' + clean(j.detail) : ''}).`);
   throw new HttpError(502, `The Google lookup failed (status ${r.status}${j && j.error ? ': ' + clean(j.error) : ''}).`);
 }
+// ---------- Google Maps links ----------
+// Reads a position from a full Google Maps URL: the place's own pin (!3d…!4d…) first, then the
+// map centre (@lat,lng), then a q/ll/query/center/destination parameter. Also the place name
+// from /maps/place/<name>/ when there is one. Only UK positions count.
+export function mapsPosition(raw: string): { lat: number; lng: number; name: string } | null {
+  let u = raw;
+  try { u = decodeURIComponent(raw); } catch { /* keep as is */ }
+  const pick = (m: RegExpExecArray | null) => (m ? { lat: Number(m[1]), lng: Number(m[2]) } : null);
+  const at = pick(/!3d(-?\d+(?:\.\d+)?)!4d(-?\d+(?:\.\d+)?)/.exec(u)) || pick(/@(-?\d+\.\d+),(-?\d+\.\d+)/.exec(u))
+    || pick(/[?&](?:q|query|ll|center|destination)=(-?\d+\.\d+),\s*(-?\d+\.\d+)/.exec(u));
+  if (!at || !(at.lat >= 49.8 && at.lat <= 61.1 && at.lng >= -8.7 && at.lng <= 2.1)) return null;
+  const nm = /\/maps\/place\/([^/@?]+)/.exec(u);
+  return { ...at, name: nm ? nm[1].replace(/\+/g, ' ').trim().slice(0, 200) : '' };
+}
+// Short links are followed on the server, only through Google's own hosts, at most 3 redirects,
+// 5 seconds in all. Nothing else is fetched.
+const SHORT_HOSTS = ['maps.app.goo.gl', 'goo.gl'];
+const GOOGLE_HOSTS = /^(?:www\.|maps\.)?google\.(?:com|co\.uk)$/;
+function isShortLink(u: URL) { return u.protocol === 'https:' && (u.hostname === 'maps.app.goo.gl' || (u.hostname === 'goo.gl' && u.pathname.startsWith('/maps'))); }
+async function followShortLink(start: URL): Promise<string> {
+  const deadline = Date.now() + 5000;
+  let url = start;
+  for (let hop = 0; hop <= 3; hop++) {
+    // A Google page (not a short link) is the destination: read it without fetching.
+    if (GOOGLE_HOSTS.test(url.hostname)) return url.toString();
+    if (url.hostname === 'consent.google.com') { const c = url.searchParams.get('continue'); if (c) return c; throw new HttpError(422, 'Google asked for cookie consent instead of opening the map. Open the link in Google Maps and copy the full address instead.'); }
+    if (!SHORT_HOSTS.includes(url.hostname) || url.protocol !== 'https:') throw new HttpError(422, 'That link went somewhere other than Google Maps.');
+    if (hop === 3) break;
+    const left = deadline - Date.now();
+    if (left <= 0) throw new HttpError(504, 'The short link took too long to open. Try again, or paste the full Google Maps address.');
+    let r: Response;
+    try { r = await fetch(url.toString(), { method: 'GET', redirect: 'manual', signal: AbortSignal.timeout(left) }); }
+    catch { throw new HttpError(504, 'The short link took too long to open. Try again, or paste the full Google Maps address.'); }
+    const loc = r.headers.get('location');
+    if (r.status < 300 || r.status > 399 || !loc) throw new HttpError(422, `That short link did not lead to a map (status ${r.status}).`);
+    url = new URL(loc, url);
+  }
+  throw new HttpError(422, 'That short link redirected too many times.');
+}
+
 // Is this place ID already a place, or blocked?
 async function placeIdState(c: PoolClient | Pool, placeId: string) {
   const [ex, bl] = await Promise.all([
@@ -294,6 +334,21 @@ export function placeOps(pool: Pool): Record<string, Op> {
 
     // Finds the place on Google near the given point, and says for each match whether it is
     // already a place in BarkFind, blocked (merged or deleted before), or new.
+    // A pasted Google Maps link: short links (maps.app.goo.gl, goo.gl/maps) are followed here,
+    // then the position is read from the full address.
+    place_resolve_link: {
+      perm: 'places_edit',
+      run: async (a) => {
+        const raw = str(only(a, ['url']).url, 2000, { min: 10 });
+        let u: URL;
+        try { u = new URL(raw); } catch { throw bad(); }
+        const full = isShortLink(u) ? await followShortLink(u) : raw;
+        const pos = mapsPosition(full);
+        if (!pos) throw new HttpError(422, 'That link has no UK map position in it. In Google Maps, open the place and use Share, then Copy link.');
+        return { data: { latitude: pos.lat, longitude: pos.lng, name: pos.name, followed: full !== raw } };
+      },
+    },
+
     place_lookup: {
       perm: 'places_edit',
       run: async (a, ctx) => {
