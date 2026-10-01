@@ -4,10 +4,11 @@
   "version": "0.0.1",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "tsc -b && vite build && node scripts/prerender.mjs",
+    "dev": "node scripts/build-resources.mjs && vite",
+    "build": "node scripts/build-resources.mjs && tsc -b && vite build && node scripts/resources-sitemap.mjs && node scripts/prerender.mjs",
     "prerender": "node scripts/prerender.mjs",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "resources": "node scripts/build-resources.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.112.1",
@@ -25,6 +26,7 @@
     "@vercel/node": "^5.0.0",
     "@vitejs/plugin-react-swc": "^3.11.0",
     "autoprefixer": "^10.4.21",
+    "marked": "^14.1.4",
     "postcss": "^8.5.6",
     "puppeteer": "^25.1.0",
     "puppeteer-core": "^25.11.0",

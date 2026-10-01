@@ -34,6 +34,15 @@ const ROUTES = [
   "/confirmed",
 ];
 
+// Discover section: the published pages listed by scripts/build-resources.mjs
+// (/discover, /dog-friendly and each town guide, /news and each post, /events).
+async function resourceRoutes() {
+  const file = join(__dirname, "..", "src", "data", "generated", "resources.json");
+  if (!existsSync(file)) return [];
+  const { pages } = JSON.parse(await readFile(file, "utf8"));
+  return pages.map((p) => p.path);
+}
+
 const MIME = {
   ".html": "text/html; charset=utf-8",
   ".js": "text/javascript",
@@ -108,7 +117,7 @@ async function run() {
   const browser = await launchBrowser();
 
   try {
-    for (const route of ROUTES) {
+    for (const route of [...ROUTES, ...(await resourceRoutes())]) {
       const page = await browser.newPage();
       await page.goto(`http://localhost:${PORT}${route}`, {
         waitUntil: "networkidle0",

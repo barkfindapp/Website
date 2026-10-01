@@ -9,7 +9,9 @@
       "has": [{ "type": "host", "value": "hq.barkfind.com" }],
       "destination": "https://www.barkfind.com/:path",
       "statusCode": 308
-    }
+    },
+    { "source": "/resources", "destination": "/discover", "permanent": true },
+    { "source": "/resources/", "destination": "/discover", "permanent": true }
   ],
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api/$1" },
