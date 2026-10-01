@@ -12,6 +12,7 @@ import {
   news,
   newsBySlug,
   searchAll,
+  slug,
   type EventItem,
   type Guide,
   type NewsPost,
@@ -26,6 +27,7 @@ import {
   ListingCard,
   NewsCard,
   PhotoCredit,
+  PlaceCard,
   PressBox,
   Prose,
   TownSearch,
@@ -87,6 +89,106 @@ function GuidesByCounty({ list }: { list: Guide[] }) {
   );
 }
 
+// ─── Guide filters (area and highlights) ─────────────────────────────────────
+// Two chip rows over the town guides, shown only once there are 4 or more
+// approved guides. Area comes from the county mapping, highlights from the
+// guide highlight word list. Choices live in the URL (?area=, ?highlight=).
+
+const FILTERS_FROM = 4;
+const HIGHLIGHT_ORDER = ["Beaches", "Woodland", "Parks", "Walks", "Pubs", "Cafes", "Restaurants", "Places to stay"];
+
+function readParam(name: string) {
+  if (typeof window === "undefined") return "";
+  return new URLSearchParams(window.location.search).get(name) || "";
+}
+
+function writeParam(name: string, value: string) {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    if (value) params.set(name, value);
+    else params.delete(name);
+    const q = params.toString();
+    window.history.replaceState(null, "", `${window.location.pathname}${q ? `?${q}` : ""}`);
+  } catch {
+    /* the filter still works without the URL */
+  }
+}
+
+function useGuideFilters() {
+  const enabled = guides.length >= FILTERS_FROM;
+  const areas = groupByCounty(guides).map((g) => g.county);
+  const highlights = HIGHLIGHT_ORDER.filter((h) => guides.some((g) => g.highlights.includes(h)));
+  const valid = (v: string, list: string[]) => (enabled && list.some((x) => slug(x) === v) ? v : "");
+  const [area, setArea] = useState(() => valid(readParam("area"), areas));
+  const [highlight, setHighlight] = useState(() => valid(readParam("highlight"), highlights));
+  const list = guides.filter(
+    (g) => (!area || slug(g.county) === area) && (!highlight || g.highlights.some((h) => slug(h) === highlight))
+  );
+  return {
+    enabled,
+    list,
+    rows: enabled ? (
+      <GuideFilterRows
+        areas={areas}
+        highlights={highlights}
+        area={area}
+        highlight={highlight}
+        onArea={(v) => {
+          setArea(v);
+          writeParam("area", v);
+        }}
+        onHighlight={(v) => {
+          setHighlight(v);
+          writeParam("highlight", v);
+        }}
+      />
+    ) : null,
+  };
+}
+
+function ChipButton({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={`rounded-full border px-3.5 py-1 text-sm font-bold transition ${
+        active ? "border-[#B74217] bg-[#B74217] text-white" : "border-[#EDE6D6] bg-white text-[#1a1a1a] hover:border-[#B74217]/40"
+      }`}
+    >
+      {children}
+    </button>
+  );
+}
+
+function GuideFilterRows(props: {
+  areas: string[];
+  highlights: string[];
+  area: string;
+  highlight: string;
+  onArea: (v: string) => void;
+  onHighlight: (v: string) => void;
+}) {
+  const row = (label: string, items: string[], value: string, on: (v: string) => void) =>
+    items.length > 1 && (
+      <div role="group" aria-label={label} className="flex flex-wrap items-center gap-2">
+        <span className="mr-1 text-xs font-extrabold uppercase tracking-[0.06em] text-[#6b6b6b]">{label}</span>
+        <ChipButton active={!value} onClick={() => on("")}>All</ChipButton>
+        {items.map((i) => (
+          <ChipButton key={i} active={value === slug(i)} onClick={() => on(value === slug(i) ? "" : slug(i))}>
+            {i}
+          </ChipButton>
+        ))}
+      </div>
+    );
+  return (
+    <div className="mt-3 flex flex-col gap-2">
+      {row("Area", props.areas, props.area, props.onArea)}
+      {row("Highlights", props.highlights, props.highlight, props.onHighlight)}
+    </div>
+  );
+}
+
 // ─── /discover ───────────────────────────────────────────────────────────────
 
 type HubType = "all" | "guides" | "events" | "news" | "press";
@@ -135,6 +237,7 @@ function DiscoverHub() {
   });
   const [type, setType] = useState<HubType>(typeFromUrl);
   const [query, setQuery] = useState("");
+  const filters = useGuideFilters();
   const chips = CHIPS.filter((c) => c.type === "all" || COUNTS[c.type] > 0);
   const featured = useMemo(featuredItems, []);
   const results = useMemo(() => searchAll(query), [query]);
@@ -143,12 +246,7 @@ function DiscoverHub() {
 
   function choose(t: HubType) {
     setType(t);
-    try {
-      const url = t === "all" ? window.location.pathname : `${window.location.pathname}?type=${t}`;
-      window.history.replaceState(null, "", url);
-    } catch {
-      /* the filter still works without the URL */
-    }
+    writeParam("type", t === "all" ? "" : t);
   }
 
   const guideResults = results.guides.map((g) => guideBySlug(g.slug)).filter((g): g is Guide => Boolean(g));
@@ -185,6 +283,7 @@ function DiscoverHub() {
               ))}
             </div>
           )}
+          {!searching && (type === "all" || type === "guides") && filters.rows}
         </div>
       )}
 
@@ -241,7 +340,11 @@ function DiscoverHub() {
 
           {show("guides") && guides.length > 0 && (
             <Section title="Town guides">
-              <GuidesByCounty list={guides} />
+              {filters.list.length ? (
+                <GuidesByCounty list={filters.list} />
+              ) : (
+                <p className="text-[#585858]">No town guide matches those filters yet.</p>
+              )}
               <p>
                 <a href="/dog-friendly" className={SEE_ALL}>
                   See all {plural(guides.length, "town guide")}
@@ -303,7 +406,8 @@ function GuideIndex() {
     jsonLd: breadcrumbSchema([HOME, DISCOVER, GUIDES]),
   });
   const [query, setQuery] = useState("");
-  const list = useMemo(() => guides.filter((g) => matchesTown(g, query)), [query]);
+  const filters = useGuideFilters();
+  const list = filters.list.filter((g) => matchesTown(g, query));
 
   return (
     <PageShell
@@ -313,6 +417,7 @@ function GuideIndex() {
     >
       <Breadcrumbs items={[HOME, DISCOVER, GUIDES]} />
       <TownSearch value={query} onChange={setQuery} />
+      {filters.rows}
       <div className="mt-8">
         {list.length ? <GuidesByCounty list={list} /> : <p className="text-[#585858]">No guide for that town yet.</p>}
       </div>
@@ -359,7 +464,25 @@ function GuidePage({ guide }: { guide: Guide }) {
           <BrandBlock town={guide.town} tall />
         )}
       </figure>
-      <Prose html={guide.html} />
+      <div className="flex flex-col gap-4">
+        {guide.blocks.map((b, i) => {
+          const cards = guide.places.filter((p) => p.after === i);
+          return (
+            <div key={i}>
+              <Prose html={b.html} />
+              {cards.length > 0 && (
+                <ul className="mt-5 grid gap-4 sm:grid-cols-2">
+                  {cards.map((p) => (
+                    <li key={p.id}>
+                      <PlaceCard place={p} />
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          );
+        })}
+      </div>
 
       {nearby.length > 0 && (
         <Section title="Nearby town guides">

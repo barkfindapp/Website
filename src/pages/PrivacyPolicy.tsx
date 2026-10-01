@@ -120,6 +120,13 @@ export default function PrivacyPolicy() {
           </p>
         </Section>
 
+        <Section title="Photos on our guides">
+          <p>
+            Some place photos on our guides load directly from the venue's own website, which can see your device's
+            IP address, as with any web page.
+          </p>
+        </Section>
+
         <Section title="How long we keep it">
           <p>
             We keep your account data for as long as your account is active. If you delete your account, we delete
