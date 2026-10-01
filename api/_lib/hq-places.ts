@@ -1,0 +1,453 @@
+// Phase 2: Places. Search all places on the server (there are about 50,000), open one,
+// edit it, add one, flag it, switch Sponsored or BarkFind verified, delete it to the trash,
+// and find and merge real duplicates.
+//
+// Edits respect the locks. A person's change to a locked-type field (name, address,
+// opening_hours, website, image_url, dog_policy) adds it to locked_fields and sets
+// details_set_at/by in the same update, so trg_details_lock lets it through and automatic
+// writers cannot overwrite it later. A category change sets category_locked,
+// category_set_at and category_set_by in the same update (trg_category_lock).
+//
+// Duplicates match on more than the name: the same name AND within 150 m or at the same
+// address. Merging runs in one transaction. Reviews, favourites, rating signals, reports,
+// claims, listing changes, restrictions and the dog policy check move to the kept place.
+// Where a person reviewed or favourited both, the kept place's one stays. Every row that is
+// moved or removed is recorded in hq_trash with the merged place.
+import type { Pool, PoolClient } from 'pg';
+import { HttpError, bad, only, uuid, str, oneOf, bool, writeTx, toTrash } from './hq-core.js';
+import { CATEGORIES } from './hq-flags.js';
+import type { Op, Ctx } from './hq-act.js';
+
+const PAGE = 50;
+const DUP_METRES = 150;
+const LOCKABLE = ['name', 'address', 'opening_hours', 'website', 'image_url', 'dog_policy'] as const;
+const DOG_POLICIES = ['welcome', 'restricted', 'not_allowed'] as const;
+const FLAG_REASONS = ['Permanently closed', 'Not actually dog-friendly', 'Wrong information', 'Duplicate listing', 'Inappropriate content'] as const;
+const STATUS = {
+  all: 'true',
+  live: 'not l.flagged',
+  flagged: 'l.flagged',
+  verified: 'l.is_verified',
+  unverified: 'not l.is_verified and not l.flagged',
+  sponsored: 'l.is_sponsored',
+  no_photo: "not l.flagged and coalesce(l.image_url, '') = ''",
+  locked: "(l.locked_fields <> '{}' or l.category_locked)",
+} as const;
+const SORT = { name: 'l.name, l.id', rating: 'l.barkfind_rating desc nulls last, l.review_count desc nulls last, l.id', newest: 'l.created_at desc nulls last, l.id' } as const;
+const URL_RE = /^https?:\/\/[^\s<>"]+$/i;
+const NORM_NAME = (t: string) => `lower(trim(${t}.name))`;
+const NORM_ADDR = (t: string) => `lower(regexp_replace(coalesce(${t}.address, ''), '[^a-zA-Z0-9]', '', 'g'))`;
+
+function url(v: unknown, { https = false } = {}): string {
+  const s = str(v, 500, { optional: true });
+  if (s && (!URL_RE.test(s) || (https && !/^https:/i.test(s)))) throw bad();
+  return s;
+}
+function lines(v: unknown): string[] {
+  if (!Array.isArray(v) || v.length > 14) throw bad();
+  return v.map((x) => str(x, 80, { min: 1 }));
+}
+function coord(v: unknown, lo: number, hi: number): number {
+  if (typeof v !== 'number' || !Number.isFinite(v) || v < lo || v > hi) throw bad();
+  return v;
+}
+
+// The editable fields, validated. Only keys that were sent come back.
+function readFields(a: Record<string, unknown>) {
+  const f: Record<string, unknown> = {};
+  if ('name' in a) f.name = str(a.name, 200, { min: 1 });
+  if ('category' in a) f.category = oneOf(a.category, CATEGORIES);
+  if ('address' in a) f.address = str(a.address, 300, { optional: true }) || null;
+  if ('website' in a) f.website = url(a.website) || null;
+  if ('image_url' in a) f.image_url = url(a.image_url, { https: true }) || null;
+  if ('description' in a) f.description = str(a.description, 2000, { optional: true }) || null;
+  if ('dog_policy' in a) f.dog_policy = oneOf(a.dog_policy, DOG_POLICIES, { optional: true }) || null;
+  if ('dog_policy_note' in a) f.dog_policy_note = str(a.dog_policy_note, 300, { optional: true }) || null;
+  if ('opening_hours' in a) { const h = lines(a.opening_hours); f.opening_hours = h.length ? h : null; }
+  if ('amenities' in a) {
+    if (!Array.isArray(a.amenities) || a.amenities.length > 40) throw bad();
+    f.amenities = [...new Set(a.amenities.map((x) => str(x, 60, { min: 1 })))];
+  }
+  return f;
+}
+const FIELD_KEYS = ['name', 'category', 'address', 'website', 'image_url', 'description', 'dog_policy', 'dog_policy_note', 'opening_hours', 'amenities'];
+const same = (x: unknown, y: unknown) => JSON.stringify(x ?? null) === JSON.stringify(y ?? null);
+const cast = (k: string) => (k === 'opening_hours' ? '::jsonb' : k === 'amenities' ? '::text[]' : '');
+const val = (k: string, v: unknown) => (k === 'opening_hours' && v != null ? JSON.stringify(v) : v);
+
+const DETAIL_COLS = `l.id, l.name, l.category, l.categories, l.address, l.latitude, l.longitude, l.place_id, l.website, l.description, l.amenities,
+  l.community_amenities, l.opening_hours, l.image_url, l.image_source, l.image_credit, l.dog_policy, l.dog_policy_note, l.dog_policy_source,
+  l.dog_policy_at, l.barkfind_rating, l.google_rating, l.review_count, l.is_verified, l.google_verified, l.barkfind_verified, l.is_sponsored,
+  l.flagged, l.flag_reason, l.flagged_at, l.flag_rule, l.flag_review, l.mylo_verdict, l.authority, l.restrictions_state, l.created_at,
+  l.locked_fields, l.details_set_at, l.details_set_by, l.category_locked, l.category_set_at, l.category_set_by`;
+
+async function lockPlace(c: PoolClient, id: string) {
+  const r = await c.query(`select ${DETAIL_COLS} from public.locations l where l.id = $1 for update`, [id]);
+  if (!r.rows[0]) throw new HttpError(404, 'That place no longer exists. Refresh the list.');
+  return r.rows[0];
+}
+const label = (p: any) => `"${String(p.name || '').slice(0, 80)}"`;
+
+// Everything that hangs off a set of places, for the trash (same shape as Flagged places' delete).
+const RELATED = `jsonb_build_object(
+  'reviews', (select coalesce(jsonb_agg(to_jsonb(r)), '[]') from public.reviews r where r.location_id = l.id),
+  'review_rating_signals', (select coalesce(jsonb_agg(to_jsonb(x)), '[]') from public.rating_signals x where x.review_id in (select id from public.reviews where location_id = l.id)),
+  'moderation_log', (select coalesce(jsonb_agg(to_jsonb(x)), '[]') from public.moderation_log x where x.review_id in (select id from public.reviews where location_id = l.id)),
+  'review_likes', (select coalesce(jsonb_agg(to_jsonb(x)), '[]') from public.review_likes x where x.review_id in (select id from public.reviews where location_id = l.id)),
+  'user_reports_unlinked', (select coalesce(jsonb_agg(jsonb_build_object('id', x.id, 'review_id', x.review_id)), '[]') from public.user_reports x where x.review_id in (select id from public.reviews where location_id = l.id)),
+  'rating_signals', (select coalesce(jsonb_agg(to_jsonb(x)), '[]') from public.rating_signals x where x.location_id = l.id),
+  'favorites', (select coalesce(jsonb_agg(to_jsonb(x)), '[]') from public.favorites x where x.location_id = l.id),
+  'business_claims', (select coalesce(jsonb_agg(to_jsonb(x)), '[]') from public.business_claims x where x.location_id = l.id),
+  'location_reports', (select coalesce(jsonb_agg(to_jsonb(x)), '[]') from public.location_reports x where x.location_id = l.id),
+  'location_restrictions', (select coalesce(jsonb_agg(to_jsonb(x)), '[]') from public.location_restrictions x where x.location_id = l.id),
+  'dog_policy_reviews', (select coalesce(jsonb_agg(to_jsonb(x)), '[]') from public.dog_policy_reviews x where x.location_id = l.id),
+  'listing_change_requests', (select coalesce(jsonb_agg(to_jsonb(x)), '[]') from public.listing_change_requests x where x.location_id = l.id),
+  'mylo_backfill_queue', (select coalesce(jsonb_agg(to_jsonb(x)), '[]') from public.mylo_backfill_queue x where x.location_id = l.id),
+  'geograph_requeue', (select coalesce(jsonb_agg(to_jsonb(x)), '[]') from public.geograph_requeue x where x.location_id = l.id))`;
+
+// Pairs of real duplicates: the same name, and within 150 m or at the same address.
+// Pairs or names that someone marked "not duplicates" are left out.
+const DUP_PAIRS = `
+  with n as materialized (
+    select id, lower(trim(name)) as nm, latitude as lat, longitude as lng,
+           lower(regexp_replace(coalesce(address, ''), '[^a-zA-Z0-9]', '', 'g')) as ad
+      from public.locations),
+  pairs as (
+    -- A quick box first (0.0015 deg of latitude and 0.0035 of longitude are both over 150 m
+    -- anywhere in the UK), then the true distance.
+    select a.id as a_id, b.id as b_id from n a join n b on b.nm = a.nm and b.id > a.id
+     where (a.lat is not null and b.lat is not null and abs(a.lat - b.lat) < 0.0015 and abs(a.lng - b.lng) < 0.0035
+            and earth_distance(ll_to_earth(a.lat, a.lng), ll_to_earth(b.lat, b.lng)) <= ${DUP_METRES})
+        or (length(a.ad) >= 8 and a.ad = b.ad))
+  select p.a_id, p.b_id from pairs p
+   where not exists (select 1 from public.hq_place_dup_ignores i where i.location_a = least(p.a_id, p.b_id) and i.location_b = greatest(p.a_id, p.b_id))
+     and not exists (select 1 from public.locations x join public.duplicate_ignores d on d.name = ${NORM_NAME('x')} where x.id = p.a_id)`;
+
+export function placeOps(pool: Pool): Record<string, Op> {
+  return {
+    places_list: {
+      perm: 'places_edit',
+      run: async (a) => {
+        only(a, ['q', 'category', 'status', 'sort', 'page']);
+        const q = str(a.q, 100, { optional: true }).toLowerCase();
+        const category = oneOf(a.category, CATEGORIES, { optional: true });
+        const status = (oneOf(a.status, Object.keys(STATUS) as (keyof typeof STATUS)[], { optional: true }) || 'all') as keyof typeof STATUS;
+        const sort = (oneOf(a.sort, Object.keys(SORT) as (keyof typeof SORT)[], { optional: true }) || 'name') as keyof typeof SORT;
+        const page = Number.isInteger(a.page) && (a.page as number) >= 0 && (a.page as number) < 2000 ? a.page as number : 0;
+        const w: string[] = [STATUS[status]], p: unknown[] = [];
+        if (category) { p.push(category); w.push(`l.category = $${p.length}`); }
+        if (q) {
+          if (/^[0-9a-f-]{36}$/.test(q)) { p.push(q); w.push(`l.id::text = $${p.length}`); }
+          else {
+            p.push('%' + q.replace(/[%_\\]/g, (m) => '\\' + m) + '%');
+            w.push(`(lower(l.name) like $${p.length} or lower(coalesce(l.address, '')) like $${p.length} or l.place_id = $${p.push(q)})`);
+          }
+        }
+        const where = w.join(' and ');
+        const [rows, total] = await Promise.all([
+          pool.query(
+            `select l.id, l.name, l.category, left(l.address, 90) as address, l.barkfind_rating, l.google_rating, l.review_count,
+                    l.is_verified, l.barkfind_verified, l.is_sponsored, l.flagged, l.flag_reason, (coalesce(l.image_url, '') <> '') as has_photo,
+                    (l.locked_fields <> '{}' or l.category_locked) as locked, l.created_at
+               from public.locations l where ${where} order by ${SORT[sort]} limit ${PAGE} offset ${page * PAGE}`, p),
+          pool.query(`select count(*)::int as n from public.locations l where ${where}`, p),
+        ]);
+        return { data: { rows: rows.rows, total: total.rows[0].n, page, page_size: PAGE } };
+      },
+    },
+
+    place_detail: {
+      perm: 'places_edit',
+      run: async (a) => {
+        const id = uuid(only(a, ['id']).id);
+        const r = await pool.query(
+          `select ${DETAIL_COLS},
+                  coalesce(ds.display_name, dp.full_name) as details_set_by_name, coalesce(cs.display_name, cp.full_name) as category_set_by_name,
+                  coalesce(fs.display_name, fp.full_name) as flagged_by_name,
+                  (select jsonb_build_object(
+                     'reviews', count(*), 'approved', count(*) filter (where status = 'approved'), 'pending', count(*) filter (where status = 'pending'))
+                     from public.reviews where location_id = l.id) as reviews,
+                  (select count(*)::int from public.favorites where location_id = l.id) as favourites,
+                  (select count(*)::int from public.rating_signals where location_id = l.id) as signals,
+                  (select count(*)::int from public.location_reports where location_id = l.id and status = 'open') as open_reports,
+                  (select count(*)::int from public.business_claims where location_id = l.id) as claims,
+                  (select count(*)::int from public.location_restrictions where location_id = l.id) as restrictions,
+                  (select count(*)::int from public.listing_change_requests where location_id = l.id and status = 'pending') as pending_changes,
+                  (select coalesce(jsonb_agg(x), '[]') from (select left(review_text, 300) as text, paw_rating, status, created_at
+                     from public.reviews where location_id = l.id order by created_at desc limit 5) x) as recent_reviews
+             from public.locations l
+             left join public.hq_staff ds on ds.user_id = l.details_set_by left join public.profiles dp on dp.user_id = l.details_set_by
+             left join public.hq_staff cs on cs.user_id = l.category_set_by left join public.profiles cp on cp.user_id = l.category_set_by
+             left join public.hq_staff fs on fs.user_id = l.flagged_by left join public.profiles fp on fp.user_id = l.flagged_by
+            where l.id = $1`, [id]);
+        if (!r.rows[0]) throw new HttpError(404, 'That place no longer exists. Refresh the list.');
+        return { data: { ...r.rows[0], lockable: LOCKABLE, categories_allowed: CATEGORIES, flag_reasons: FLAG_REASONS } };
+      },
+    },
+
+    // Edit: only the fields that changed. Locked-type fields and the category get their locks.
+    place_save: {
+      perm: 'places_edit',
+      run: async (a, ctx) => {
+        only(a, ['id', ...FIELD_KEYS]);
+        const id = uuid(a.id), f = readFields(a);
+        return writeTx(pool, ctx.staff.userId, async (c, audit) => {
+          const before = await lockPlace(c, id);
+          const changed = Object.keys(f).filter((k) => !same(f[k], before[k]));
+          if (!changed.length) throw new HttpError(409, 'Nothing has changed.');
+          const sets: string[] = [], p: unknown[] = [id];
+          for (const k of changed) { p.push(val(k, f[k])); sets.push(`${k} = $${p.length}${cast(k)}`); }
+          // The dog policy lock covers its note too. Any person's save sets details_set_at,
+          // so trg_details_lock never undoes it.
+          const lock = [...new Set(changed.map((k) => (k === 'dog_policy_note' ? 'dog_policy' : k)).filter((k) => (LOCKABLE as readonly string[]).includes(k)))];
+          if (lock.length) { p.push(lock); sets.push(`locked_fields = (select array(select distinct unnest(locked_fields || $${p.length}::text[])))`); }
+          p.push(ctx.staff.userId); sets.push(`details_set_at = now(), details_set_by = $${p.length}`);
+          if (changed.includes('category')) { p.push(ctx.staff.userId); sets.push(`category_locked = true, category_set_at = now(), category_set_by = $${p.length}`); }
+          await c.query(`update public.locations set ${sets.join(', ')} where id = $1`, p);
+          const after = (await c.query(`select ${DETAIL_COLS} from public.locations l where l.id = $1`, [id])).rows[0];
+          const pick = (o: any) => Object.fromEntries([...changed, 'locked_fields', 'category_locked'].map((k) => [k, o[k]]));
+          await audit({ action: 'place_save', entity: 'locations', entityId: id,
+            detail: `Edited place ${label(after)}: ${changed.join(', ')}${lock.length || changed.includes('category') ? ' (locked)' : ''}`,
+            before: pick(before), after: pick(after) });
+          return { ok: true, message: lock.length || changed.includes('category') ? 'Saved. The fields you changed are locked, so automatic updates will not overwrite them.' : 'Saved.' };
+        });
+      },
+    },
+
+    // Lets automatic updates write a field again.
+    place_unlock: {
+      perm: 'places_edit',
+      run: async (a, ctx) => {
+        only(a, ['id', 'field']);
+        const id = uuid(a.id), field = oneOf(a.field, [...LOCKABLE, 'category'] as const) as string;
+        return writeTx(pool, ctx.staff.userId, async (c, audit) => {
+          const before = await lockPlace(c, id);
+          if (field === 'category') {
+            if (!before.category_locked) throw new HttpError(409, 'The category is not locked.');
+            await c.query('update public.locations set category_locked = false, category_set_at = now(), category_set_by = $2 where id = $1', [id, ctx.staff.userId]);
+          } else {
+            if (!(before.locked_fields || []).includes(field)) throw new HttpError(409, 'That field is not locked.');
+            await c.query('update public.locations set locked_fields = array_remove(locked_fields, $2), details_set_at = now(), details_set_by = $3 where id = $1', [id, field, ctx.staff.userId]);
+          }
+          await audit({ action: 'place_unlock', entity: 'locations', entityId: id, detail: `Unlocked ${field.replace(/_/g, ' ')} on ${label(before)}`,
+            before: { locked_fields: before.locked_fields, category_locked: before.category_locked }, after: { unlocked: field } });
+          return { ok: true, message: 'Unlocked. Automatic updates can change it again.' };
+        });
+      },
+    },
+
+    // Add: a new place, with its fields locked as a person set them. Warns about a same-name place close by.
+    place_add: {
+      perm: 'places_edit',
+      run: async (a, ctx) => {
+        only(a, [...FIELD_KEYS, 'latitude', 'longitude', 'confirm']);
+        const f = readFields(a);
+        if (!f.name || !f.category) throw bad();
+        const lat = coord(a.latitude, 49.8, 61.1), lng = coord(a.longitude, -8.7, 2.1);
+        const force = bool(a.confirm, { optional: true });
+        return writeTx(pool, ctx.staff.userId, async (c, audit) => {
+          if (!force) {
+            const near = (await c.query(
+              `select l.id, l.name, l.address, round(earth_distance(ll_to_earth($2, $3), ll_to_earth(l.latitude, l.longitude)))::int as metres
+                 from public.locations l
+                where ${NORM_NAME('l')} = lower(trim($1)) and earth_box(ll_to_earth($2, $3), ${DUP_METRES}) @> ll_to_earth(l.latitude, l.longitude)
+                order by 4 limit 1`, [f.name, lat, lng])).rows[0];
+            if (near) throw new HttpError(409, `"${near.name}" is already listed ${near.metres} m away${near.address ? ' at ' + near.address : ''}. If this is a different place, tap Add anyway.`, 'near_duplicate');
+          }
+          const keys = Object.keys(f);
+          const lock = [...new Set(keys.filter((k) => f[k] != null).map((k) => (k === 'dog_policy_note' ? 'dog_policy' : k)).filter((k) => (LOCKABLE as readonly string[]).includes(k)))];
+          const p: unknown[] = keys.map((k) => val(k, f[k]));
+          const cols = [...keys, 'latitude', 'longitude', 'locked_fields', 'details_set_at', 'details_set_by', 'category_locked', 'category_set_at', 'category_set_by'];
+          const vals = [...keys.map((k, i) => `$${i + 1}${cast(k)}`)];
+          p.push(lat, lng, lock, ctx.staff.userId);
+          const n = keys.length;
+          vals.push(`$${n + 1}`, `$${n + 2}`, `$${n + 3}::text[]`, 'now()', `$${n + 4}`, 'true', 'now()', `$${n + 4}`);
+          const id = (await c.query(`insert into public.locations (${cols.join(', ')}) values (${vals.join(', ')}) returning id`, p)).rows[0].id;
+          const after = (await c.query(`select ${DETAIL_COLS} from public.locations l where l.id = $1`, [id])).rows[0];
+          await audit({ action: 'place_add', entity: 'locations', entityId: id, detail: `Added place ${label(after)} (${after.category})${force ? ', after a near-duplicate warning' : ''}`, before: null, after });
+          return { ok: true, message: 'Added. It shows in the app straight away.', id };
+        });
+      },
+    },
+
+    place_flag: {
+      perm: 'places_moderate',
+      run: async (a, ctx) => {
+        only(a, ['id', 'reason', 'note']);
+        const id = uuid(a.id), reason = oneOf(a.reason, FLAG_REASONS) as string, note = str(a.note, 300, { optional: true });
+        const text = note ? `${reason}: ${note}` : reason;
+        return writeTx(pool, ctx.staff.userId, async (c, audit) => {
+          const before = await lockPlace(c, id);
+          if (before.flagged) throw new HttpError(409, 'It is already flagged.');
+          await c.query("update public.locations set flagged = true, flag_reason = $2, flagged_at = now(), flagged_by = $3, flag_rule = 'manual' where id = $1", [id, text, ctx.staff.userId]);
+          await audit({ action: 'place_flag', entity: 'locations', entityId: id, detail: `Flagged ${label(before)}: ${text}`.slice(0, 300),
+            before: { flagged: false, flag_reason: before.flag_reason }, after: { flagged: true, flag_reason: text, flag_rule: 'manual' } });
+          return { ok: true, message: 'Flagged. It is hidden from the app and waiting in Flagged places.' };
+        });
+      },
+    },
+
+    // Sponsored, and BarkFind verified (is_verified itself is worked out by a trigger).
+    place_toggle: {
+      perm: 'places_edit',
+      run: async (a, ctx) => {
+        only(a, ['id', 'field', 'on']);
+        const id = uuid(a.id), field = oneOf(a.field, ['is_sponsored', 'barkfind_verified'] as const) as string, on = bool(a.on);
+        return writeTx(pool, ctx.staff.userId, async (c, audit) => {
+          const before = await lockPlace(c, id);
+          if (before[field] === on) throw new HttpError(409, 'No change.');
+          await c.query(`update public.locations set ${field} = $2 where id = $1`, [id, on]);
+          const name = field === 'is_sponsored' ? 'Sponsored' : 'BarkFind verified';
+          await audit({ action: 'place_toggle', entity: 'locations', entityId: id, detail: `${name} ${on ? 'on' : 'off'} for ${label(before)}`,
+            before: { [field]: before[field] }, after: { [field]: on } });
+          return { ok: true, message: `${name} ${on ? 'on' : 'off'}.` };
+        });
+      },
+    },
+
+    // Delete one place to the trash, with everything that hangs off it.
+    place_delete: {
+      perm: 'places_delete',
+      run: async (a, ctx) => {
+        const id = uuid(only(a, ['id']).id);
+        return writeTx(pool, ctx.staff.userId, async (c, audit) => {
+          const before = await lockPlace(c, id);
+          await c.query(`insert into public.hq_trash (entity, entity_id, row_data, related, deleted_by)
+                          select 'locations', l.id::text, to_jsonb(l), ${RELATED}, $2 from public.locations l where l.id = $1`, [id, ctx.staff.userId]);
+          await c.query('delete from public.locations where id = $1', [id]);
+          await audit({ action: 'place_delete', entity: 'locations', entityId: id, detail: `Deleted place ${label(before)} to trash`, before, after: null });
+          return { ok: true, message: 'Deleted. It is in the trash with its reviews, favourites and reports.' };
+        });
+      },
+    },
+
+    // Groups of real duplicates (connected pairs), with what each copy has.
+    dups_list: {
+      perm: 'places_delete',
+      run: async (a) => {
+        only(a, []);
+        const pairs = (await pool.query(DUP_PAIRS)).rows as { a_id: string; b_id: string }[];
+        const parent = new Map<string, string>();
+        const find = (x: string): string => { let r = x; while (parent.get(r) !== r) r = parent.get(r)!; parent.set(x, r); return r; };
+        for (const { a_id, b_id } of pairs) {
+          if (!parent.has(a_id)) parent.set(a_id, a_id);
+          if (!parent.has(b_id)) parent.set(b_id, b_id);
+          parent.set(find(a_id), find(b_id));
+        }
+        const ids = [...parent.keys()];
+        if (!ids.length) return { data: { groups: [], pairs: 0 } };
+        const info = (await pool.query(
+          `select l.id, l.name, l.category, l.address, l.latitude, l.longitude, l.flagged, l.flag_reason, l.created_at, l.barkfind_rating,
+                  (coalesce(l.image_url, '') <> '') as has_photo, l.place_id, (l.locked_fields <> '{}' or l.category_locked) as locked,
+                  (select count(*)::int from public.reviews r where r.location_id = l.id) as reviews,
+                  (select count(*)::int from public.favorites f where f.location_id = l.id) as favourites,
+                  (select count(*)::int from public.rating_signals s where s.location_id = l.id) as signals
+             from public.locations l where l.id = any($1::uuid[])`, [ids])).rows;
+        const byId = new Map(info.map((x) => [x.id, x]));
+        const groups = new Map<string, any[]>();
+        for (const id of ids) { const g = find(id); if (!groups.has(g)) groups.set(g, []); if (byId.has(id)) groups.get(g)!.push(byId.get(id)); }
+        // Suggested keeper: live first, then most reviews and favourites, then the oldest.
+        const score = (x: any) => [x.flagged ? 0 : 1, x.reviews + x.favourites + x.signals, -new Date(x.created_at || 0).getTime()];
+        const better = (x: any, y: any) => { const s = score(x), t = score(y); for (let i = 0; i < 3; i++) if (s[i] !== t[i]) return s[i] > t[i]; return false; };
+        const out = [...groups.values()].filter((g) => g.length > 1).map((g) => {
+          const keep = g.reduce((k, x) => (better(x, k) ? x : k), g[0]);
+          return { suggested_keep: keep.id, members: g.sort((x, y) => (better(x, y) ? -1 : better(y, x) ? 1 : 0)) };
+        }).sort((x, y) => y.members.length - x.members.length || String(x.members[0].name).localeCompare(String(y.members[0].name)));
+        return { data: { groups: out, pairs: pairs.length } };
+      },
+    },
+
+    dups_ignore: {
+      perm: 'places_delete',
+      run: async (a, ctx) => {
+        only(a, ['ids']);
+        if (!Array.isArray(a.ids) || a.ids.length < 2 || a.ids.length > 30) throw bad();
+        const ids = [...new Set(a.ids.map(uuid))].sort();
+        if (ids.length < 2) throw bad();
+        return writeTx(pool, ctx.staff.userId, async (c, audit) => {
+          const names = (await c.query('select id, name from public.locations where id = any($1::uuid[])', [ids])).rows;
+          if (names.length !== ids.length) throw new HttpError(404, 'One of those places no longer exists. Refresh the list.');
+          let n = 0;
+          for (let i = 0; i < ids.length; i++) for (let j = i + 1; j < ids.length; j++) {
+            n += (await c.query('insert into public.hq_place_dup_ignores (location_a, location_b, ignored_by) values ($1, $2, $3) on conflict do nothing', [ids[i], ids[j], ctx.staff.userId])).rowCount || 0;
+          }
+          await audit({ action: 'dups_ignore', entity: 'hq_place_dup_ignores', entityId: null,
+            detail: `Marked ${ids.length} places called "${String(names[0].name).slice(0, 60)}" as not duplicates`, before: null, after: { ids, pairs_added: n } });
+          return { ok: true, message: 'Marked as not duplicates. They will not be suggested together again.' };
+        });
+      },
+    },
+
+    // Merge copies into the one kept, in one transaction. See the notes at the top of the file.
+    dups_merge: {
+      perm: 'places_delete',
+      run: async (a, ctx) => {
+        only(a, ['keep', 'drop']);
+        const keep = uuid(a.keep);
+        if (!Array.isArray(a.drop) || !a.drop.length || a.drop.length > 20) throw bad();
+        const drop = [...new Set(a.drop.map(uuid))];
+        if (drop.includes(keep)) throw bad();
+        return writeTx(pool, ctx.staff.userId, async (c, audit) => {
+          const rows = (await c.query(`select ${DETAIL_COLS} from public.locations l where l.id = any($1::uuid[]) order by l.id for update`, [[keep, ...drop]])).rows;
+          if (rows.length !== drop.length + 1) throw new HttpError(404, 'One of those places no longer exists. Refresh the list.');
+          const k = rows.find((x) => x.id === keep);
+          // The server checks they really are duplicates: same name, and within 150 m or at the same address, and not marked otherwise.
+          const check = (await c.query(
+            `select d.id, d.name,
+                    (${NORM_NAME('d')} = ${NORM_NAME('k')}) as same_name,
+                    (d.latitude is not null and k.latitude is not null and earth_distance(ll_to_earth(k.latitude, k.longitude), ll_to_earth(d.latitude, d.longitude)) <= ${DUP_METRES * 2}) as near,
+                    (length(${NORM_ADDR('k')}) >= 8 and ${NORM_ADDR('d')} = ${NORM_ADDR('k')}) as same_address,
+                    exists (select 1 from public.hq_place_dup_ignores i where i.location_a = least(k.id, d.id) and i.location_b = greatest(k.id, d.id)) as ignored
+               from public.locations k join public.locations d on d.id = any($2::uuid[]) where k.id = $1`, [keep, drop])).rows;
+          const wrong = check.find((x) => !x.same_name || !(x.near || x.same_address) || x.ignored);
+          if (wrong) throw new HttpError(409, `"${wrong.name}" is not a duplicate of the place you are keeping (it needs the same name, and to be close by or at the same address). Nothing was merged.`);
+
+          const totals: Record<string, number> = {};
+          const add = (key: string, n: number | null) => { totals[key] = (totals[key] || 0) + (n || 0); };
+          for (const d of drop) {
+            const removed: Record<string, unknown[]> = {}, moved: Record<string, string[]> = {};
+            const take = async (key: string, sql: string, p: unknown[]) => { const r = await c.query(sql, p); removed[key] = r.rows.map((x: any) => x.r); add('removed_' + key, r.rowCount); };
+            const move = async (key: string, sql: string, p: unknown[]) => { const r = await c.query(sql, p); moved[key] = r.rows.map((x: any) => x.id); add(key, r.rowCount); };
+            // The removed related rows of a set of reviews, before they cascade.
+            const dupReviews = (await c.query(
+              `select r.id from public.reviews r where r.location_id = $1 and exists (select 1 from public.reviews k where k.location_id = $2 and k.user_id = r.user_id)`, [d, keep])).rows.map((x) => x.id);
+            if (dupReviews.length) {
+              await take('review_rating_signals', 'select to_jsonb(x) as r from public.rating_signals x where x.review_id = any($1::uuid[])', [dupReviews]);
+              await take('moderation_log', 'select to_jsonb(x) as r from public.moderation_log x where x.review_id = any($1::uuid[])', [dupReviews]);
+              await take('review_likes', 'select to_jsonb(x) as r from public.review_likes x where x.review_id = any($1::uuid[])', [dupReviews]);
+              await take('user_reports_unlinked', "select jsonb_build_object('id', x.id, 'review_id', x.review_id) as r from public.user_reports x where x.review_id = any($1::uuid[])", [dupReviews]);
+              await take('reviews', 'delete from public.reviews where id = any($1::uuid[]) returning to_jsonb(reviews.*) as r', [dupReviews]);
+            }
+            await move('reviews', 'update public.reviews set location_id = $2 where location_id = $1 returning id', [d, keep]);
+            await take('favorites', `delete from public.favorites f where f.location_id = $1 and exists (select 1 from public.favorites k where k.location_id = $2 and k.user_id = f.user_id) returning to_jsonb(f.*) as r`, [d, keep]);
+            await move('favorites', 'update public.favorites set location_id = $2 where location_id = $1 returning id', [d, keep]);
+            await move('rating_signals', 'update public.rating_signals set location_id = $2 where location_id = $1 returning id', [d, keep]);
+            await move('location_reports', 'update public.location_reports set location_id = $2 where location_id = $1 returning id', [d, keep]);
+            await move('business_claims', 'update public.business_claims set location_id = $2 where location_id = $1 returning id', [d, keep]);
+            await move('listing_change_requests', 'update public.listing_change_requests set location_id = $2 where location_id = $1 returning id', [d, keep]);
+            await take('location_restrictions', `delete from public.location_restrictions x where x.location_id = $1 and exists (select 1 from public.location_restrictions k
+                where k.location_id = $2 and k.source_url is not distinct from x.source_url and k.restriction_type is not distinct from x.restriction_type
+                  and md5(k.source_quote) is not distinct from md5(x.source_quote)) returning to_jsonb(x.*) as r`, [d, keep]);
+            await move('location_restrictions', 'update public.location_restrictions set location_id = $2 where location_id = $1 returning id', [d, keep]);
+            const keeperHasCheck = (await c.query('select 1 from public.dog_policy_reviews where location_id = $1', [keep])).rows.length > 0;
+            if (keeperHasCheck) await take('dog_policy_reviews', 'delete from public.dog_policy_reviews x where x.location_id = $1 returning to_jsonb(x.*) as r', [d]);
+            else await move('dog_policy_reviews', 'update public.dog_policy_reviews set location_id = $2 where location_id = $1 returning id', [d, keep]);
+            await take('mylo_backfill_queue', 'delete from public.mylo_backfill_queue x where x.location_id = $1 returning to_jsonb(x.*) as r', [d]);
+            await take('geograph_requeue', 'delete from public.geograph_requeue x where x.location_id = $1 returning to_jsonb(x.*) as r', [d]);
+            // In-app notifications that open the old copy now open the kept place.
+            await move('notification_links', "update public.notifications set action_url = 'location:' || $2 where action_url = 'location:' || $1 returning id", [d, keep]);
+            await toTrash(c, ctx.staff.userId, 'locations', d, (await c.query('select to_jsonb(l.*) as r from public.locations l where id = $1', [d])).rows[0].r,
+              { merged_into: keep, moved, removed });
+            await c.query('delete from public.locations where id = $1', [d]);
+          }
+          await c.query('select public.update_barkfind_rating($1)', [keep]);
+          await audit({ action: 'dups_merge', entity: 'locations', entityId: keep,
+            detail: `Merged ${drop.length} duplicate${drop.length === 1 ? '' : 's'} of ${label(k)} into it (${['reviews', 'favorites', 'rating_signals', 'location_reports'].map((x) => `${totals[x] || 0} ${x.replace(/_/g, ' ')}`).join(', ')} moved)`,
+            before: { keep: k, drop: rows.filter((x) => x.id !== keep) }, after: { keep, totals } });
+          const kept = (totals.removed_reviews || 0) + (totals.removed_favorites || 0);
+          return { ok: true, totals, message: `Merged ${drop.length} ${drop.length === 1 ? 'copy' : 'copies'} into the place you kept. ${totals.reviews || 0} reviews, ${totals.favorites || 0} favourites and ${totals.rating_signals || 0} ratings moved${kept ? `; ${kept} that the same person had on both went to the trash` : ''}. The copies are in the trash.` };
+        });
+      },
+    },
+  };
+}
