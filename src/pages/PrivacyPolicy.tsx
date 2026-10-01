@@ -118,6 +118,9 @@ export default function PrivacyPolicy() {
             country. It sets no cookies, does not identify you, and no email address or other personal data is
             sent to it.
           </p>
+        </Section>
+
+        <Section title="Photos on our guides">
           <p>
             Some place photos on our guides load directly from the venue's own website, which can see your device's
             IP address, as with any web page.

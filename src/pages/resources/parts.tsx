@@ -367,8 +367,9 @@ function PlacePhoto({ place }: { place: PlaceTeaser }) {
   return (
     <div className="relative h-[150px] bg-[#F5F1E9]">
       {photo.kind === "website" ? (
-        // Venue's own photo: hotlinked, never copied, no referrer sent.
-        <img src={photo.src} alt={place.name} loading="lazy" referrerPolicy="no-referrer" onError={() => setFailed(true)} className="h-full w-full object-cover" />
+        // Venue's own photo: hotlinked, never copied, no referrer sent. Shown whole
+        // on cream (contain, not cover) so a logo is never cropped.
+        <img src={photo.src} alt={place.name} loading="lazy" referrerPolicy="no-referrer" onError={() => setFailed(true)} className="h-full w-full object-contain p-2" />
       ) : (
         <img src={photo.src} alt={place.name} width={photo.width} height={photo.height} loading="lazy" onError={() => setFailed(true)} className="h-full w-full object-cover" />
       )}
