@@ -17,7 +17,8 @@
 // Google place IDs. A merged or deleted place's place_id goes on location_place_id_blocklist
 // in the same transaction (trg_skip_blocked_place_id then stops the scanners re-adding it),
 // and the blocklist row is recorded in hq_trash so undoing the merge or delete can lift it.
-// Add a place looks the Google place ID up on the server (the key never reaches the browser):
+// Add a place looks the Google place ID up on the server, through the hq-place-lookup edge
+// function (the Google key stays in Supabase secrets):
 // an ID already in locations opens that place instead; a blocked ID cannot be added.
 import type { Pool, PoolClient } from 'pg';
 import { HttpError, bad, only, uuid, str, oneOf, bool, writeTx, toTrash } from './hq-core.js';
@@ -53,40 +54,37 @@ function lines(v: unknown): string[] {
   if (!Array.isArray(v) || v.length > 14) throw bad();
   return v.map((x) => str(x, 80, { min: 1 }));
 }
-// ---------- Google Places (server side only) ----------
-// The same key the edge functions use (GOOGLE_PLACES_API_KEY, else GOOGLE_MAPS_API_KEY),
-// set in Vercel. Calls are recorded in api_usage like the scanners' (provider google_places).
-const GOOGLE_KEY = process.env.GOOGLE_PLACES_API_KEY || process.env.GOOGLE_MAPS_API_KEY || '';
+// ---------- Google Places, through the hq-place-lookup edge function ----------
+// The Google key lives only in Supabase secrets, so /api/hq never holds it: it calls
+// hq-place-lookup server to server with the service role key. The function logs each Google
+// call to api_usage itself (provider google_places, meta.source "hq").
+const SUPABASE_URL = process.env.SUPABASE_URL || '';
+const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 const PLACE_ID_RE = /^[A-Za-z0-9_-]{10,300}$/;
 const metres = (a: { lat: number; lng: number }, b: { lat: number; lng: number }) => {
   const t = Math.PI / 180, dl = (b.lat - a.lat) * t, dn = (b.lng - a.lng) * t;
   const x = Math.sin(dl / 2) ** 2 + Math.cos(a.lat * t) * Math.cos(b.lat * t) * Math.sin(dn / 2) ** 2;
   return Math.round(2 * 6371000 * Math.asin(Math.sqrt(x)));
 };
-async function meter(pool: Pool, operation: string, cost: number, userId: string, meta: Record<string, unknown>) {
-  try {
-    await pool.query("insert into public.api_usage (provider, operation, units, cost_usd, meta, user_id) values ('google_places', $1, 1, $2, $3::jsonb, $4)",
-      [operation, cost, JSON.stringify({ ...meta, source: 'hq' }), userId]);
-  } catch (e: any) { console.error('hq google api_usage', e?.message); }
-}
-async function google(pool: Pool, userId: string, path: string, init: { method: string; body?: unknown; fields: string }, op: string, cost: number) {
-  if (!GOOGLE_KEY) throw new HttpError(503, 'The Google lookup is not set up on the server: add GOOGLE_PLACES_API_KEY in Vercel.');
+async function placeLookup(body: Record<string, unknown>): Promise<any> {
+  if (!SUPABASE_URL || !SERVICE_KEY) throw new HttpError(503, 'The Google lookup is not set up on the server.');
   let r: Response;
   try {
-    r = await fetch('https://places.googleapis.com/v1/' + path, {
-      method: init.method,
-      headers: { 'Content-Type': 'application/json', 'X-Goog-Api-Key': GOOGLE_KEY, 'X-Goog-FieldMask': init.fields },
-      body: init.body === undefined ? undefined : JSON.stringify(init.body),
+    r = await fetch(`${SUPABASE_URL}/functions/v1/hq-place-lookup`, {
+      method: 'POST',
+      headers: { apikey: SERVICE_KEY, Authorization: `Bearer ${SERVICE_KEY}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(15000),
     });
-  } catch { throw new HttpError(502, 'Google did not answer. Try again in a minute.'); }
-  await meter(pool, op, cost, userId, { path: path.split('?')[0].slice(0, 80) });
+  } catch { throw new HttpError(502, 'The Google lookup did not answer. Try again in a minute.'); }
   const j: any = await r.json().catch(() => null);
-  if (r.status === 404) return null;
-  if (!r.ok || !j) {
-    console.error('hq google', r.status, JSON.stringify(j).slice(0, 300));
-    throw new HttpError(502, `Google refused the lookup (status ${r.status}${j?.error?.status ? ', ' + String(j.error.status).replace(/[^A-Z_]/g, '') : ''}).`);
-  }
-  return j;
+  if (r.ok && j && !j.error) return j;
+  console.error('hq place lookup', r.status, JSON.stringify(j).slice(0, 300));
+  // Show Google's refusal plainly (status and Google's reason), never any key.
+  const clean = (v: unknown) => String(v ?? '').replace(/[^A-Za-z0-9 _.,:'-]/g, '').slice(0, 120);
+  if (r.status === 401) throw new HttpError(502, 'The Google lookup refused HQ (status 401: the server key was not accepted).');
+  if (j && j.status) throw new HttpError(502, `Google refused the lookup (status ${clean(j.status)}${j.detail ? ', ' + clean(j.detail) : ''}).`);
+  throw new HttpError(502, `The Google lookup failed (status ${r.status}${j && j.error ? ': ' + clean(j.error) : ''}).`);
 }
 // Is this place ID already a place, or blocked?
 async function placeIdState(c: PoolClient | Pool, placeId: string) {
@@ -300,16 +298,12 @@ export function placeOps(pool: Pool): Record<string, Op> {
       perm: 'places_edit',
       run: async (a, ctx) => {
         only(a, ['name', 'address', 'latitude', 'longitude']);
-        const name = str(a.name, 200, { min: 2 }), address = str(a.address, 300, { optional: true });
+        const name = str(a.name, 120, { min: 2 }); str(a.address, 300, { optional: true });
         const lat = coord(a.latitude, 49.8, 61.1), lng = coord(a.longitude, -8.7, 2.1);
-        const j = await google(pool, ctx.staff.userId, 'places:searchText', {
-          method: 'POST', fields: 'places.id,places.displayName,places.formattedAddress,places.location',
-          body: { textQuery: address ? `${name}, ${address}` : name, regionCode: 'GB', maxResultCount: 5,
-            locationBias: { circle: { center: { latitude: lat, longitude: lng }, radius: 1000 } } },
-        }, 'text_search', 0.04);
-        const found = ((j && j.places) || []).filter((x: any) => x && typeof x.id === 'string' && PLACE_ID_RE.test(x.id) && x.location)
-          .map((x: any) => ({ place_id: x.id, name: x.displayName?.text || '', address: x.formattedAddress || '', latitude: x.location.latitude, longitude: x.location.longitude,
-            metres: metres({ lat, lng }, { lat: x.location.latitude, lng: x.location.longitude }) }))
+        const j = await placeLookup({ action: 'search', name, lat, lng });
+        const found = ((j && j.matches) || []).filter((x: any) => x && typeof x.place_id === 'string' && PLACE_ID_RE.test(x.place_id) && typeof x.lat === 'number')
+          .map((x: any) => ({ place_id: x.place_id, name: x.name || '', address: x.address || '', latitude: x.lat, longitude: x.lng,
+            metres: typeof x.distance_m === 'number' ? x.distance_m : metres({ lat, lng }, { lat: x.lat, lng: x.lng }), business_status: x.business_status || null }))
           .filter((x: any) => x.metres <= 1000).sort((x: any, y: any) => x.metres - y.metres).slice(0, 3);
         const matches = [];
         for (const m of found) {
@@ -338,9 +332,9 @@ export function placeOps(pool: Pool): Record<string, Op> {
         if (st.existing) throw new HttpError(409, `That Google place is already in BarkFind as "${st.existing.name}". Opening it instead.`, 'exists:' + st.existing.id);
         if (st.blocked) throw new HttpError(409, `That Google place was ${st.blocked.reason === 'merged' ? 'merged into another place' : 'deleted'} on ${new Date(st.blocked.created_at).toLocaleDateString('en-GB')}, so it is blocked and cannot be added again.`, 'blocked');
         // The ID must be a real Google place close to where the person put it.
-        const g = await google(pool, ctx.staff.userId, 'places/' + encodeURIComponent(placeId), { method: 'GET', fields: 'id,location' }, 'place_details', 0.02);
-        if (!g || !g.location) throw new HttpError(409, 'Google does not know that place ID. Look it up again.');
-        if (metres({ lat, lng }, { lat: g.location.latitude, lng: g.location.longitude }) > 1000) throw new HttpError(409, 'That Google place is more than 1 km from where you put it. Check the location and look it up again.');
+        const g = (await placeLookup({ action: 'details', place_id: placeId })).place;
+        if (!g || typeof g.lat !== 'number') throw new HttpError(409, 'Google does not know that place ID. Look it up again.');
+        if (metres({ lat, lng }, { lat: g.lat, lng: g.lng }) > 1000) throw new HttpError(409, 'That Google place is more than 1 km from where you put it. Check the location and look it up again.');
         return writeTx(pool, ctx.staff.userId, async (c, audit) => {
           const again = await placeIdState(c, placeId);
           if (again.existing) throw new HttpError(409, `That Google place is already in BarkFind as "${again.existing.name}". Opening it instead.`, 'exists:' + again.existing.id);
