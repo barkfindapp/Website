@@ -72,9 +72,8 @@ Discover page at once. Check each line after the flip; edit only if it did not s
   - Unchanged on the day: the line before it ("Opening times and dog policies for every place,
     plus Mylo, are in the app." / on guide pages "Opening times and dog policies for all N, plus
     Mylo, are in the app.").
-- Press box on `/discover` and `/news` (`PressBox` in the same file): no launch wording. If the
-  launch press release was approved before release day with "coming soon" wording, edit it in
-  the content queue and redeploy so the "Latest press release" link points at current copy.
+- Press releases on `/news`: if the launch press release was approved before release day with
+  "coming soon" wording, edit it in the content queue and redeploy.
 - Shared, not Discover-only: the inner-page header button "Start Free Trial" (`href="/#download"`,
   `src/components/PageShell.tsx`) also shows on Discover pages. It is not in the list above
   either; decide on the day whether it should point at `APP_STORE_URL`.

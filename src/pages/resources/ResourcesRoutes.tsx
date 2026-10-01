@@ -28,7 +28,6 @@ import {
   NewsCard,
   PhotoCredit,
   PlaceCard,
-  PressBox,
   Prose,
   TownSearch,
   placesLabel,
@@ -387,7 +386,6 @@ function DiscoverHub() {
             </Section>
           )}
 
-          {(type === "all" || type === "press") && <PressBox latest={pressReleases[0]} />}
         </>
       )}
 
@@ -538,7 +536,6 @@ function NewsIndex() {
           </CardGrid>
         </Section>
       )}
-      <PressBox latest={pressReleases[0]} />
       <DownloadCta />
     </PageShell>
   );

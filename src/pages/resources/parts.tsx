@@ -136,37 +136,6 @@ export function placesLabel(n: number) {
   return plural(n, "place");
 }
 
-// Press box for journalists (press pitch, week of 5 October). The press release
-// link only appears when an approved one exists; the rest stands on its own.
-export function PressBox({ latest }: { latest?: { slug: string; title: string } }) {
-  const link = "font-semibold text-[#B74217] hover:underline";
-  return (
-    <section aria-labelledby="press-box" className="mt-10 rounded-2xl border border-stone-200 bg-white px-6 py-6 md:px-8">
-      <h2 id="press-box" className="font-serif text-2xl md:text-3xl text-[#1a1a1a] mb-3">For press</h2>
-      <div className="flex flex-col gap-1 text-[#444] leading-relaxed">
-        <p>BarkFind was built in Weston-super-Mare by Josh Holder.</p>
-        <p>His Vizsla, Mylo, is reactive, so a sign saying dogs welcome was never enough to go on.</p>
-        <p>BarkFind checks what each place actually allows, so you know before you set off.</p>
-      </div>
-      <ul className="mt-5 flex flex-col gap-2 text-sm">
-        {latest && (
-          <li>
-            Latest press release: <a href={`/news/${latest.slug}`} className={link}>{latest.title}</a>
-          </li>
-        )}
-        <li>
-          Logos: <a href="/barkfind-logo-rust.png" download="barkfind-logo-rust.png" className={link}>terracotta (PNG)</a>
-          {" · "}
-          <a href="/barkfind-logo-white.png" download="barkfind-logo-white.png" className={link}>white (PNG)</a>
-        </li>
-        <li>
-          Press contact: <a href="mailto:info@barkfind.com" className={link}>info@barkfind.com</a>
-        </li>
-      </ul>
-    </section>
-  );
-}
-
 // ─── Discover cards ─────────────────────────────────────────────────────────
 // One card family in three variants (town guide, event, news/press), modelled
 // on the app's Saved Places card: rounded white card, soft shadow, bold name,
