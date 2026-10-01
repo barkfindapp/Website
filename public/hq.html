@@ -2082,9 +2082,9 @@ footer .mono{color:rgba(255,255,255,.75)}
 // email. Sending needs SEND typed; HQ deletes only its own sends, to the trash.
 (function(){
   var $=function(id){return document.getElementById(id)}, H=window.HQ, esc=H.esc;
-  var SEG={all:"Everyone",subscribed:"Subscribed",trial:"On a trial",free:"Free"};
+  var SEG={me:"Just me (test)",all:"Everyone",subscribed:"Subscribed",trial:"On a trial",free:"Free"};
   var LINKS=[["","No link"],["explore","Explore screen"],["upgrade","Upgrade screen"],["reviews","Reviews screen"],["dogProfile","Dog profile screen"],["onboarding","Onboarding"],["place","A place"],["web","A web page"]];
-  var an={seg:"all",counts:null,loaded:false};
+  var an={seg:"me",counts:null,loaded:false};
   var UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
   function busy(b,p,card,after){b.disabled=true;return p.then(function(r){H.note(card,r&&r.ok!==false,(r&&r.message)||"Done.");if(after)after(r)}).catch(function(e){H.note(card,false,(e&&e.message)||"That did not work.")}).then(function(){b.disabled=false})}
   function render(){
@@ -2112,7 +2112,7 @@ footer .mono{color:rgba(255,255,255,.75)}
     var t=$("anTitle").value.trim(), m=$("anMsg").value.trim(), n=an.counts?an.counts[an.seg]:null;
     $("anLen").textContent=m.length?"("+m.length+" of 600)":"";
     $("anPrev").innerHTML=(t||m?'<b>'+esc(t||"(no title)")+'</b><br>'+esc(m||"(no message)").replace(/\n/g,"<br>")+'<br><br>':'')+
-      (n==null?"Counting the group.":"Goes to "+n.toLocaleString("en-GB")+(n===1?" person":" people")+" ("+SEG[an.seg].toLowerCase()+"). In the app only.");
+      (n==null?"Counting the group.":an.seg==="me"?(n?"A test: goes only to your own BarkFind app account. In the app only.":"Your HQ account has no BarkFind app profile, so a test has nowhere to go. Sign in to the app with the same email first."):"Goes to "+n.toLocaleString("en-GB")+(n===1?" person":" people")+" ("+SEG[an.seg].toLowerCase()+"). In the app only.");
     $("anSend").disabled=!(t&&m&&$("anConfirm").value.trim()==="SEND");
   }
   function list(){
@@ -2131,7 +2131,7 @@ footer .mono{color:rgba(255,255,255,.75)}
     var s=ev.target.closest("[data-seg]");if(s){an.seg=s.dataset.seg;segs();prev();return}
     if(ev.target.id==="anSend"){var b=ev.target, card=$("anCompose"), l=linkValue();if(l.err){H.note(card,false,l.err);return}
       busy(b,H.api("announce_send",{title:$("anTitle").value.trim(),message:$("anMsg").value.trim(),url:l.v,segment:an.seg,confirm:$("anConfirm").value.trim()}),card,function(r){
-        if(!r||r.ok===false)return;$("anTitle").value="";$("anMsg").value="";$("anConfirm").value="";$("anLink").value="";$("anLinkVal").hidden=true;prev();list()}).then(prev);return}
+        if(!r||r.ok===false)return;if(an.seg==="me"){$("anConfirm").value="";prev();list();return}$("anTitle").value="";$("anMsg").value="";$("anConfirm").value="";$("anLink").value="";$("anLinkVal").hidden=true;prev();list()}).then(prev);return}
     var d=ev.target.closest("[data-an]");if(!d)return;var c=d.closest("[data-anid]");if(!c||!H.armed(d))return;
     busy(d,H.api("announce_delete",{id:c.dataset.anid}),c,function(r){if(r&&r.ok!==false)setTimeout(list,900)});
   });

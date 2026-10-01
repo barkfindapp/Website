@@ -10,7 +10,8 @@ import { randomUUID } from 'node:crypto';
 import { HttpError, bad, only, uuid, str, oneOf, writeTx, toTrash } from './hq-core.js';
 import type { Op } from './hq-act.js';
 
-const SEGMENTS = ['all', 'subscribed', 'trial', 'free'] as const;
+// 'me' is a test group: only the signed-in staff member's own account.
+const SEGMENTS = ['all', 'subscribed', 'trial', 'free', 'me'] as const;
 type Segment = typeof SEGMENTS[number];
 const SCREENS = ['explore', 'upgrade', 'reviews', 'dogProfile', 'onboarding'] as const;
 const LOCATION_RE = /^location:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -18,12 +19,14 @@ const HTTPS_RE = /^https:\/\/[^\s<>"]+$/i;
 
 // Who each segment reaches. Fixed SQL fragments chosen by key; banned customers are left out.
 const WHO: Record<Segment, string> = {
+  me: 'p.user_id = $ME',
   all: 'true',
   subscribed: "exists (select 1 from public.subscriptions s where s.user_id = p.user_id and s.status = 'active')",
   trial: "exists (select 1 from public.subscriptions s where s.user_id = p.user_id and s.status = 'trial')",
   free: "not exists (select 1 from public.subscriptions s where s.user_id = p.user_id and s.status in ('active', 'trial'))",
 };
-const recipients = (seg: Segment) => `from public.profiles p where not coalesce(p.is_banned, false) and ${WHO[seg]}`;
+// $ME is replaced with the parameter number that holds the staff member's user id.
+const recipients = (seg: Segment, me: number) => `from public.profiles p where not coalesce(p.is_banned, false) and ${WHO[seg].replace('$ME', '$' + me)}`;
 const ANN = "n.type = 'system' and n.entity = 'none' and not coalesce(n.is_demo, false)";
 
 // A link is optional: an app screen, a place (location:<id>) or a web page (https).
@@ -39,10 +42,10 @@ export function announceOps(pool: Pool): Record<string, Op> {
     // How many customers each segment reaches right now.
     announce_preview: {
       perm: 'announce',
-      run: async (a) => {
+      run: async (a, ctx) => {
         only(a, []);
         const r = await pool.query(
-          `select ${SEGMENTS.map((s) => `(select count(*)::int ${recipients(s)}) as ${s}`).join(', ')}`);
+          `select ${SEGMENTS.map((s) => `(select count(*)::int ${recipients(s, 1)}) as ${s}`).join(', ')}`, [ctx.staff.userId]);
         return { data: r.rows[0] };
       },
     },
@@ -64,12 +67,12 @@ export function announceOps(pool: Pool): Record<string, Op> {
           const meta = JSON.stringify({ announcement_id: id, sent_by: ctx.staff.userId, segment: seg });
           const r = await c.query(
             `insert into public.notifications (user_id, type, entity, title, message, action_url, is_read, is_demo, metadata)
-             select p.user_id, 'system', 'none', $1, $2, nullif($3, ''), false, false, $4::jsonb ${recipients(seg)}`,
-            [title, message, url, meta]);
+             select p.user_id, 'system', 'none', $1, $2, nullif($3, ''), false, false, $4::jsonb ${recipients(seg, 5)}`,
+            [title, message, url, meta, ctx.staff.userId]);
           const n = r.rowCount || 0;
-          if (!n) throw new HttpError(409, 'Nobody is in that group, so nothing was sent.');
+          if (!n) throw new HttpError(409, seg === 'me' ? 'Your HQ account has no BarkFind app profile, so there is nobody to send the test to.' : 'Nobody is in that group, so nothing was sent.');
           await audit({ action: 'announce_send', entity: 'notifications', entityId: id,
-            detail: `Sent announcement "${title.slice(0, 80)}" to ${n} ${seg === 'all' ? 'customers' : seg + ' customers'}`,
+            detail: seg === 'me' ? `Sent test announcement "${title.slice(0, 80)}" to own account` : `Sent announcement "${title.slice(0, 80)}" to ${n} ${seg === 'all' ? 'customers' : seg + ' customers'}`,
             before: null, after: { announcement_id: id, title, message, action_url: url || null, segment: seg, recipients: n } });
           return { ok: true, message: `Sent to ${n.toLocaleString('en-GB')} ${n === 1 ? 'person' : 'people'}. It shows in their notifications in the app.`, id, recipients: n };
         });
