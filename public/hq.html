@@ -431,6 +431,8 @@ footer .mono{color:rgba(255,255,255,.75)}
     <button role="tab" id="t-places" aria-selected="false" data-go="places" hidden>Places</button>
     <button role="tab" id="t-content" aria-selected="false" data-go="content" hidden>Content<span class="count" id="ceCount">0</span></button>
     <button role="tab" id="t-comms" aria-selected="false" data-go="comms" hidden>Comms</button>
+    <button role="tab" id="t-money" aria-selected="false" data-go="money" hidden>Money</button>
+    <button role="tab" id="t-insights" aria-selected="false" data-go="insights" hidden>Insights</button>
     <button role="tab" id="t-outreach" aria-selected="false" data-go="outreach">Outreach<span class="count" id="outCount">0</span></button>
     <button role="tab" id="t-admin" aria-selected="false" data-go="admin" hidden>Admin</button>
     <button role="tab" id="t-consoles" aria-selected="false" data-go="consoles">Consoles</button>
@@ -572,6 +574,14 @@ footer .mono{color:rgba(255,255,255,.75)}
 
  <div data-tab="comms" class="stack" hidden>
   <div class="stack" id="anPane"><div class="empty">Loading.</div></div>
+ </div>
+
+ <div data-tab="money" class="stack" hidden>
+  <div class="stack" id="mnPane"><div class="empty">Loading.</div></div>
+ </div>
+
+ <div data-tab="insights" class="stack" hidden>
+  <div class="stack" id="inPane"><div class="empty">Loading.</div></div>
  </div>
 
  <div data-tab="outreach" class="stack" hidden>
@@ -1027,7 +1037,7 @@ footer .mono{color:rgba(255,255,255,.75)}
   function applyPerms(){
     var c=HQ.can, show=function(id,on){var e=$(id);if(e)e.hidden=!on};
     show("t-act",c("safety")||c("privacy")||c("reviews")||c("reports")||c("claims")||c("support_read")||c("places_moderate")||c("places_delete"));
-    show("t-users",c("users_view"));show("t-places",c("places_edit"));show("t-content",c("content"));show("t-comms",c("announce"));show("t-outreach",c("outreach"));show("t-admin",c("staff_manage"));
+    show("t-users",c("users_view"));show("t-places",c("places_edit"));show("t-content",c("content"));show("t-comms",c("announce"));show("t-money",c("money"));show("t-insights",c("insights"));show("t-outreach",c("outreach"));show("t-admin",c("staff_manage"));
     show("p-money",c("money"));show("p-costs",c("money"));show("p-renewals",c("renewals"));
     var ask=document.querySelector("section.cta");if(ask)ask.hidden=!c("ask_ralphy");
     show("miniForm",c("ask_ralphy"));show("miniLinks",c("ask_ralphy"));
@@ -1047,10 +1057,12 @@ footer .mono{color:rgba(255,255,255,.75)}
     if(t==="places"&&window.HQPlaces)HQPlaces.show();
     if(t==="content"&&window.HQContent)HQContent.show();
     if(t==="comms"&&window.HQComms)HQComms.show();
+    if(t==="money"&&window.HQMoney)HQMoney.show();
+    if(t==="insights"&&window.HQInsights)HQInsights.show();
     if(t==="admin"&&window.HQAdmin)HQAdmin.show();
   }
   document.querySelector(".tabs").addEventListener("click",function(ev){var b=ev.target.closest("button[data-go]");if(b)go(b.dataset.go)});
-  document.addEventListener("click",function(ev){var a=ev.target.closest('a[href^="#"]');if(!a)return;var t=a.getAttribute("href").slice(1);if(["today","act","users","places","content","comms","outreach","admin","consoles"].indexOf(t)>=0){ev.preventDefault();go(t)}});
+  document.addEventListener("click",function(ev){var a=ev.target.closest('a[href^="#"]');if(!a)return;var t=a.getAttribute("href").slice(1);if(["today","act","users","places","content","comms","money","insights","outreach","admin","consoles"].indexOf(t)>=0){ev.preventDefault();go(t)}});
   var startTab=(location.hash||"").slice(1);
 
   $("refresh").addEventListener("click",load);
@@ -1144,7 +1156,7 @@ footer .mono{color:rgba(255,255,255,.75)}
     checking=true;gate("checking","Checking access.");
     api("history").then(function(r){state.history=r.data||[];return api("me")}).then(function(m){
         HQ.perms=(m.data&&m.data.perms)||[];HQ.me=m.data||{};ready=true;applyPerms();gate("app");
-        if(["act","users","places","content","comms","outreach","admin","consoles"].indexOf(startTab)>=0)go(startTab);load()})
+        if(["act","users","places","content","comms","money","insights","outreach","admin","consoles"].indexOf(startTab)>=0)go(startTab);load()})
       .catch(function(e){if(e.code!=="denied"&&e.code!=="auth"&&e.code!=="mfa")gate("signin",e.message)})
       .then(function(){checking=false});
   }
@@ -2452,6 +2464,80 @@ footer .mono{color:rgba(255,255,255,.75)}
     }).catch(function(e){el.innerHTML='<div class="empty">'+esc((e&&e.message)||"That did not load.")+'</div>'});
   }
   $("usRewards").addEventListener("click",function(ev){var b=ev.target.closest('[data-rw="user"]');if(b&&window.HQUsers&&HQUsers.open)HQUsers.open(b.dataset.id)});
+})();
+</script>
+<script>
+// ---------- Insights and Money (read only) ----------
+(function(){
+  var $=function(id){return document.getElementById(id)}, H=window.HQ, esc=H.esc;
+  function n(v){return v==null?"–":Number(v).toLocaleString("en-GB")}
+  function pct(a,b){return b?Math.round(100*a/b)+"%":"–"}
+  function tile(l,v,sub){return '<div class="tile"><div class="lbl">'+l+'</div><div class="val">'+v+'</div>'+(sub?'<div class="sub">'+sub+'</div>':'')+'</div>'}
+  function short(d){return new Date(d+"T12:00:00").toLocaleDateString("en-GB",{day:"numeric",month:"short"})}
+  // A simple bar chart: one bar per value, terracotta, with the value on hover. A bar far
+  // taller than the rest (a one-off import) is cut off and labelled, so the others stay readable.
+  function bars(rows,opts){
+    opts=opts||{};var vals=rows.map(function(r){return Number(r.v)||0}),sorted=vals.slice().sort(function(a,b){return b-a});
+    var cap=sorted[0], clipped=false;
+    if(sorted.length>2&&sorted[1]>0&&sorted[0]>sorted[1]*6){cap=sorted[1]*1.6;clipped=true}
+    if(!cap)cap=1;
+    var w=100/rows.length, svg='<svg viewBox="0 0 100 40" preserveAspectRatio="none" style="width:100%;height:140px;display:block" role="img" aria-label="'+esc(opts.label||"chart")+'">';
+    rows.forEach(function(r,i){var v=vals[i],h=Math.max(v>0?0.6:0,Math.min(v,cap)/cap*38);svg+='<rect x="'+(i*w+w*0.15).toFixed(2)+'" y="'+(40-h).toFixed(2)+'" width="'+(w*0.7).toFixed(2)+'" height="'+h.toFixed(2)+'" fill="'+(v>cap?"var(--brand-line)":"var(--brand)")+'" rx="0.4"><title>'+esc(r.label)+': '+esc(opts.fmt?opts.fmt(v):n(v))+'</title></rect>'});
+    svg+='</svg>';
+    var big=clipped?rows.filter(function(r,i){return vals[i]>cap}).map(function(r){return esc(r.label)+": "+esc(opts.fmt?opts.fmt(Number(r.v)):n(r.v))}).join(", "):"";
+    return '<div class="chart">'+svg+'<div class="row note" style="justify-content:space-between;margin-top:4px"><span>'+esc(rows[0]?rows[0].label:"")+'</span><span>'+esc(rows.length?rows[rows.length-1].label:"")+'</span></div>'+
+      (big?'<div class="note">Cut off to keep the rest readable: '+big+(opts.bigNote?" ("+esc(opts.bigNote)+")":"")+'.</div>':'')+'</div>';
+  }
+  function list(rows,empty){return rows.length?'<dl class="kv">'+rows.map(function(r){return '<dt>'+esc(r[0])+'</dt><dd>'+r[1]+'</dd>'}).join("")+'</dl>':'<div class="note">'+esc(empty||"Nothing yet.")+'</div>'}
+
+  // ---------- Insights ----------
+  var ins={loaded:false};
+  function insights(fresh){
+    var el=$("inPane");if(!ins.loaded||fresh)el.innerHTML='<div class="empty">Counting every place. This takes a few seconds.</div>';ins.loaded=true;
+    H.api("insights",fresh?{fresh:true}:{}).then(function(r){var d=r.data,p=d.places||{},u=d.use||{},rv=d.reviews||{},bs=rv.by_status||{};
+      el.innerHTML='<div class="row" style="justify-content:space-between"><span class="note">Updated '+esc(H.when(d.taken_at))+(r.cached?" (kept for 5 minutes)":"")+'</span><button class="btn small" data-in="fresh">Refresh</button></div>'+
+        '<div class="subhead"><h3>Places</h3></div><div class="tiles">'+tile("Places",n(p.total),n(p.live)+" live, "+n(p.hidden)+" hidden")+tile("Verified",n(p.verified),pct(p.verified,p.live)+" of live; "+n(p.google_verified)+" by Google, "+n(p.barkfind_verified)+" by BarkFind")+
+          tile("With amenities",pct(p.with_amenities,p.live),n(p.with_amenities)+" live places")+tile("Average rating",p.avg_rating!=null?Number(p.avg_rating).toFixed(2):"–","paws, rated places")+'</div>'+
+        '<div class="card"><div class="subhead"><h3 style="font-size:18px">Live places by category</h3></div>'+list((d.categories||[]).map(function(c){return [String(c.category||"–").replace(/-/g," "),n(c.n)]}))+'</div>'+
+        '<div class="subhead"><h3>Data quality</h3><span>live places</span></div><div class="tiles">'+tile("No photo",n(p.no_photo),pct(p.no_photo,p.live))+tile("No AI summary",n(p.no_summary),pct(p.no_summary,p.live))+tile("No opening hours",n(p.no_hours),pct(p.no_hours,p.live))+tile("Google data over 30 days old",n(p.google_stale),pct(p.google_stale,p.live))+'</div>'+
+        '<div class="card"><div class="subhead"><h3 style="font-size:18px">New places per week</h3><span>12 weeks</span></div>'+bars((d.new_per_week||[]).map(function(w){return {label:"w/c "+short(w.week),v:w.n}}),{label:"New places per week",bigNote:"the bulk import"})+'</div>'+
+        '<div class="subhead"><h3>Reviews</h3></div><div class="tiles">'+tile("Waiting",n(bs.pending||0))+tile("Approved",n(bs.approved||0))+tile("Rejected",n(bs.rejected||0))+tile("AI agreed with people",rv.ai_agreement_pct!=null?rv.ai_agreement_pct+"%":"–",n(rv.decisions)+" decisions")+'</div>'+
+        '<div class="subhead"><h3>App use</h3></div><div class="tiles">'+tile("Active today",n(u.dau))+tile("Last 7 days",n(u.wau))+tile("Last 30 days",n(u.mau))+tile("Stickiness",pct(u.dau,u.mau),"today as a share of 30 days")+tile("Sessions",n(u.sessions),"all time")+tile("Searches",n(u.searches),u.sessions?(u.searches/u.sessions).toFixed(1)+" per session":"")+'</div>'+
+        '<div class="card"><div class="subhead"><h3 style="font-size:18px">Active people per day</h3><span>30 days</span></div>'+bars((d.active_per_day||[]).map(function(x){return {label:short(x.day),v:x.n}}),{label:"Active people per day"})+'</div>'+
+        '<div class="ib-cols" style="display:grid;gap:14px"><div class="card"><div class="subhead"><h3 style="font-size:18px">Top searches</h3></div>'+list((d.top_searches||[]).map(function(t){return [t.term,n(t.n)]}),"No searches logged yet.")+'</div>'+
+        '<div class="card"><div class="subhead"><h3 style="font-size:18px">Searches with no matching place</h3></div>'+list((d.unmatched_searches||[]).map(function(t){return [t.term,n(t.n)]}),"Every search matched a live place.")+'<p class="note" style="margin:0">A search counts as unmatched when no live place has it in its name, category or address.</p></div></div>'+
+        '<div class="card"><div class="subhead"><h3 style="font-size:18px">Devices</h3><span>sessions</span></div>'+list((d.devices||[]).map(function(x){return [x.device,n(x.n)]}))+'</div>';
+    }).catch(function(e){el.innerHTML='<div class="empty">'+esc((e&&e.message)||"That did not load.")+'</div>'});
+  }
+  $("inPane").addEventListener("click",function(ev){if(ev.target.closest('[data-in="fresh"]'))insights(true)});
+
+  // ---------- Money ----------
+  function moneyTab(){
+    var el=$("mnPane");el.innerHTML='<div class="empty">Loading.</div>';
+    H.api("money").then(function(r){var d=r.data,fx=d.fx;
+      function usd(v){return "$"+Number(v||0).toFixed(2)}
+      function gbp(v){var x=Number(v||0);if(!fx)return usd(x);var g=x*fx.rate;return Math.abs(g)>=1000?"£"+Math.round(g).toLocaleString("en-GB"):"£"+g.toFixed(2)}
+      function fig(v){var a=gbp(v),b=usd(v);return a===b?esc(b):'<button type="button" class="fx" data-a="'+esc(a)+'" data-b="'+esc(b)+'" aria-label="'+esc(a)+', tap for US dollars">'+esc(a)+'</button>'}
+      var line=fx?"$1 = £"+Number(fx.rate).toFixed(2)+", "+new Date(fx.date+"T12:00:00").toLocaleDateString("en-GB",{day:"numeric",month:"short"})+(fx.stale?" (last good rate)":""):"In US dollars: no exchange rate yet";
+      var at=d.anthropic_totals||{}, g=d.google_month||{}, rc=(d.revenuecat&&d.revenuecat.metrics)||{}, rev=rc.revenue_usd;
+      el.innerHTML='<p class="note" style="margin:0">'+esc(line)+'. Tap a figure for dollars.</p>'+
+        '<div class="subhead"><h3>Revenue</h3><span>RevenueCat, production only</span></div><div class="tiles">'+
+          tile("App Store proceeds",rev?fig(rev.proceeds):"–",rev&&!Number(rev.proceeds)?"No paid subscriptions yet":"all time")+tile("Production subscribers",n(rc.production_active))+tile("Customers in RevenueCat",n(rc.customers_total))+
+          tile("Last synced",d.revenuecat&&d.revenuecat.synced_at?esc(H.when(d.revenuecat.synced_at)):"–")+'</div>'+
+        '<div class="card"><div class="subhead"><h3 style="font-size:18px">New subscriptions per month</h3><span>12 months</span></div>'+bars((d.subscriptions_per_month||[]).map(function(m){return {label:new Date(m.month+"-15").toLocaleDateString("en-GB",{month:"short",year:"2-digit"}),v:m.n}}),{label:"New subscriptions per month"})+
+          '<p class="note" style="margin:0">From the app\'s subscriptions table, which also holds sandbox (test) rows.</p></div>'+
+        '<div class="card"><div class="subhead"><h3 style="font-size:18px">Subscriptions by plan, status and store</h3></div>'+list((d.subscriptions_by_plan||[]).map(function(x){return [x.plan+", "+x.status+", "+String(x.store).replace(/_/g," ").toLowerCase(),n(x.n)]}))+'</div>'+
+        '<div class="subhead"><h3>Running costs</h3></div><div class="tiles">'+tile("Google this month",fig(g.usd_inc_vat),"after free allowances, with VAT")+tile("Anthropic today",fig(at.today))+tile("Anthropic, 7 days",fig(at.d7))+tile("Anthropic, 30 days",fig(at.d30))+tile("Anthropic, all time",fig(at.all_time))+'</div>'+
+        '<div class="card"><div class="subhead"><h3 style="font-size:18px">Anthropic per day</h3><span>30 days</span></div>'+bars((d.anthropic_per_day||[]).map(function(x){return {label:short(x.day),v:x.usd}}),{label:"Anthropic spend per day",fmt:gbp})+'</div>'+
+        '<div class="card"><div class="subhead"><h3 style="font-size:18px">Google this month, by type</h3></div>'+list((g.rows||[]).map(function(x){return [x.sku+" ("+n(x.calls)+" calls, "+n(x.free_calls)+" free)",fig(x.usd_inc_vat)]}),"No Google calls this month.")+
+          '<p class="note" style="margin:0">From google_spend_this_month: each free allowance applied, VAT added.</p></div>'+
+        '<div class="card"><div class="subhead"><h3 style="font-size:18px">Spend by operation</h3><span>30 days</span></div>'+list((d.by_operation||[]).map(function(x){var gg=x.provider==="google_places";return [(gg?"Google":x.provider==="anthropic"?"Anthropic":x.provider)+": "+String(x.operation||"").replace(/_/g," ")+" ("+n(x.calls)+" calls)"+(gg?", before free allowance":""),fig(x.usd)]}))+
+          '<p class="note" style="margin:0">Google calls here are at list price, before the free allowance, so they overstate what Google charges. The real Google figure is the monthly total above.</p></div>';
+    }).catch(function(e){el.innerHTML='<div class="empty">'+esc((e&&e.message)||"That did not load.")+'</div>'});
+  }
+
+  window.HQInsights={show:function(){if(!ins.loaded)insights(false)}};
+  window.HQMoney={show:moneyTab};
 })();
 </script>
 </body>
