@@ -18,6 +18,9 @@ import { HttpError, bad, obj, only, uuid, str, oneOf, date, bool, scrubEmails, w
 
 const DB_URL = process.env.SUPABASE_DB_URL!;
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
+// Reading metrics needs a full-access Resend key; the sending key is send-only. Used for the
+// metrics call only, on the server, and never sent to the browser.
+const RESEND_METRICS_KEY = process.env.RESEND_METRICS_KEY || RESEND_API_KEY;
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 // The model comes from public.app_config (key claude_model_fast), shared with the
 // edge functions, so switching models is one SQL update. Read only. Falls back to
@@ -127,7 +130,7 @@ async function history() {
 
 // Resend account-level metrics: GET /emails/metrics (last 30 days, totals only).
 async function emailMetrics() {
-  if (!RESEND_API_KEY) throw new HttpError(503, 'Resend is not configured on the server.');
+  if (!RESEND_METRICS_KEY) throw new HttpError(503, 'Resend is not configured on the server.');
   const end = new Date(), start = new Date(Date.now() - 29 * 864e5);
   const qs = new URLSearchParams({
     start_date: start.toISOString().slice(0, 10),
@@ -135,15 +138,22 @@ async function emailMetrics() {
     granularity: 'monthly',
     metrics: 'sent,delivered,bounced,bounced_permanent,complained,unsubscribed,delivery_rate,bounce_rate',
   });
-  const r = await fetch('https://api.resend.com/emails/metrics?' + qs, {
-    headers: { Authorization: 'Bearer ' + RESEND_API_KEY },
-  });
+  let r: Response;
+  try {
+    r = await fetch('https://api.resend.com/emails/metrics?' + qs, { headers: { Authorization: 'Bearer ' + RESEND_METRICS_KEY } });
+  } catch {
+    throw new HttpError(502, 'Resend did not answer (no response). Try Refresh in a minute.');
+  }
   const j: any = await r.json().catch(() => null);
   if (!r.ok || !j || !j.totals) {
     console.error('hq email_metrics', r.status, JSON.stringify(j).slice(0, 300));
+    // Show the status code, and Resend's own error name (never the key), so the cause is clear.
+    const which = process.env.RESEND_METRICS_KEY ? 'RESEND_METRICS_KEY' : 'RESEND_API_KEY (RESEND_METRICS_KEY is not set)';
+    const name = j && typeof j.name === 'string' ? ', ' + j.name.replace(/[^a-z_]/gi, '').slice(0, 40) : '';
     throw new HttpError(502, r.status === 401 || r.status === 403
-      ? 'Resend refused the request. The API key may not have access to metrics.'
-      : 'Resend did not answer. Try Refresh in a minute.');
+      ? `Resend refused the request (status ${r.status}${name}) using ${which}. The key may not have access to metrics.`
+      : r.ok ? `Resend answered (status ${r.status}) without totals. Try Refresh in a minute.`
+      : `Resend did not answer (status ${r.status}${name}). Try Refresh in a minute.`);
   }
   return j.totals;
 }
