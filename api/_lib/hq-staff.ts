@@ -11,7 +11,7 @@ const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY!;
 
 export const PERMISSIONS = [
   'today', 'ask_ralphy', 'money', 'insights', 'reviews', 'reports', 'safety', 'privacy', 'claims',
-  'support', 'users_view', 'users_contact', 'users_ban', 'places_edit', 'places_moderate', 'places_delete', 'content',
+  'support_read', 'support_reply', 'support_assign', 'users_view', 'users_contact', 'users_ban', 'places_edit', 'places_moderate', 'places_delete', 'content',
   'announce', 'outreach', 'renewals', 'audit_view', 'trash_restore', 'staff_manage', 'staff_admins',
 ] as const;
 export type Perm = typeof PERMISSIONS[number];
@@ -23,7 +23,7 @@ const LEVEL_PERMS: Record<Level, Perm[]> = {
   owner: ALL,
   admin: ALL.filter((p) => p !== 'staff_admins'),
   moderator: ['today', 'insights', 'reviews', 'reports', 'claims', 'users_view', 'places_edit', 'places_moderate'],
-  support: ['today', 'support', 'users_view', 'users_contact'],
+  support: ['today', 'support_read', 'support_reply', 'support_assign', 'users_view', 'users_contact'],
   viewer: ['today', 'money', 'insights'],
 };
 

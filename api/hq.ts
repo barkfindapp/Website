@@ -11,6 +11,7 @@ import { requireStaff, type Perm } from './_lib/hq-staff.js';
 import { actOps, type Op, type Ctx } from './_lib/hq-act.js';
 import { teamOps } from './_lib/hq-team.js';
 import { flagOps } from './_lib/hq-flags.js';
+import { inboxOps } from './_lib/hq-inbox.js';
 import { HttpError, bad, obj, only, uuid, str, oneOf, date, bool, scrubEmails, writeTx, toTrash } from './_lib/hq-core.js';
 
 const DB_URL = process.env.SUPABASE_DB_URL!;
@@ -34,15 +35,15 @@ const ACTIONS: Record<string, ActionSpec> = {
   approve_review: { perm: 'reviews', table: 'reviews', idKey: 'id', label: 'Approved review', args: (a) => ({ id: uuid(only(a, ['id']).id) }) },
   reject_review: { perm: 'reviews', table: 'reviews', idKey: 'id', label: 'Rejected review', args: (a) => ({ id: uuid(only(a, ['id']).id) }) },
   reply_ticket: {
-    perm: 'support', table: 'support_tickets', idKey: 'ticket_id', label: 'Replied to ticket',
+    perm: 'support_reply', table: 'support_tickets', idKey: 'ticket_id', label: 'Replied to ticket',
     args: (a) => (only(a, ['ticket_id', 'body', 'resolve']), { ticket_id: uuid(a.ticket_id), body: str(a.body, 10000, { min: 1 }), resolve: bool(a.resolve, { optional: true }) }),
   },
   set_ticket_status: {
-    perm: 'support', table: 'support_tickets', idKey: 'ticket_id', label: 'Changed ticket status',
+    perm: 'support_reply', table: 'support_tickets', idKey: 'ticket_id', label: 'Changed ticket status',
     args: (a) => (only(a, ['ticket_id', 'status']), { ticket_id: uuid(a.ticket_id), status: oneOf(a.status, ['open', 'in_progress', 'resolved']) }),
   },
   note_ticket: {
-    perm: 'support', table: 'support_tickets', idKey: 'ticket_id', label: 'Added ticket note',
+    perm: 'support_reply', table: 'support_tickets', idKey: 'ticket_id', label: 'Added ticket note',
     args: (a) => (only(a, ['ticket_id', 'body']), { ticket_id: uuid(a.ticket_id), body: str(a.body, 5000, { min: 1 }) }),
   },
   user_report: {
@@ -269,7 +270,7 @@ function queueFor(ctx: Ctx, q: any) {
   if (!q) return q;
   const out: any = { alerts: q.alerts || [] };
   out.reviews = has(ctx, 'reviews') ? (q.reviews || []).filter((r: any) => has(ctx, 'safety') || !JSON.stringify(r.ai_flags || []).includes(CSAE_FLAG)) : [];
-  out.tickets = has(ctx, 'support') ? (q.tickets || []).map((t: any) => (has(ctx, 'users_contact') ? t : { ...t, email: null })) : [];
+  out.tickets = has(ctx, 'support_read') ? (q.tickets || []).map((t: any) => (has(ctx, 'users_contact') ? t : { ...t, email: null })) : [];
   out.user_reports = has(ctx, 'reports') ? q.user_reports || [] : [];
   out.location_reports = has(ctx, 'reports') ? q.location_reports || [] : [];
   out.business_claims = has(ctx, 'claims') ? q.business_claims || [] : [];
@@ -280,7 +281,7 @@ function queueFor(ctx: Ctx, q: any) {
 
 const OPS: Record<string, Op | { perm: null; run: Op['run'] }> = {
   // Who am I and what can I see: any active member of staff.
-  me: { perm: null, run: async (a, ctx) => (noArgs(a), { data: { name: ctx.staff.name, email: ctx.staff.email, level: ctx.staff.level, perms: [...ctx.staff.perms] } }) },
+  me: { perm: null, run: async (a, ctx) => (noArgs(a), { data: { id: ctx.staff.userId, name: ctx.staff.name, email: ctx.staff.email, level: ctx.staff.level, perms: [...ctx.staff.perms] } }) },
 
   snapshot: { perm: 'today', run: async (a, ctx) => (noArgs(a), { data: snapshotFor(ctx, await snapshot()) }) },
   queue: { perm: 'today', run: async (a, ctx) => (noArgs(a), { data: queueFor(ctx, await queue()) }) },
@@ -312,7 +313,7 @@ const OPS: Record<string, Op | { perm: null; run: Op['run'] }> = {
 
   // Drafts send only the one ticket or contact being drafted, with email addresses removed.
   draft_ticket: {
-    perm: 'support',
+    perm: 'support_reply',
     run: async (a, ctx) => {
       const id = uuid(only(a, ['id']).id);
       const t = (await pool.query('select subject, category, message from public.support_tickets where id = $1', [id])).rows[0];
@@ -334,6 +335,7 @@ const OPS: Record<string, Op | { perm: null; run: Op['run'] }> = {
   ...actOps(pool, { claude }),
   ...teamOps(pool),
   ...flagOps(pool),
+  ...inboxOps(pool),
 };
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {

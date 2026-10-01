@@ -231,7 +231,7 @@ export function actOps(pool: Pool, deps: Deps): Record<string, Op> {
 
     // ---------- Support ----------
     tickets_list: {
-      perm: 'support',
+      perm: 'support_read',
       run: async (a, ctx) => {
         only(a, ['status', 'period']);
         const status = oneOf(a.status, ['open', 'in_progress', 'resolved'] as const, { optional: true });
@@ -262,7 +262,7 @@ export function actOps(pool: Pool, deps: Deps): Record<string, Op> {
       },
     },
     ticket_set_priority: {
-      perm: 'support',
+      perm: 'support_reply',
       run: async (a, ctx) => {
         only(a, ['id', 'priority']);
         const id = uuid(a.id);
@@ -278,7 +278,7 @@ export function actOps(pool: Pool, deps: Deps): Record<string, Op> {
       },
     },
     ticket_set_tags: {
-      perm: 'support',
+      perm: 'support_reply',
       run: async (a, ctx) => {
         only(a, ['id', 'tags']);
         const id = uuid(a.id);
@@ -296,7 +296,7 @@ export function actOps(pool: Pool, deps: Deps): Record<string, Op> {
     },
     // Delete to trash: the ticket and the replies and notes the delete cascades to.
     ticket_delete: {
-      perm: 'support',
+      perm: 'support_reply',
       run: async (a, ctx) => {
         const id = uuid(only(a, ['id']).id);
         return writeTx(pool, ctx.staff.userId, async (c, audit) => {

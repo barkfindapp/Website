@@ -169,6 +169,14 @@ textarea{min-height:110px;resize:vertical;line-height:1.55}
 .subhead span{font-size:12.5px;color:var(--mute)}
 .tag{font:800 11px/1 var(--sans);padding:5px 9px;border-radius:999px;background:var(--well);color:var(--fg2);text-transform:capitalize}
 .tag.warn{background:var(--warn-soft);color:var(--warn)} .tag.crit{background:var(--crit-soft);color:var(--crit)} .tag.ok{background:var(--teal-soft);color:var(--teal-dark)} .tag.info{background:var(--info-soft);color:var(--info)}
+.fbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.fbar>input[type=search]{flex:1 1 220px}
+.fbar select,.fbar input[type=date]{font:500 14.5px/1.4 var(--sans);padding:10px 12px;min-height:44px;border-radius:12px;border:1px solid var(--line-2);background:#fff;color:var(--ink);width:auto;flex:0 1 auto;max-width:210px;min-width:0}
+.fbar .fdate{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:var(--fg2)}
+.fbar .fcheck{display:flex;gap:6px;align-items:center}
+.fbar .end{margin-left:auto;flex:none}
+@media(min-width:1100px){.fbar{flex-wrap:nowrap}.fbar input[type=date]{width:150px}}
+@media(max-width:640px){.fbar{flex-direction:column;align-items:stretch}.fbar>input[type=search]{flex:none}.fbar select,.fbar input[type=date]{max-width:none;width:100%}.fbar .fdate{flex-direction:column;align-items:stretch;gap:5px}.fbar .end{margin-left:0}}
 .grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px}
 .grid2 label{display:flex;flex-direction:column;gap:5px;font-size:12px;font-weight:700;color:var(--fg2)}
 details.card summary{cursor:pointer;list-style:none;display:grid;grid-template-columns:1fr auto;gap:4px 12px;align-items:start}
@@ -241,6 +249,7 @@ footer .mono{color:rgba(255,255,255,.75)}
 /* hidden always wins inside the app (tabs, panels and blocks the person has no permission for) */
 #app [hidden]{display:none!important}
 /* Phase 1: sub-sections, detail sheet, undo toast, tiles */
+.tag.plain{text-transform:none}
 .subnav .chip{min-height:40px;display:inline-flex;align-items:center;gap:6px}
 .subnav .chip .count{min-width:20px;padding:2px 6px;border-radius:999px;background:var(--well);font:800 11px/1.3 var(--sans);text-align:center}
 .subnav .chip.crit .count{background:var(--crit);color:#fff}
@@ -258,6 +267,9 @@ footer .mono{color:rgba(255,255,255,.75)}
 .sheet-bg{position:fixed;inset:0;z-index:40;background:rgba(26,26,26,.35);display:flex;justify-content:flex-end}
 .sheet-bg[hidden]{display:none}
 .sheet{background:#fff;width:min(560px,100%);height:100%;overflow:auto;padding:18px 18px 40px;box-shadow:-10px 0 30px rgba(0,0,0,.12);display:flex;flex-direction:column;gap:14px}
+.sheet-bg.wide .sheet{width:min(1000px,100%)}
+.ib-cols{display:grid;gap:14px;align-items:start}
+@media (min-width:900px){.sheet-bg.wide .ib-cols{grid-template-columns:1.5fr 1fr}}
 .sheet-head{display:flex;justify-content:space-between;align-items:center;gap:10px;position:sticky;top:-18px;background:#fff;padding:6px 0;z-index:1}
 .sheet-head h3{margin:0;font:400 24px/1.2 var(--serif)}
 .undo{position:fixed;left:50%;bottom:calc(18px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:50;background:#1a1a1a;color:#fff;border-radius:999px;padding:8px 8px 8px 18px;display:flex;align-items:center;gap:12px;box-shadow:0 10px 30px rgba(0,0,0,.25);max-width:calc(100% - 32px)}
@@ -937,7 +949,7 @@ footer .mono{color:rgba(255,255,255,.75)}
   // Tabs and panels follow the signed-in person's permissions. The server enforces them regardless.
   function applyPerms(){
     var c=HQ.can, show=function(id,on){var e=$(id);if(e)e.hidden=!on};
-    show("t-act",c("safety")||c("privacy")||c("reviews")||c("reports")||c("claims")||c("support")||c("places_edit"));
+    show("t-act",c("safety")||c("privacy")||c("reviews")||c("reports")||c("claims")||c("support_read")||c("places_moderate")||c("places_delete"));
     show("t-users",c("users_view"));show("t-outreach",c("outreach"));show("t-admin",c("staff_manage"));
     show("p-money",c("money"));show("p-costs",c("money"));show("p-renewals",c("renewals"));
     var ask=document.querySelector("section.cta");if(ask)ask.hidden=!c("ask_ralphy");
@@ -1237,8 +1249,8 @@ footer .mono{color:rgba(255,255,255,.75)}
   window.addEventListener("pagehide",flushUndo);
 
   // ---------- detail sheet ----------
-  function openSheet(title,html){$("sheetTitle").textContent=title;$("sheetBody").innerHTML=html;$("sheetBg").hidden=false;document.body.style.overflow="hidden"}
-  function closeSheet(){$("sheetBg").hidden=true;document.body.style.overflow=""}
+  function openSheet(title,html){$("sheetBg").classList.remove("wide");$("sheetTitle").textContent=title;$("sheetBody").innerHTML=html;$("sheetBg").hidden=false;document.body.style.overflow="hidden"}
+  function closeSheet(){stopHeartbeat();$("sheetBg").hidden=true;document.body.style.overflow=""}
   $("sheetClose").addEventListener("click",closeSheet);
   $("sheetBg").addEventListener("click",function(ev){if(ev.target===this)closeSheet()});
   document.addEventListener("keydown",function(ev){if(ev.key==="Escape"&&!$("sheetBg").hidden)closeSheet()});
@@ -1253,9 +1265,9 @@ footer .mono{color:rgba(255,255,255,.75)}
   // ---------- Act sub-sections ----------
   var SECTIONS=[
     {k:"safety",label:"Safety",ok:function(){return H.can("safety")||H.can("privacy")}},
+    {k:"inbox",label:"Inbox",ok:function(){return H.can("support_read")}},
     {k:"reviews",label:"Reviews",ok:function(){return H.can("reviews")}},
     {k:"flags",label:"Flagged places",ok:function(){return H.can("places_moderate")||H.can("places_delete")}},
-    {k:"support",label:"Support",ok:function(){return H.can("support")}},
     {k:"reports",label:"Reports",ok:function(){return H.can("reports")}},
     {k:"claims",label:"Claims",ok:function(){return H.can("claims")}}
   ];
@@ -1263,7 +1275,7 @@ footer .mono{color:rgba(255,255,255,.75)}
   function counts(){
     var q=H.state.queue||{}, sq=(H.state.snap&&H.state.snap.queues)||{};
     return {safety:(H.can("safety")?(sq.csae_escalations||0):0)+(H.can("privacy")?(sq.privacy_open||0):0),
-      reviews:(q.reviews||[]).length,support:(q.tickets||[]).length,reports:(q.user_reports||[]).length+(q.location_reports||[]).length,claims:(q.business_claims||[]).length};
+      reviews:(q.reviews||[]).length,inbox:(q.tickets||[]).length,reports:(q.user_reports||[]).length+(q.location_reports||[]).length,claims:(q.business_claims||[]).length};
   }
   function nav(){
     var c=counts();
@@ -1271,7 +1283,7 @@ footer .mono{color:rgba(255,255,255,.75)}
       var n=c[s.k]||0;return '<button class="chip'+(s.k==="safety"&&n?" crit":"")+'" data-sec="'+s.k+'" aria-pressed="'+(s.k===cur)+'">'+s.label+(n?'<span class="count">'+n+'</span>':'')+'</button>'}).join("");
   }
   $("actNav").addEventListener("click",function(ev){var b=ev.target.closest("button[data-sec]");if(!b)return;cur=b.dataset.sec;nav();load()});
-  function load(){var el=$("actPane");el.innerHTML='<div class="empty">Loading.</div>';({safety:safety,reviews:reviews,flags:flagsSection,support:support,reports:reports,claims:claims})[cur](el)}
+  function load(){var el=$("actPane");el.innerHTML='<div class="empty">Loading.</div>';({safety:safety,inbox:inboxSection,reviews:reviews,flags:flagsSection,reports:reports,claims:claims})[cur](el)}
   window.HQAct={
     init:function(){var ok=SECTIONS.filter(function(s){return s.ok()});cur=ok.length?ok[0].k:null;nav()},
     onQueue:function(){nav()},
@@ -1305,30 +1317,6 @@ footer .mono{color:rgba(255,255,255,.75)}
       el.innerHTML='<div class="subhead"><h3>Reviews to moderate</h3><span>'+(r.data.length?r.data.length+" waiting":"none waiting")+'</span></div><div class="filter" data-f="reviewPeriod">'+periodChips(st.reviewPeriod)+'</div>'+
         (ai?'<div class="row"><button class="btn ok" data-do="bulk_ai" data-confirm="Confirm approve '+ai+'">Approve all AI-cleared ('+ai+')</button></div>':'')+
         (r.data.length?r.data.map(reviewCard).join(""):'<div class="empty">No reviews waiting.</div>');
-    }).catch(function(e){fail(el,e)});
-  }
-
-  // Support: status and period filters, SLA, priority, tags, notes, macros, replies, delete to trash.
-  var tk={};
-  function support(el){
-    H.api("tickets_list",{status:st.ticketStatus,period:st.ticketPeriod}).then(function(r){
-      var d=r.data, sla=d.sla||{};tk=d;
-      var byT=function(list){var m={};list.forEach(function(x){(m[x.ticket_id]=m[x.ticket_id]||[]).push(x)});return m}, resp=byT(d.responses), notes=byT(d.notes);
-      var macros='<option value="">Insert a saved reply</option>'+d.macros.map(function(m){return '<option value="'+esc(m.id)+'">'+esc(m.title)+'</option>'}).join("");
-      el.innerHTML='<div class="tiles"><div class="tile"><div class="lbl">Open</div><div class="val">'+(sla.open_now||0)+'</div></div><div class="tile"><div class="lbl">Awaiting first reply</div><div class="val">'+(sla.awaiting||0)+'</div></div><div class="tile"><div class="lbl">Older than 24h</div><div class="val">'+(sla.ageing||0)+'</div></div><div class="tile"><div class="lbl">Average first reply</div><div class="val">'+(sla.avg_first_h!=null?sla.avg_first_h+"h":"–")+'</div></div></div>'+
-        '<div class="filter" data-f="ticketStatus">'+[["","All"],["open","Open"],["in_progress","In progress"],["resolved","Resolved"]].map(function(x){return '<button class="chip" data-v="'+x[0]+'" aria-pressed="'+(x[0]===st.ticketStatus)+'">'+x[1]+'</button>'}).join("")+'</div><div class="filter" data-f="ticketPeriod">'+periodChips(st.ticketPeriod)+'</div>'+
-        (d.tickets.length?d.tickets.map(function(t){var pr=t.priority||"normal", th=resp[t.id]||[], nt=notes[t.id]||[];
-          return '<div class="card" data-tid="'+esc(t.id)+'"><div class="meta"><span class="tag '+(t.status==="open"?"warn":"info")+'">'+esc((t.status||"").replace("_"," "))+'</span><span class="tag'+(pr==="urgent"?" crit":pr==="high"?" warn":"")+'">'+esc(pr)+'</span><span>'+esc(t.full_name||"")+' '+(t.email?'&lt;'+esc(t.email)+'&gt;':'<span class="note">email hidden</span>')+'</span><span>'+esc(t.category||"")+'</span><span>opened '+esc(dateOnly(t.created_at))+'</span></div>'+
-            '<div class="title">'+esc(t.subject||"(no subject)")+'</div><div class="text">'+esc(t.message||"")+'</div>'+
-            '<div class="grid2"><label>Priority<select data-do="priority">'+["low","normal","high","urgent"].map(function(p){return '<option'+(p===pr?" selected":"")+'>'+p+'</option>'}).join("")+'</select></label><label>Tags (comma separated)<input type="text" data-do="tags" value="'+esc((t.tags||[]).join(", "))+'"></label></div>'+
-            th.map(function(x){return '<div class="prior">You replied '+esc(H.when(x.created_at))+' ('+esc(x.status||"")+(x.status==="failed"&&x.error?": "+esc(String(x.error).slice(0,90)):"")+'): '+esc(x.body)+'</div>'}).join("")+
-            '<details><summary class="note">Internal notes ('+nt.length+')</summary>'+nt.map(function(n){return '<div class="prior">'+esc(H.when(n.created_at))+': '+esc(n.body)+'</div>'}).join("")+'<div class="row"><input type="text" class="pill-in" data-note placeholder="Add an internal note, not sent to the customer" style="flex:1 1 200px"><button class="btn small" data-do="note">Add note</button></div></details>'+
-            (d.macros.length?'<select data-do="macro">'+macros+'</select>':'')+
-            '<textarea data-reply placeholder="Write a reply, sent from support@barkfind.com and signed Josh"></textarea>'+
-            '<div class="row"><button class="btn small" data-do="draft">Draft with Claude</button><button class="btn primary small" data-do="reply" data-confirm="Confirm send">Send reply</button><button class="btn ok small" data-do="reply_resolve" data-confirm="Confirm send and resolve">Send and resolve</button>'+
-            (t.status!=="in_progress"&&t.status!=="resolved"?'<button class="btn small" data-do="in_progress">In progress</button>':'')+
-            (t.status!=="resolved"?'<button class="btn small" data-do="resolve" data-confirm="Confirm resolve">Resolve</button>':'<button class="btn small" data-do="reopen">Reopen</button>')+
-            '<button class="btn danger small" data-do="delete" data-confirm="Confirm delete">Delete</button></div></div>'}).join(""):'<div class="empty">No tickets in this view.</div>');
     }).catch(function(e){fail(el,e)});
   }
 
@@ -1371,9 +1359,8 @@ footer .mono{color:rgba(255,255,255,.75)}
   function flagsSection(el){
     var f=fl.filter;
     el.innerHTML='<div class="filter" id="flTabs"></div>'+
-      '<div class="row"><input type="search" class="pill-in" id="flQ" placeholder="Search name, address or reason" value="'+esc(f.q)+'" style="flex:1 1 220px"><label class="note" style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="flAllTabs"'+(fl.allTabs?" checked":"")+'> Search all three tabs</label></div>'+
-      '<div class="grid2" id="flFilters"></div>'+
-      '<div class="row"><label class="note" style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="flGroup"'+(fl.group?" checked":"")+'> Group by Google type</label><button class="btn small" data-fa="clear">Clear filters</button></div>'+
+      '<div class="fbar"><input type="search" class="pill-in" id="flQ" placeholder="Search name, address or reason" value="'+esc(f.q)+'"><label class="note fcheck"><input type="checkbox" id="flAllTabs"'+(fl.allTabs?" checked":"")+'> Search all three tabs</label><label class="note fcheck"><input type="checkbox" id="flGroup"'+(fl.group?" checked":"")+'> Group by Google type</label><button class="btn small end" data-fa="clear">Clear filters</button></div>'+
+      '<div class="fbar" id="flFilters"></div>'+
       '<div id="flBody" class="stack"><div class="empty">Loading.</div></div>';
     flLoad();
   }
@@ -1383,12 +1370,12 @@ footer .mono{color:rgba(255,255,255,.75)}
       var c=r[0].data;fl.counts=c;var f=fl.filter;
       $("flTabs").innerHTML=[["to_review","To review"],["keep_excluded","Kept excluded"],["restored","Restored"]].map(function(t){return '<button class="chip" data-fa="tab" data-v="'+t[0]+'" aria-pressed="'+(f.tab===t[0]&&!(fl.allTabs&&f.q))+'">'+t[1]+' <span class="count">'+(c.tabs[t[0]]||0).toLocaleString("en-GB")+'</span></button>'}).join("")+(fl.allTabs&&f.q?'<span class="note">Searching all three tabs</span>':'');
       var opt=function(list,cur,none){return '<option value="">'+none+'</option>'+list.map(function(x){return '<option value="'+esc(x.k)+'"'+(x.k===cur?" selected":"")+'>'+esc(RULE[x.k]?RULE[x.k][0]:x.k)+' ('+x.n.toLocaleString("en-GB")+')</option>'}).join("")};
-      $("flFilters").innerHTML='<label>Rule<select data-ff="rule">'+opt(c.rules,f.rule,"Any rule")+'</select></label>'+
-        '<label>Google type<select data-ff="gtype">'+opt(c.gtypes,f.gtype,"Any Google type")+'</select></label>'+
-        '<label>BarkFind category<select data-ff="category">'+opt(c.categories,f.category,"Any category")+'</select></label>'+
-        '<label>Flagged by<select data-ff="by"><option value="">Anyone</option><option value="auto"'+(f.by==="auto"?" selected":"")+'>Automatic</option>'+c.flaggers.map(function(p){return '<option value="'+esc(p.id)+'"'+(p.id===f.by?" selected":"")+'>'+esc(p.name)+' ('+p.n+')</option>'}).join("")+'</select></label>'+
-        '<label>Flagged from<input type="date" data-ff="from" value="'+esc(f.from)+'"></label><label>Flagged to<input type="date" data-ff="to" value="'+esc(f.to)+'"></label>'+
-        '<label>Sort<select data-ff="sort"><option value="new">Newest flag</option><option value="old"'+(fl.sort==="old"?" selected":"")+'>Oldest flag</option><option value="name"'+(fl.sort==="name"?" selected":"")+'>Name</option></select></label>';
+      $("flFilters").innerHTML='<select data-ff="rule" aria-label="Rule">'+opt(c.rules,f.rule,"Any rule")+'</select>'+
+        '<select data-ff="gtype" aria-label="Google type">'+opt(c.gtypes,f.gtype,"Any Google type")+'</select>'+
+        '<select data-ff="category" aria-label="BarkFind category">'+opt(c.categories,f.category,"Any category")+'</select>'+
+        '<select data-ff="by" aria-label="Flagged by"><option value="">Flagged by anyone</option><option value="auto"'+(f.by==="auto"?" selected":"")+'>Flagged automatically</option>'+c.flaggers.map(function(p){return '<option value="'+esc(p.id)+'"'+(p.id===f.by?" selected":"")+'>'+esc(p.name)+' ('+p.n+')</option>'}).join("")+'</select>'+
+        '<label class="fdate">From<input type="date" data-ff="from" value="'+esc(f.from)+'"></label><label class="fdate">To<input type="date" data-ff="to" value="'+esc(f.to)+'"></label>'+
+        '<select data-ff="sort" aria-label="Sort"><option value="new">Newest flag</option><option value="old"'+(fl.sort==="old"?" selected":"")+'>Oldest flag</option><option value="name"'+(fl.sort==="name"?" selected":"")+'>Name</option></select>';
       if(fl.group){
         $("flBody").innerHTML='<div class="note">Open a Google type to work through it.</div>'+(c.gtypes.length?c.gtypes.map(function(g){return '<button class="card" data-fa="opengroup" data-v="'+esc(g.k)+'" style="text-align:left;cursor:pointer"><div class="row" style="justify-content:space-between"><span class="title">'+esc(g.k)+'</span><span class="tag">'+g.n.toLocaleString("en-GB")+'</span></div></button>'}).join(""):'<div class="empty">Nothing here.</div>');
         return;
@@ -1459,9 +1446,182 @@ footer .mono{color:rgba(255,255,255,.75)}
   var flQTimer=null;
   function flInput(ev){if(ev.target.id!=="flQ")return false;clearTimeout(flQTimer);var v=ev.target.value.trim().toLowerCase();flQTimer=setTimeout(function(){fl.filter.q=v;flReset()},400);return true}
 
+  // ---------- Inbox (Part B): one queue over every kind of request ----------
+  var KIND={support_ticket:"Support",listing_change:"Listing change",business_claim:"Business claim",place_report:"Place report",user_report:"User report",privacy_request:"Privacy",treat_claim:"Treat claim"};
+  var SEV={urgent:["Urgent","crit",2],high:["High","warn",8],normal:["Normal","",24],low:["Low","",72]};
+  var VIEW=[["unassigned","Unassigned"],["mine","Mine"],["open","All open"],["waiting","Waiting"],["snoozed","Snoozed"],["closed","Closed"]];
+  var ib={filter:{view:"open",kind:"",tag:"",q:""},page:0,open:null,hb:null};
+  function left(r){
+    if(r.state!=="open"||r.first_reply_at)return "";
+    var ms=new Date(r.due_at).getTime()-Date.now(), tgt=(SEV[r.severity]||SEV.normal)[2]*36e5, abs=Math.abs(ms), h=Math.floor(abs/36e5), m=Math.floor(abs%36e5/6e4);
+    var t=(h>=48?Math.round(h/24)+" days":h?h+"h "+m+"m":m+"m");
+    return '<span class="tag plain '+(ms<0?"crit":ms<tgt/4?"warn":"")+'">'+(ms<0?t+" over target":t+" left")+'</span>';
+  }
+  function inboxSection(el){
+    var f=ib.filter;
+    el.innerHTML='<div class="tiles" id="ibTiles"></div><div class="filter" id="ibViews"></div>'+
+      '<div class="fbar"><input type="search" class="pill-in" id="ibQ" placeholder="Search subject, name'+(H.can("users_contact")?" or email":"")+'" value="'+esc(f.q)+'"><select id="ibKind" aria-label="Type"></select><select id="ibTag" aria-label="Tag"></select>'+
+      (H.can("places_edit")?'<button class="btn small end" data-ia="newchange">New listing change</button>':'')+'</div><div class="stack" id="ibList"><div class="empty">Loading.</div></div>';
+    ibLoad();
+  }
+  function ibLoad(){
+    if(!$("ibList"))return;var f=ib.filter;
+    Promise.all([H.api("inbox_counts",{filter:f}),H.api("inbox_list",{filter:f,page:ib.page})]).then(function(r){
+      var c=r[0].data, v=c.views, s=c.sla||{}, d=r[1].data;
+      $("ibTiles").innerHTML=[["Open",v.open||0],["Awaiting first reply",s.awaiting||0],["Older than 24h",s.ageing||0],["Average first reply",s.avg_first_h!=null?s.avg_first_h+"h":"–"],["Breaching target",v.breaching||0]].map(function(t,i){return '<div class="tile"'+(i===4&&t[1]?' style="border-color:var(--crit)"':'')+'><div class="lbl">'+t[0]+'</div><div class="val"'+(i===4&&t[1]?' style="color:var(--crit)"':'')+'>'+t[1]+'</div></div>'}).join("");
+      $("ibViews").innerHTML=VIEW.map(function(x){var n=x[0]==="closed"?"":v[x[0]];return '<button class="chip" data-ia="view" data-v="'+x[0]+'" aria-pressed="'+(f.view===x[0])+'">'+x[1]+(n?' <span class="count">'+n+'</span>':'')+'</button>'}).join("");
+      $("ibKind").innerHTML='<option value="">All types</option>'+c.kinds.map(function(k){return '<option value="'+k+'"'+(k===f.kind?" selected":"")+'>'+KIND[k]+'</option>'}).join("");
+      $("ibTag").innerHTML='<option value="">All tags</option>'+c.tags.map(function(t){return '<option'+(t===f.tag?" selected":"")+'>'+esc(t)+'</option>'}).join("");
+      $("ibList").innerHTML=(d.rows.length?d.rows.map(function(x){var sv=SEV[x.severity]||SEV.normal;
+        return '<button class="card" data-ia="open" data-k="'+x.kind+'" data-id="'+esc(x.id)+'" style="text-align:left;cursor:pointer;width:100%"><div class="meta"><span class="tag info">'+KIND[x.kind]+'</span><span class="tag '+sv[1]+'">'+sv[0]+'</span>'+left(x)+
+          (x.state==="waiting"?'<span class="tag plain">Waiting on customer</span>':'')+(x.snoozed_until&&new Date(x.snoozed_until)>new Date()?'<span class="tag plain">Snoozed until '+esc(H.when(x.snoozed_until))+'</span>':'')+
+          '<span>'+(x.assignee?esc(x.assignee):"Unassigned")+'</span>'+(x.viewers&&x.viewers.length?'<span class="tag plain warn">'+esc(x.viewers.join(", "))+' viewing</span>':'')+'</div>'+
+          '<div class="title">'+esc(x.title||"")+'</div><div class="note">'+esc(x.person||"")+(x.email?" &lt;"+esc(x.email)+"&gt;":"")+" · "+esc(H.when(x.created_at))+'</div>'+
+          ((x.tags||[]).length?'<div class="chips-sm">'+x.tags.map(function(t){return '<span>'+esc(t)+'</span>'}).join("")+'</div>':'')+'</button>'}).join(""):'<div class="empty">Nothing in this view.</div>')+
+        (d.total>d.page_size?'<div class="row" style="justify-content:space-between"><span class="note">'+(d.page*d.page_size+1)+" to "+Math.min((d.page+1)*d.page_size,d.total)+" of "+d.total+'</span><div class="row">'+(d.page>0?'<button class="btn small" data-ia="prev">Previous</button>':'')+((d.page+1)*d.page_size<d.total?'<button class="btn small" data-ia="next">Next</button>':'')+'</div></div>':'');
+    }).catch(function(e){$("ibList").innerHTML='<div class="empty">'+esc(e.message||"That did not load.")+'</div>'});
+  }
+
+  // ---------- one conversation, in the side sheet ----------
+  function snoozeTime(v){var d=new Date();if(v==="3h")return new Date(Date.now()+3*36e5);if(v==="tomorrow"){d.setDate(d.getDate()+1);d.setHours(9,0,0,0);return d}if(v==="monday"){d.setDate(d.getDate()+((8-d.getDay())%7||7));d.setHours(9,0,0,0);return d}return null}
+  function stopHeartbeat(){if(ib.hb){clearInterval(ib.hb);ib.hb=null}if(ib.open){H.api("inbox_leave",{kind:ib.open.kind,id:ib.open.id}).catch(function(){});ib.open=null}$("sheetBg").classList.remove("wide")}
+  function beat(){if(!ib.open)return;var ta=$("sheetBody").querySelector("textarea[data-ib-reply]");H.api("inbox_heartbeat",{kind:ib.open.kind,id:ib.open.id,action:ta&&ta.value.trim()?"replying":"viewing"}).then(function(r){var b=$("ibViewing");if(b){b.hidden=!r.data.length;b.textContent=r.data.map(function(v){return v.name+" is "+v.action}).join(". ")+(r.data.length?".":"")}}).catch(function(){})}
+  function ibOpen(kind,id){
+    stopHeartbeat();ib.open={kind:kind,id:id};openSheet(KIND[kind],'<div class="empty">Loading.</div>');$("sheetBg").classList.add("wide");
+    H.api("inbox_get",{kind:kind,id:id}).then(function(r){ib.data=r.data;ibRender();beat();ib.hb=setInterval(beat,20000)}).catch(function(e){$("sheetBody").innerHTML='<div class="empty">'+esc(e.message||"That did not load.")+'</div>'});
+  }
+  function ibRender(){
+    var d=ib.data, row=d.row, meta=d.meta||{}, can=d.can, k=d.kind;
+    var sev=k==="support_ticket"?row.priority:(meta.severity||(k==="privacy_request"?"urgent":"normal"));
+    var assigned=k==="support_ticket"?row.assigned_to:meta.assigned_to, snoozed=k==="support_ticket"?row.snoozed_until:meta.snoozed_until;
+    var waiting=k==="support_ticket"?row.status==="waiting":!!meta.waiting_since, tags=(k==="support_ticket"?row.tags:meta.tags)||[];
+    var closed={support_ticket:row.status==="resolved",listing_change:row.status&&row.status!=="pending",business_claim:row.status&&row.status!=="pending",place_report:row.status&&row.status!=="open",user_report:row.status&&row.status!=="pending",privacy_request:row.status&&["pending","in_progress"].indexOf(row.status)<0,treat_claim:row.status&&row.status!=="pending"}[k];
+    var triage='<div class="card" data-ib-triage><div class="note" id="ibViewing" hidden></div><div class="grid2">'+
+      '<label>Assigned to<select data-ib="assign"'+(can.assign?"":" disabled")+'><option value="">Unassigned</option>'+d.staff.map(function(s){return '<option value="'+esc(s.id)+'"'+(s.id===assigned?" selected":"")+'>'+esc(s.name)+'</option>'}).join("")+'</select></label>'+
+      '<label>Severity<select data-ib="severity"'+(can.reply?"":" disabled")+'>'+Object.keys(SEV).map(function(s){return '<option value="'+s+'"'+(s===sev?" selected":"")+'>'+SEV[s][0]+'</option>'}).join("")+'</select></label>'+
+      '<label>Snooze<select data-ib="snooze"'+(can.reply&&!closed?"":" disabled")+'><option value="">'+(snoozed&&new Date(snoozed)>new Date()?"Until "+esc(H.when(snoozed)):"Not snoozed")+'</option><option value="3h">For 3 hours</option><option value="tomorrow">Tomorrow 9am</option><option value="monday">Next Monday 9am</option>'+(snoozed?'<option value="wake">Wake up now</option>':'')+'</select></label>'+
+      '<label>Tags (comma separated)<input type="text" data-ib="tags" value="'+esc(tags.join(", "))+'"'+(can.reply?"":" disabled")+'></label></div>'+
+      '<div class="row">'+(can.reply?'<button class="btn small" data-ia="me">Assign to me</button>':'')+(can.reply&&!closed?'<button class="btn small" data-ia="waiting">'+(waiting?"Back to open":"Waiting on customer")+'</button>':'')+'</div></div>';
+    var body='';
+    if(k==="support_ticket"){
+      var thread=[{at:row.created_at,who:(row.full_name||"Customer"),text:row.message,cls:""}].concat(d.responses.map(function(x){return {at:x.created_at,who:"You replied ("+x.status+(x.status==="failed"&&x.error?": "+String(x.error).slice(0,80):"")+")",text:x.body,cls:"prior"}}),d.notes.map(function(x){return {at:x.created_at,who:"Internal note",text:x.body,cls:"prior"}})).sort(function(a,b){return String(a.at).localeCompare(String(b.at))});
+      body='<div class="card"><div class="meta"><span class="tag">'+esc(row.category||"")+'</span><span class="tag">'+esc((row.status||"").replace("_"," "))+'</span><span>'+esc(row.full_name||"")+(row.email?" &lt;"+esc(row.email)+"&gt;":"")+'</span></div><div class="title">'+esc(row.subject||"(no subject)")+'</div>'+
+        thread.map(function(t){return '<div class="'+(t.cls||"text")+'"><div class="note">'+esc(t.who)+", "+esc(H.when(t.at))+'</div>'+esc(t.text||"")+'</div>'}).join("")+'</div>'+
+        (can.reply?'<div class="card" data-ib-ticket>'+(d.macros.length?'<select data-ib="macro"><option value="">Insert a saved reply</option>'+d.macros.map(function(m){return '<option value="'+esc(m.id)+'">'+esc(m.title)+'</option>'}).join("")+'</select>':'')+
+          '<textarea data-ib-reply placeholder="Write a reply, sent from support@barkfind.com and signed Josh"></textarea><div class="row"><button class="btn small" data-ia="draft">Draft with Claude</button><button class="btn primary small" data-ia="send" data-confirm="Confirm send">Send and wait</button><button class="btn ok small" data-ia="sendclose" data-confirm="Confirm send and close">Send and close</button><button class="btn small" data-ia="note">Save as note</button></div>'+
+          '<div class="row">'+(closed?'<button class="btn small" data-ia="reopen">Reopen</button>':'<button class="btn small" data-ia="close" data-confirm="Confirm close">Close without reply</button>')+'<button class="btn danger small" data-ia="delete" data-confirm="Confirm delete">Delete</button></div></div>':'');
+    }else if(k==="listing_change"){
+      var ch=row.changes||{}, loc=d.location||{}, cur=row.current_values||{};
+      var val=function(v){return v==null?"–":Array.isArray(v)?v.join("\n"):typeof v==="boolean"?(v?"Yes":"No"):String(v)};
+      body='<div class="card"><div class="meta"><span class="tag">'+esc(row.status)+'</span><span class="tag">from '+esc(row.source)+'</span><span>'+esc(row.requester_role)+'</span><span>'+esc(row.requester_name||"")+(row.requester_email?" &lt;"+esc(row.requester_email)+"&gt;":"")+'</span></div>'+
+        '<div class="title">'+esc(loc.name||"A place")+'</div><div class="note">'+esc(loc.address||"")+'</div>'+(row.message?'<div class="text">'+esc(row.message)+'</div>':'')+
+        '<div class="stack" style="gap:8px">'+Object.keys(ch).map(function(f){var now=f==="closed"?!!loc.flagged:loc[f];return '<label class="card" style="padding:10px 12px;gap:6px"><span class="row" style="gap:8px"><input type="checkbox" data-field="'+esc(f)+'" checked'+(row.status!=="pending"||!can.apply?" disabled":"")+'> <b>'+esc(f.replace(/_/g," "))+'</b>'+((loc.locked_fields||[]).indexOf(f)>=0?' <span class="tag ok">locked</span>':'')+'</span><span class="grid2"><span><span class="note">Now</span><div class="prior" style="white-space:pre-wrap">'+esc(val(now))+'</div>'+(cur[f]!==undefined&&JSON.stringify(cur[f])!==JSON.stringify(now)?'<div class="note">When asked: '+esc(val(cur[f]))+'</div>':'')+'</span><span><span class="note">Requested</span><div class="text" style="white-space:pre-wrap">'+esc(val(ch[f]))+'</div></span></span></label>'}).join("")+'</div>'+
+        (row.status==="pending"&&can.apply?'<div class="row"><button class="btn ok small" data-ia="apply" data-confirm="Confirm apply">Apply ticked changes</button></div><label class="note">Reason for declining (sent to them)</label><textarea data-ib-decline style="min-height:70px"></textarea><div class="row"><button class="btn danger small" data-ia="decline" data-confirm="Confirm decline">Decline</button></div>':(row.decline_reason?'<div class="prior">Declined: '+esc(row.decline_reason)+'</div>':''))+'</div>';
+    }else if(k==="business_claim"){
+      body='<div class="card"><div class="meta"><span class="tag">'+esc(row.status)+'</span></div><div class="title">'+esc((d.place||{}).name||"A place")+'</div><dl class="kvs"><dt>Claimant</dt><dd>'+esc(row.claimant_name||"–")+'</dd><dt>Email</dt><dd>'+(row.claimant_email?esc(row.claimant_email):'<span class="note">hidden</span>')+'</dd></dl>'+(row.message?'<div class="text">'+esc(row.message)+'</div>':'')+(row.evidence_url?'<div class="note">Evidence: <a href="'+esc(row.evidence_url)+'" target="_blank" rel="noopener noreferrer">'+esc(row.evidence_url)+'</a></div>':'')+
+        (row.status==="pending"&&H.can("claims")?'<div class="row"><button class="btn small" data-ia="assess">AI assessment</button><button class="btn ok small" data-ia="verify" data-confirm="Confirm verify">Verify</button><button class="btn danger small" data-ia="reject" data-confirm="Confirm reject">Reject</button></div><div data-assess></div>':'')+'</div>';
+    }else if(k==="place_report"){
+      body='<div class="card"><div class="meta"><span class="tag">'+esc(row.status)+'</span></div><div class="title">'+esc((d.place||{}).name||"A place")+': '+esc(row.reason||"")+'</div>'+(row.details?'<div class="text">'+esc(row.details)+'</div>':'')+
+        (row.status==="open"&&H.can("reports")?'<label class="note">Reason for flagging the place</label><input type="text" class="pill-in" data-ib-flag value="'+esc(row.reason||"User report")+'"><div class="row"><button class="btn danger small" data-ia="flag" data-confirm="Confirm flag">Flag place</button><button class="btn small" data-ia="dismiss" data-confirm="Confirm dismiss">Dismiss</button></div>':'')+'</div>';
+    }else if(k==="user_report"){
+      body='<div class="card"><div class="meta"><span class="tag">'+esc(row.status)+'</span></div><div class="title">Reason: '+esc(row.reason||"not given")+'</div>'+
+        (row.status==="pending"&&H.can("reports")?'<div class="row"><button class="btn small" data-ia="ur_actioned" data-confirm="Confirm actioned">Mark actioned</button><button class="btn small" data-ia="ur_dismissed" data-confirm="Confirm dismiss">Dismiss</button></div>':'')+'</div>';
+    }else if(k==="privacy_request"){
+      body='<div class="card"><div class="meta"><span class="tag crit">'+esc(row.request_type)+'</span><span class="tag">'+esc(row.status)+'</span></div><div class="text">'+esc(row.details||"No details given.")+'</div><p class="note" style="margin:0">UK GDPR allows one month; the house rule is 48 hours. For a deletion, run the delete-user-account function, then mark it processed.</p>'+
+        (["pending","in_progress"].indexOf(row.status)>=0&&H.can("privacy")?'<div class="row"><button class="btn small" data-ia="processed" data-confirm="Confirm processed">Mark processed</button></div>':'')+'</div>';
+    }else{
+      body='<div class="card"><div class="meta"><span class="tag">'+esc(row.status)+'</span><span class="tag">'+esc(String(row.tier||"").replace(/_/g," "))+'</span></div><dl class="kvs"><dt>Claimed</dt><dd>'+esc(H.when(row.claimed_at))+'</dd><dt>Points</dt><dd>'+esc(row.points_at_claim)+'</dd><dt>Plan</dt><dd>'+esc(row.plan_at_claim||"–")+'</dd>'+(row.failure_reason?'<dt>Failure</dt><dd>'+esc(row.failure_reason)+'</dd>':'')+'</dl><p class="note" style="margin:0">Treat claims are fulfilled automatically. This view is for reading; the 15-minute sweep clears stuck ones.</p></div>';
+    }
+    var c=d.customer||{};
+    var cust='<div class="card"><div class="subhead"><h3 style="font-size:18px">Customer</h3></div>'+(c.known?'<dl class="kvs"><dt>Name</dt><dd>'+esc(c.name||"–")+'</dd><dt>Email</dt><dd>'+(c.email?esc(c.email):'<span class="note">hidden</span>')+'</dd><dt>Plan</dt><dd>'+esc(c.sub_status==="active"?(c.plan||"paid"):c.sub_status==="trial"?"trial":"free")+(c.trial_end?", trial ends "+esc(H.when(c.trial_end)):"")+'</dd><dt>Joined</dt><dd>'+esc(H.when(c.joined))+'</dd>'+(c.banned?'<dt>Account</dt><dd style="color:var(--crit)">banned</dd>':'')+'</dl>'+
+      '<div class="note">Dogs</div>'+(c.dogs.length?'<div class="chips-sm">'+c.dogs.map(function(g){return '<span>'+esc(g.name||"Dog")+(g.breed?", "+esc(g.breed):"")+'</span>'}).join("")+'</div>':'<div class="note">None.</div>')+
+      '<div class="note">Recent reviews</div>'+(c.reviews.length?c.reviews.map(function(x){return '<div class="prior">'+esc(x.paw_rating)+' paws, '+esc(x.status)+', '+esc(x.place||"")+'</div>'}).join(""):'<div class="note">None.</div>')+
+      '<div class="note">Reports about them</div>'+(c.reports.length?c.reports.map(function(x){return '<div class="prior">'+esc(x.reason||"")+' ('+esc(x.status)+')</div>'}).join(""):'<div class="note">None.</div>')
+      :'<div class="note">No BarkFind account found'+(c.email?" for "+esc(c.email):"")+'.</div>')+
+      '<div class="note">Past conversations</div>'+((c.conversations||[]).length?c.conversations.map(function(x){return '<button class="btn small" data-ia="goto" data-id="'+esc(x.id)+'" style="justify-content:flex-start">'+esc(H.when(x.created_at))+': '+esc(x.subject||"")+' ('+esc(x.status)+')</button>'}).join(""):'<div class="note">None.</div>')+'</div>';
+    $("sheetBody").innerHTML='<div class="ib-cols"><div class="stack">'+triage+body+'</div><div class="stack">'+cust+'</div></div>';
+  }
+  // Refresh the open conversation in place: anything typed in the reply or decline boxes is kept,
+  // and the "viewing" heartbeat carries on.
+  function ibRefresh(){
+    if(!ib.open)return;var o=ib.open, keep={};
+    ["textarea[data-ib-reply]","[data-ib-decline]"].forEach(function(q){var e=$("sheetBody").querySelector(q);if(e&&e.value)keep[q]=e.value});
+    H.api("inbox_get",{kind:o.kind,id:o.id}).then(function(r){if(!ib.open||ib.open.id!==o.id)return;ib.data=r.data;ibRender();
+      Object.keys(keep).forEach(function(q){var e=$("sheetBody").querySelector(q);if(e)e.value=keep[q]});beat()}).catch(function(){});
+  }
+  function ibAct(p,b,card,msg,clearReply){
+    b.disabled=true;return p.then(function(r){r=r&&r.data&&r.ok===undefined?r.data:r;var ok=r&&r.ok!==false;H.note(card,ok,(r&&r.message)||msg||"Saved.");
+      if(ok&&clearReply){var t=$("sheetBody").querySelector("textarea[data-ib-reply]");if(t)t.value=""}
+      setTimeout(function(){ibRefresh();ibLoad();H.loadQueue()},700)}).catch(function(e){H.note(card,false,(e&&e.message)||"That did not work.")}).then(function(){b.disabled=false});
+  }
+  $("sheetBody").addEventListener("click",function(ev){
+    var b=ev.target.closest("[data-ia]");if(!b||!ib.open)return;var o=ib.open, d=ib.data, card=b.closest(".card")||$("sheetBody"), w=b.dataset.ia;
+    if(w==="goto"){ibOpen("support_ticket",b.dataset.id);return}
+    if(w==="me"){ibAct(H.api("inbox_assign",{kind:o.kind,id:o.id,user_id:H.me&&H.me.id||null}),b,card);return}
+    if(w==="waiting"){var on=!(o.kind==="support_ticket"?d.row.status==="waiting":!!(d.meta&&d.meta.waiting_since));ibAct(H.api("inbox_waiting",{kind:o.kind,id:o.id,on:on}),b,card);return}
+    if(w==="draft"){var ta=$("sheetBody").querySelector("textarea[data-ib-reply]");b.disabled=true;ta.value="Drafting…";H.api("draft_ticket",{id:o.id}).then(function(r){ta.value=r.text}).catch(function(e){ta.value="";H.note(card,false,e.message)}).then(function(){b.disabled=false});return}
+    if(w==="note"){var t2=$("sheetBody").querySelector("textarea[data-ib-reply]");if(!t2.value.trim()){H.note(card,false,"Write the note first.");return}ibAct(H.act("note_ticket",{ticket_id:o.id,body:t2.value.trim()}),b,card,null,true);return}
+    if(b.dataset.confirm&&!H.armed(b))return;
+    if(w==="send"||w==="sendclose"){var t3=$("sheetBody").querySelector("textarea[data-ib-reply]");if(!t3.value.trim()){H.note(card,false,"Write the reply first.");return}ibAct(H.api("inbox_reply",{id:o.id,body:t3.value,close:w==="sendclose"}),b,card,null,true);return}
+    if(w==="close"||w==="reopen"){ibAct(H.act("set_ticket_status",{ticket_id:o.id,status:w==="close"?"resolved":"open"}),b,card);return}
+    if(w==="delete"){deferOp("Deleting the conversation",function(){H.api("ticket_delete",{id:o.id}).then(function(){closeSheet();ibLoad();H.loadQueue()}).catch(function(e){H.note(card,false,e.message)})},function(){b.dataset.armed="";b.textContent=b.dataset.label||"Delete";b.classList.remove("confirm")});return}
+    if(w==="apply"){var fields=[].map.call($("sheetBody").querySelectorAll("[data-field]:checked"),function(x){return x.dataset.field});if(!fields.length){H.note(card,false,"Tick at least one change.");return}ibAct(H.api("listing_change_apply",{id:o.id,fields:fields}),b,card);return}
+    if(w==="decline"){var rs=$("sheetBody").querySelector("[data-ib-decline]").value.trim();if(!rs){H.note(card,false,"Give a reason first. It is sent to them.");return}ibAct(H.api("listing_change_decline",{id:o.id,reason:rs}),b,card);return}
+    if(w==="assess"){var box=card.querySelector("[data-assess]");b.disabled=true;box.innerHTML='<div class="note">Assessing the claim.</div>';H.api("claim_assess",{id:o.id}).then(function(r){box.innerHTML='<div class="assess">'+esc(r.text)+'</div>'}).catch(function(e){box.innerHTML="";H.note(card,false,e.message)}).then(function(){b.disabled=false});return}
+    if(w==="verify"||w==="reject"){ibAct(H.api("claim_set_status",{id:o.id,status:w==="verify"?"verified":"rejected"}),b,card);return}
+    if(w==="flag"){ibAct(H.api("report_flag_place",{report_id:o.id,reason:$("sheetBody").querySelector("[data-ib-flag]").value.trim()||"User report"}),b,card);return}
+    if(w==="dismiss"){ibAct(H.act("location_report",{id:o.id,status:"dismissed"}),b,card);return}
+    if(w==="ur_actioned"||w==="ur_dismissed"){ibAct(H.act("user_report",{id:o.id,status:w==="ur_actioned"?"actioned":"dismissed"}),b,card);return}
+    if(w==="processed"){ibAct(H.api("privacy_processed",{id:o.id}),b,card);return}
+  });
+  $("sheetBody").addEventListener("change",function(ev){
+    var t=ev.target;if(!ib.open||!t.dataset.ib)return;var o=ib.open, card=t.closest(".card")||$("sheetBody");
+    if(t.dataset.ib==="assign")ibAct(H.api("inbox_assign",{kind:o.kind,id:o.id,user_id:t.value||null}),t,card);
+    else if(t.dataset.ib==="severity")ibAct(H.api("inbox_severity",{kind:o.kind,id:o.id,severity:t.value}),t,card);
+    else if(t.dataset.ib==="snooze"&&t.value){var until=t.value==="wake"?null:snoozeTime(t.value);ibAct(H.api("inbox_snooze",{kind:o.kind,id:o.id,until:until?until.toISOString():null}),t,card)}
+    else if(t.dataset.ib==="tags")ibAct(H.api("inbox_tags",{kind:o.kind,id:o.id,tags:t.value.split(",").map(function(x){return x.trim()}).filter(Boolean)}),t,card);
+    else if(t.dataset.ib==="macro"&&t.value){var m=(ib.data.macros||[]).filter(function(x){return x.id===t.value})[0], ta=$("sheetBody").querySelector("textarea[data-ib-reply]");if(m)ta.value=(ta.value?ta.value+"\n\n":"")+m.body;t.value="";ta.focus()}
+  });
+
+  // ---------- New listing change (from an email or a call) ----------
+  function newChange(){
+    stopHeartbeat();openSheet("New listing change",'<div class="card" data-nc><label class="note">Place</label><input type="search" class="pill-in" id="ncQ" placeholder="Search by name or address"><div class="stack" id="ncResults" style="gap:6px"></div><input type="hidden" id="ncLoc"><div class="note" id="ncPicked"></div>'+
+      '<div class="grid2"><label>Name<input type="text" data-nc="name"></label><label>Address<input type="text" data-nc="address"></label><label>Website (https)<input type="text" data-nc="website"></label><label>Photo URL (https)<input type="text" data-nc="image_url"></label>'+
+      '<label>Dog policy<select data-nc="dog_policy"><option value="">No change</option><option value="welcome">Welcome</option><option value="restricted">Restricted</option><option value="not_allowed">Not allowed</option></select></label><label>Dog policy note<input type="text" data-nc="dog_policy_note"></label></div>'+
+      '<label class="note">Opening hours, one day per line (Monday: 9:00 AM – 5:00 PM)</label><textarea data-nc="opening_hours" style="min-height:120px"></textarea>'+
+      '<label class="note" style="display:flex;gap:8px;align-items:center"><input type="checkbox" data-nc="closed"> The place has closed permanently</label>'+
+      '<div class="grid2"><label>Their name<input type="text" id="ncName"></label><label>Their email<input type="email" id="ncEmail"></label><label>They are<select id="ncRole"><option value="business">The business</option><option value="user">A customer</option></select></label><label>Came in by<select id="ncSource"><option value="email">Email</option><option value="hq">Phone or in person</option></select></label></div>'+
+      '<label class="note">Their message</label><textarea id="ncMsg" style="min-height:70px"></textarea><div class="row"><button class="btn primary small" data-nca="create">Add to the inbox</button></div></div>');
+    $("sheetBg").classList.add("wide");
+  }
+  var ncTimer=null;
+  $("sheetBody").addEventListener("input",function(ev){if(ev.target.id!=="ncQ")return;clearTimeout(ncTimer);var q=ev.target.value.trim();if(q.length<2){$("ncResults").innerHTML="";return}
+    ncTimer=setTimeout(function(){H.api("places_search",{q:q}).then(function(r){$("ncResults").innerHTML=r.data.map(function(p){return '<button class="btn small" data-nca="pick" data-id="'+esc(p.id)+'" data-name="'+esc(p.name)+'" style="justify-content:flex-start">'+esc(p.name)+' <span class="note">'+esc(p.address)+'</span></button>'}).join("")||'<div class="note">No match.</div>'})},350)});
+  $("sheetBody").addEventListener("click",function(ev){
+    var b=ev.target.closest("[data-nca]");if(!b)return;var card=b.closest(".card");
+    if(b.dataset.nca==="pick"){$("ncLoc").value=b.dataset.id;$("ncPicked").textContent="Chosen: "+b.dataset.name;$("ncResults").innerHTML="";return}
+    var loc=$("ncLoc").value;if(!loc){H.note(card,false,"Choose the place first.");return}
+    var ch={};card.querySelectorAll("[data-nc]").forEach(function(el){var k=el.dataset.nc,v=el.type==="checkbox"?el.checked:el.value.trim();if(k==="closed"){if(v)ch.closed=true}else if(k==="opening_hours"){if(v)ch.opening_hours=v.split("\n").map(function(x){return x.trim()}).filter(Boolean)}else if(v)ch[k]=v});
+    if(!Object.keys(ch).length){H.note(card,false,"Fill in at least one change.");return}
+    b.disabled=true;H.api("listing_change_create",{location_id:loc,changes:ch,requester_name:$("ncName").value.trim(),requester_email:$("ncEmail").value.trim(),requester_role:$("ncRole").value,source:$("ncSource").value,message:$("ncMsg").value.trim()})
+      .then(function(r){H.note(card,true,r.message);setTimeout(function(){ibOpen("listing_change",r.id);ibLoad()},700)}).catch(function(e){H.note(card,false,e.message||"Check the values: web addresses must start with https.")}).then(function(){b.disabled=false});
+  });
+
+  function ibClick(ev){
+    var b=ev.target.closest("[data-ia]");if(!b||!$("ibList"))return false;var w=b.dataset.ia;
+    if(w==="view"){ib.filter.view=b.dataset.v;ib.page=0;ibLoad();return true}
+    if(w==="open"){ibOpen(b.dataset.k,b.dataset.id);return true}
+    if(w==="prev"||w==="next"){ib.page+=w==="next"?1:-1;ibLoad();return true}
+    if(w==="newchange"){newChange();return true}
+    return false;
+  }
+  function ibChange(ev){var t=ev.target;if(t.id==="ibKind"){ib.filter.kind=t.value;ib.page=0;ibLoad();return true}if(t.id==="ibTag"){ib.filter.tag=t.value;ib.page=0;ibLoad();return true}return false}
+  var ibQT=null;
+  function ibInput(ev){if(ev.target.id!=="ibQ")return false;clearTimeout(ibQT);var v=ev.target.value.trim();ibQT=setTimeout(function(){ib.filter.q=v;ib.page=0;ibLoad()},400);return true}
+
   // ---------- Act clicks and changes ----------
   $("actPane").addEventListener("click",function(ev){
-    if(flClick(ev))return;
+    if(flClick(ev)||ibClick(ev))return;
     var ch=ev.target.closest("[data-f] .chip");
     if(ch){var f=ch.parentNode.dataset.f;st[f]=ch.dataset.period!==undefined?ch.dataset.period:ch.dataset.v;load();return}
     var rb=ev.target.closest("[data-reason]");if(rb){rb.closest(".card").querySelector("[data-flag-reason]").value=rb.dataset.reason;return}
@@ -1475,13 +1635,6 @@ footer .mono{color:rgba(255,255,255,.75)}
     if(what==="bulk_ai"){var n=b.textContent;b.disabled=true;
       deferOp("Approving AI-cleared reviews",function(){H.api("reviews_bulk_approve_ai").then(function(r){H.note(card,true,r.message);refresh()}).catch(function(e){H.note(card,false,e.message)}).then(function(){b.disabled=false})},function(){b.disabled=false});return}
     if(what==="privacy_processed"){run(b,card,H.api("privacy_processed",{id:card.dataset.pid}),refresh);return}
-    // Support
-    var tid=card&&card.dataset.tid, ta=card&&card.querySelector("textarea[data-reply]");
-    if(what==="draft"){b.disabled=true;ta.value="Drafting…";H.api("draft_ticket",{id:tid}).then(function(r){ta.value=r.text}).catch(function(e){ta.value="";H.note(card,false,e.message)}).then(function(){b.disabled=false});return}
-    if(what==="reply"||what==="reply_resolve"){if(!ta.value.trim()){H.note(card,false,"Write the reply first.");return}run(b,card,H.act("reply_ticket",{ticket_id:tid,body:ta.value,resolve:what==="reply_resolve"}),refresh);return}
-    if(what==="note"){var ni=card.querySelector("[data-note]");if(!ni.value.trim()){H.note(card,false,"Write the note first.");return}run(b,card,H.act("note_ticket",{ticket_id:tid,body:ni.value.trim()}),function(){setTimeout(load,700)});return}
-    if(what==="in_progress"||what==="resolve"||what==="reopen"){run(b,card,H.act("set_ticket_status",{ticket_id:tid,status:what==="resolve"?"resolved":what==="reopen"?"open":"in_progress"}),refresh);return}
-    if(what==="delete"){card.hidden=true;deferOp("Ticket deleted",function(){H.api("ticket_delete",{id:tid}).then(refresh).catch(function(e){card.hidden=false;H.note(card,false,e.message)})},function(){card.hidden=false;b.dataset.armed="";b.textContent=b.dataset.label||"Delete";b.classList.remove("confirm")});return}
     // Reports
     if(what==="ur_actioned"||what==="ur_dismissed"){run(b,card,H.act("user_report",{id:card.dataset.uid,status:what==="ur_actioned"?"actioned":"dismissed"}),refresh);return}
     if(what==="lr_dismissed"){run(b,card,H.act("location_report",{id:card.dataset.lrid,status:"dismissed"}),refresh);return}
@@ -1492,14 +1645,11 @@ footer .mono{color:rgba(255,255,255,.75)}
     if(what==="verify"||what==="reject"){run(b,card,H.api("claim_set_status",{id:cid,status:what==="verify"?"verified":"rejected"}),refresh);return}
   });
   $("actPane").addEventListener("change",function(ev){
-    if(flChange(ev))return;
+    if(flChange(ev)||ibChange(ev))return;
     var t=ev.target, card=t.closest(".card");
-    if(!card)return;var tid=card.dataset.tid;
-    if(t.dataset.do==="priority"){H.api("ticket_set_priority",{id:tid,priority:t.value}).then(function(r){H.note(card,true,r.message)}).catch(function(e){H.note(card,false,e.message)});return}
-    if(t.dataset.do==="tags"){var tags=t.value.split(",").map(function(x){return x.trim()}).filter(Boolean);H.api("ticket_set_tags",{id:tid,tags:tags}).then(function(r){H.note(card,true,r.message)}).catch(function(e){H.note(card,false,e.message)});return}
-    if(t.dataset.do==="macro"&&t.value){var m=(tk.macros||[]).filter(function(x){return x.id===t.value})[0];var ta=card.querySelector("textarea[data-reply]");if(m)ta.value=(ta.value?ta.value+"\n\n":"")+m.body;t.value="";ta.focus()}
+    if(!card)return;
   });
-  $("actPane").addEventListener("input",function(ev){flInput(ev)});
+  $("actPane").addEventListener("input",function(ev){flInput(ev)||ibInput(ev)});
 
   // ---------- Users ----------
   var seg="", qTimer=null, loaded=false;
