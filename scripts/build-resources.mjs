@@ -132,6 +132,7 @@ function dayMonth(iso) {
 function ruleChip(rows, body, today) {
   const text = String(body || "");
   const usable = (rows || []).filter((r) => {
+    if (r.restriction_type !== "dogs_banned" && r.restriction_type !== "lead_required") return false;
     if (!r.authority || !text.includes(r.authority)) return false;
     if (r.applies_annually === false && r.ends_on && isoDate(r.ends_on) < today) return false;
     return true;
@@ -153,6 +154,92 @@ function ruleChip(rows, body, today) {
   const dates = best.seasonal ? `${partial ? "," : ""} ${dayMonth(isoDate(best.starts_on))} to ${dayMonth(isoDate(best.ends_on))}` : "";
   return { text: `${label}${dates}`, authority: best.authority, checked: isoDate(best.checked_on) };
 }
+
+// Questions about dog rules on a guide page. Built only from approved
+// location_restrictions rows whose authority the guide itself cites. Questions
+// come from fixed patterns; answers are the approved summary text, word for
+// word, plus the source. The FAQPage data uses exactly these strings.
+const MONTH_FULL = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+function longDate(iso) {
+  const m = String(iso || "").match(/^(\d{4})-(\d{2})-(\d{2})/);
+  return m ? `${Number(m[3])} ${MONTH_FULL[Number(m[2]) - 1]} ${m[1]}` : "";
+}
+function coversSummer(r) {
+  const s = isoDate(r.starts_on), e = isoDate(r.ends_on);
+  return Boolean(s && e && s.slice(5) <= "06-01" && e.slice(5) >= "08-31");
+}
+function rulesFaq(rows, body, today, limit = 6) {
+  const text = String(body || "");
+  const usable = (rows || []).filter(
+    (r) =>
+      r.summary &&
+      r.authority &&
+      text.includes(r.authority) &&
+      !(r.applies_annually === false && r.ends_on && isoDate(r.ends_on) < today)
+  );
+  const groups = new Map();
+  for (const r of usable) {
+    const seasonal = Boolean(r.starts_on && r.ends_on);
+    const on = r.category === "beach" ? "on" : "at";
+    let q;
+    if (r.restriction_type === "dogs_banned" && seasonal && coversSummer(r)) q = `Can dogs go ${on} ${r.name} in summer?`;
+    else if (r.restriction_type === "dogs_banned" && seasonal) q = `When are dogs banned ${on} ${r.name}?`;
+    else if (r.restriction_type === "dogs_banned") q = `Are dogs allowed ${on} ${r.name}?`;
+    else if (r.restriction_type === "lead_required") q = `Do dogs need to be on a lead ${on} ${r.name}?`;
+    else if (r.restriction_type === "dogs_allowed") q = `Are dogs allowed ${on} ${r.name}?`;
+    else continue;
+    if (!groups.has(q)) groups.set(q, { q, rank: r.restriction_type === "dogs_banned" ? (seasonal ? 0 : 1) : r.restriction_type === "lead_required" ? 2 : 3, parts: new Map(), sources: new Map() });
+    const g = groups.get(q);
+    g.rank = Math.min(g.rank, r.restriction_type === "dogs_banned" ? (seasonal ? 0 : 1) : r.restriction_type === "lead_required" ? 2 : 3);
+    // The same rule recorded twice ("at Brean Beach" / "on Brean Beach") appears once.
+    const key = r.summary.toLowerCase().replace(/\b(at|on|in|the)\b/g, "").replace(/[^a-z0-9]+/g, "");
+    if (![...g.parts.values()].includes(key)) g.parts.set(r.summary.trim(), key);
+    const checked = isoDate(r.checked_on);
+    g.sources.set(`${r.authority}|${checked || ""}`, { authority: r.authority, checked });
+  }
+  return [...groups.values()]
+    .sort((a, b) => a.rank - b.rank || a.q.localeCompare(b.q, "en-GB"))
+    .slice(0, limit)
+    .map((g) => {
+      const source = [...g.sources.values()]
+        .map((x) => (x.checked ? `${x.authority}, checked ${longDate(x.checked)}` : x.authority))
+        .join("; ");
+      return { question: g.q, answer: `${[...g.parts.keys()].join(" ")} Source: ${source}.` };
+    });
+}
+
+// Page title listing only what the guide covers, from its highlights (which
+// come from its own headings). Falls back to the guide title.
+function guideSeoTitle(town, title, highlights) {
+  const list = (n) => {
+    const items = highlights.slice(0, n).map((h) => h.toLowerCase());
+    return items.length > 1 ? `${items.slice(0, -1).join(", ")} and ${items[items.length - 1]}` : items[0];
+  };
+  for (const n of [3, 2, 1]) {
+    if (highlights.length < n) continue;
+    const t = `Dog-friendly ${town}: ${list(n)}`;
+    if (`${t} | BarkFind`.length <= 65) return t;
+  }
+  return title || `Dog-friendly ${town}`;
+}
+
+// Meta description that always ends on a full sentence: the first card-safe
+// sentence that fits, otherwise one built from the guide's highlights.
+function guideDescription(md, town, highlights, max = 160) {
+  const paras = String(md || "").split(/\n\s*\n/).map((p) => p.trim()).filter((p) => p && !p.startsWith("#"));
+  const sentences = paras
+    .slice(0, 3)
+    .flatMap((p) => stripMarkdown(p).match(/[^.?!]+[.?!]+(\s|$)/g) || [])
+    .map((x) => x.trim())
+    .filter((x) => x && !NOT_ON_CARDS.test(x));
+  const fit = sentences.find((x) => x.length <= max && x.length >= 40);
+  if (fit) return fit;
+  const what = highlights.length ? highlights.slice(0, 3).map((h) => h.toLowerCase()).join(", ").replace(/, ([^,]*)$/, " and $1") : "places";
+  return `Dog-friendly ${what} in ${town}, with local dog rules and where they come from.`;
+}
+
+// The method page lives beside the guides; no town guide may take its address.
+export const METHOD_SLUG = "how-guides-are-made";
 
 const LICENCE_URLS = {
   "CC BY-SA 2.0": "https://creativecommons.org/licenses/by-sa/2.0/",
@@ -376,12 +463,12 @@ const PHOTO_SQL = `
   ORDER BY town, (category IN ('beach','park')) DESC, review_count DESC NULLS LAST, name`;
 
 const RULES_SQL = `
-  SELECT public.content_town_of(l.address) AS town, l.name, r.restriction_type,
-         r.area_description, r.starts_on, r.ends_on, r.applies_annually, r.authority, r.checked_on
+  SELECT public.content_town_of(l.address) AS town, l.name, l.category, r.id, r.restriction_type,
+         r.summary, r.area_description, r.starts_on, r.ends_on, r.applies_annually, r.authority, r.checked_on
   FROM public.location_restrictions r
   JOIN public.locations l ON l.id = r.location_id
   WHERE r.status = 'approved'
-    AND r.restriction_type IN ('dogs_banned', 'lead_required')
+    AND r.restriction_type IN ('dogs_banned', 'lead_required', 'dogs_allowed')
     AND public.content_town_of(l.address) = ANY($1)`;
 
 // Teaser card candidates: every place in a published guide's town except the
@@ -473,6 +560,10 @@ function buildGuides(pieces, { geo, photos = {}, rules = {}, places = {} }, toda
       continue;
     }
     const slug = slugify(town);
+    if (slug === METHOD_SLUG) {
+      warnings.push(`guide ${p.id} would take the method page's address, skipped`);
+      continue;
+    }
     if (bySlug.has(slug)) {
       warnings.push(`two published guides for ${town}; using the most recently approved`);
       continue; // rows arrive newest-approved first
@@ -495,11 +586,16 @@ function buildGuides(pieces, { geo, photos = {}, rules = {}, places = {} }, toda
       venueCount: Number(g.venues) || 0, // venues passing the quality bar in this town
       summary: summarise(p.body_md, 170, { cardSafe: true }),
       highlights: highlightsFrom(p.body_md),
+      seoTitle: guideSeoTitle(town, p.title, highlightsFrom(p.body_md)),
+      description: guideDescription(p.body_md, town, highlightsFrom(p.body_md)),
+      faq: rulesFaq(rules[town], p.body_md, today),
+      publishedAt: isoDate(p.approved_at),
       rule: ruleChip(rules[town], p.body_md, today),
       photoSource: photos[town] || null, // downloaded in main(); never shipped as a URL
       photo: null,
       approvedAt: p.approved_at ? new Date(p.approved_at).toISOString() : null,
-      updated: isoDate(p.updated_at) || isoDate(p.approved_at),
+      // Never earlier than the published (approved) date.
+      updated: [isoDate(p.updated_at), isoDate(p.approved_at)].filter(Boolean).sort().pop() || null,
       ...(() => {
         const blocks = renderBlocks(p.body_md);
         const matched = matchPlaces(blocks, places[town] || [], townNames);
@@ -683,6 +779,7 @@ async function main() {
   const pages = [{ path: "/discover", lastmod: today, changefreq: "weekly", priority: "0.7" }];
   if (guides.length) {
     pages.push({ path: "/dog-friendly", lastmod: today, changefreq: "weekly", priority: "0.8" });
+    pages.push({ path: `/dog-friendly/${METHOD_SLUG}`, lastmod: today, changefreq: "monthly", priority: "0.4" });
     for (const g of guides) pages.push({ path: `/dog-friendly/${g.slug}`, lastmod: g.updated || today, changefreq: "monthly", priority: "0.8" });
   }
   if (news.length) {

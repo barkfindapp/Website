@@ -33,6 +33,7 @@ const ROUTES = [
   "/delete-account",
   "/confirmed",
   "/creators", // shared by link: needs its own title and noindex in the HTML
+  "/404", // written to dist/404.html: Vercel serves it with a 404 status for unknown URLs
 ];
 
 // Discover section: the published pages listed by scripts/build-resources.mjs
@@ -131,9 +132,13 @@ async function run() {
         .catch(() => {});
 
       const html = await page.content();
-      const outDir = route === "/" ? DIST : join(DIST, route);
-      await mkdir(outDir, { recursive: true });
-      await writeFile(join(outDir, "index.html"), `<!doctype html>\n${html}`);
+      if (route === "/404") {
+        await writeFile(join(DIST, "404.html"), `<!doctype html>\n${html}`);
+      } else {
+        const outDir = route === "/" ? DIST : join(DIST, route);
+        await mkdir(outDir, { recursive: true });
+        await writeFile(join(outDir, "index.html"), `<!doctype html>\n${html}`);
+      }
       await page.close();
       console.log(`prerendered ${route}`);
     }

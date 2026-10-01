@@ -8,6 +8,7 @@ import Business from "./pages/Business";
 import Treats from "./pages/Treats";
 import Confirmed from "./pages/Confirmed";
 import CreatorsPage from "./pages/CreatorsPage";
+import NotFound from "./pages/NotFound";
 import { lazy, Suspense } from "react";
 
 // Lazy so the creator config (offer codes in src/data/creators.ts) ships in its
@@ -54,5 +55,6 @@ export default function App() {
   // Exact-match lookup on the path without a trailing slash, so /privacy/ shows
   // the privacy page rather than falling through to the homepage.
   const Page = ROUTES[clean];
-  return Page ? <Page /> : <LandingPage />;
+  if (Page) return <Page />;
+  return clean === "/" ? <LandingPage /> : <NotFound />;
 }

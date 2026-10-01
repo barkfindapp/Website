@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import PageShell, { Section } from "../../components/PageShell";
-import LandingPage from "../LandingPage";
-import { SITE_URL, breadcrumbSchema, useSeo } from "../../lib/seo";
+import NotFound from "../NotFound";
+import { SITE_URL, breadcrumbSchema, faqSchema, useSeo } from "../../lib/seo";
 import {
   events,
   formatDate,
@@ -49,20 +49,26 @@ const EVENTS: Crumb = { name: "Events", path: "/events" };
 const WIDE = "max-w-6xl";
 const SEE_ALL = "font-semibold text-[#B74217] hover:underline";
 
+// Must match METHOD_SLUG in scripts/build-resources.mjs.
+const METHOD_PATH = "/dog-friendly/how-guides-are-made";
+const DISCOVER_IMAGE = "/og-discover.png";
+
+// Anything without a published page behind it is a 404, matching the server.
 export default function ResourcesRoutes({ path }: { path: string }) {
   if (path === "/discover") return <DiscoverHub />;
-  if (path === "/dog-friendly") return guides.length ? <GuideIndex /> : <LandingPage />;
+  if (path === "/dog-friendly") return guides.length ? <GuideIndex /> : <NotFound />;
+  if (path === METHOD_PATH) return guides.length ? <MethodPage /> : <NotFound />;
   if (path.startsWith("/dog-friendly/")) {
     const guide = guideBySlug(path.slice("/dog-friendly/".length));
-    return guide ? <GuidePage guide={guide} /> : <LandingPage />;
+    return guide ? <GuidePage guide={guide} /> : <NotFound />;
   }
-  if (path === "/news") return news.length ? <NewsIndex /> : <LandingPage />;
+  if (path === "/news") return news.length ? <NewsIndex /> : <NotFound />;
   if (path.startsWith("/news/")) {
     const post = newsBySlug(path.slice("/news/".length));
-    return post ? <NewsPage post={post} /> : <LandingPage />;
+    return post ? <NewsPage post={post} /> : <NotFound />;
   }
-  if (path === "/events") return <EventsPage />;
-  return <LandingPage />;
+  if (path === "/events") return events.length ? <EventsPage /> : <NotFound />;
+  return <NotFound />;
 }
 
 function CardGrid({ children }: { children: React.ReactNode }) {
@@ -233,6 +239,7 @@ function DiscoverHub() {
     title: "Discover dog-friendly places, news and events | BarkFind",
     description: "Dog-friendly town guides, news and events from BarkFind, free to read.",
     path: "/discover",
+    image: DISCOVER_IMAGE,
   });
   const [type, setType] = useState<HubType>(typeFromUrl);
   const [query, setQuery] = useState("");
@@ -401,6 +408,7 @@ function GuideIndex() {
     title: "Dog-friendly town guides | BarkFind",
     description: `Dog-friendly cafes, pubs, walks and beaches in ${plural(guides.length, "UK town")}, with local dog restrictions, from BarkFind.`,
     path: "/dog-friendly",
+    image: DISCOVER_IMAGE,
     jsonLd: breadcrumbSchema([HOME, DISCOVER, GUIDES]),
   });
   const [query, setQuery] = useState("");
@@ -429,13 +437,29 @@ function GuideIndex() {
 function GuidePage({ guide }: { guide: Guide }) {
   const path = `/dog-friendly/${guide.slug}`;
   const crumbs = [HOME, DISCOVER, GUIDES, { name: guide.town, path }];
+  const image = `${SITE_URL}${guide.photo?.src || DISCOVER_IMAGE}`;
   useSeo({
-    title: `${guide.title} | BarkFind`,
-    description: guide.summary,
+    title: `${guide.seoTitle} | BarkFind`,
+    description: guide.description,
     path,
     ogType: "article",
     image: guide.photo?.src,
-    jsonLd: breadcrumbSchema(crumbs),
+    jsonLd: [
+      breadcrumbSchema(crumbs),
+      {
+        "@context": "https://schema.org",
+        "@type": "Article",
+        headline: guide.title,
+        description: guide.description,
+        ...(guide.publishedAt ? { datePublished: guide.publishedAt } : {}),
+        ...(guide.updated ? { dateModified: guide.updated } : {}),
+        mainEntityOfPage: `${SITE_URL}${path}`,
+        image: [image],
+        publisher: { "@type": "Organization", name: "BarkFind", url: SITE_URL, logo: { "@type": "ImageObject", url: `${SITE_URL}/barkfind-logo.png` } },
+      },
+      // Built from exactly the strings shown in the "Questions about dog rules" section.
+      ...(guide.faq.length ? [faqSchema(guide.faq.map((f) => ({ q: f.question, a: f.answer })))] : []),
+    ],
   });
   const nearby = guide.nearby.map((s) => guides.find((g) => g.slug === s)).filter((g): g is Guide => Boolean(g));
 
@@ -482,6 +506,19 @@ function GuidePage({ guide }: { guide: Guide }) {
         })}
       </div>
 
+      {guide.faq.length > 0 && (
+        <Section title="Questions about dog rules">
+          <dl className="flex flex-col gap-5">
+            {guide.faq.map((f) => (
+              <div key={f.question}>
+                <dt className="font-bold text-[#1a1a1a]">{f.question}</dt>
+                <dd className="mt-1">{f.answer}</dd>
+              </div>
+            ))}
+          </dl>
+        </Section>
+      )}
+
       {nearby.length > 0 && (
         <Section title="Nearby town guides">
           <ul className="grid gap-3 sm:grid-cols-3">
@@ -493,10 +530,75 @@ function GuidePage({ guide }: { guide: Guide }) {
           </ul>
         </Section>
       )}
-      <p className="mt-6">
+      <p className="mt-6 flex flex-col gap-2 sm:flex-row sm:gap-6">
         <a href="/dog-friendly" className={SEE_ALL}>All dog-friendly town guides</a>
+        <a href={METHOD_PATH} className={SEE_ALL}>How our town guides are made</a>
       </p>
       <DownloadCta placeCount={guide.venueCount} />
+    </PageShell>
+  );
+}
+
+// ─── /dog-friendly/how-guides-are-made ───────────────────────────────────────
+
+function MethodPage() {
+  const crumbs = [HOME, DISCOVER, GUIDES, { name: "How our town guides are made", path: METHOD_PATH }];
+  useSeo({
+    title: "How our town guides are made | BarkFind",
+    description: "Where the facts in BarkFind's dog-friendly town guides come from, how they are checked, and how to report a mistake.",
+    path: METHOD_PATH,
+    jsonLd: breadcrumbSchema(crumbs),
+  });
+  return (
+    <PageShell title="How our town guides are made" subtitle="Where the facts in our dog-friendly town guides come from, and how we check them.">
+      <Breadcrumbs items={crumbs} />
+      <Section title="What goes into a guide">
+        <p>
+          Each guide is drafted from BarkFind's own place data and nothing else: the venue's own dog policy where it
+          publishes one, what BarkFind members report after visiting, opening hours and facilities. We do not add places or
+          details that are not in that data.
+        </p>
+        <p>
+          A town only gets a guide once we hold enough checked places there, such as cafes, pubs, restaurants, parks and
+          beaches. A guide is a selection, not a complete list.
+        </p>
+      </Section>
+      <Section title="Council dog rules">
+        <p>
+          Beach bans, lead rules and other local restrictions come from the council's own published rules. Each one names
+          the council and the date we last checked it. Rules change, so always follow the signs when you arrive.
+        </p>
+      </Section>
+      <Section title="Checked by a person">
+        <p>
+          Guides are drafted with the help of AI from the data above. A person at BarkFind reads and approves every guide
+          before it is published, and nothing goes live automatically. If we withdraw a guide, it comes off the site at the
+          next update.
+        </p>
+      </Section>
+      <Section title="Photos">
+        <p>
+          Town and place photos come from Geograph, credited to the photographer under a Creative Commons licence, or from
+          the venue's own website, credited and linked. We never use Google photos.
+        </p>
+      </Section>
+      <Section title="Money">
+        <p>
+          A venue cannot pay to be included in a guide or to change what a guide says about it. Anything paid for is
+          labelled Paid partnership.
+        </p>
+      </Section>
+      <Section title="Spotted a mistake?">
+        <p>
+          Email{" "}
+          <a href="mailto:info@barkfind.com" className={SEE_ALL}>info@barkfind.com</a> with the town and the place. We
+          check every report and correct the guide.
+        </p>
+      </Section>
+      <p className="mt-8">
+        <a href="/dog-friendly" className={SEE_ALL}>All dog-friendly town guides</a>
+      </p>
+      <DownloadCta />
     </PageShell>
   );
 }
