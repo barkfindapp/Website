@@ -160,7 +160,7 @@ svg.spark{width:100%;height:46px;display:block}
 .card .text{white-space:pre-wrap;font-size:14.5px;line-height:1.6;max-width:72ch;overflow-wrap:anywhere}
 .card .prior{font-size:13.5px;color:var(--fg2);border-left:3px solid var(--brand-line);padding-left:12px;white-space:pre-wrap}
 .row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
-textarea,select,.card input[type=text],.card input[type=date],.card input[type=email]{font:500 14.5px/1.4 var(--sans);padding:11px 14px;border-radius:12px;border:1px solid var(--line-2);background:#fff;color:var(--ink);width:100%}
+textarea,select,.card input[type=text],.card input[type=date],.card input[type=email],.grid2 input[type=date],.grid2 input[type=text],.grid2 input[type=email]{font:500 14.5px/1.4 var(--sans);padding:11px 14px;border-radius:12px;border:1px solid var(--line-2);background:#fff;color:var(--ink);width:100%}
 textarea{min-height:110px;resize:vertical;line-height:1.55}
 .msg{font-size:13.5px;padding:9px 12px;border-radius:12px;font-weight:600}
 .msg.good{background:var(--ok-soft);color:var(--ok)} .msg.bad{background:var(--crit-soft);color:var(--crit)}
@@ -169,6 +169,14 @@ textarea{min-height:110px;resize:vertical;line-height:1.55}
 .subhead span{font-size:12.5px;color:var(--mute)}
 .tag{font:800 11px/1 var(--sans);padding:5px 9px;border-radius:999px;background:var(--well);color:var(--fg2);text-transform:capitalize}
 .tag.warn{background:var(--warn-soft);color:var(--warn)} .tag.crit{background:var(--crit-soft);color:var(--crit)} .tag.ok{background:var(--teal-soft);color:var(--teal-dark)} .tag.info{background:var(--info-soft);color:var(--info)}
+.fbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.fbar>input[type=search]{flex:1 1 220px}
+.fbar select,.fbar input[type=date]{font:500 14.5px/1.4 var(--sans);padding:10px 12px;min-height:44px;border-radius:12px;border:1px solid var(--line-2);background:#fff;color:var(--ink);width:auto;flex:0 1 auto;max-width:210px;min-width:0}
+.fbar .fdate{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:var(--fg2)}
+.fbar .fcheck{display:flex;gap:6px;align-items:center}
+.fbar .end{margin-left:auto;flex:none}
+@media(min-width:1100px){.fbar{flex-wrap:nowrap}.fbar input[type=date]{width:150px}}
+@media(max-width:640px){.fbar{flex-direction:column;align-items:stretch}.fbar>input[type=search]{flex:none}.fbar select,.fbar input[type=date]{max-width:none;width:100%}.fbar .fdate{flex-direction:column;align-items:stretch;gap:5px}.fbar .end{margin-left:0}}
 .grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px}
 .grid2 label{display:flex;flex-direction:column;gap:5px;font-size:12px;font-weight:700;color:var(--fg2)}
 details.card summary{cursor:pointer;list-style:none;display:grid;grid-template-columns:1fr auto;gap:4px 12px;align-items:start}
@@ -234,9 +242,24 @@ footer .mono{color:rgba(255,255,255,.75)}
 }
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 
+/* date pickers look like the dropdowns beside them (same height; iOS draws its own otherwise) */
+.grid2 input[type=date]{-webkit-appearance:none;appearance:none;display:block;min-height:46px;text-align:left}
+.grid2 input[type=date]::-webkit-date-and-time-value{text-align:left}
+.grid2 input[type=date]::-webkit-calendar-picker-indicator{opacity:.55;cursor:pointer}
 /* hidden always wins inside the app (tabs, panels and blocks the person has no permission for) */
 #app [hidden]{display:none!important}
 /* Phase 1: sub-sections, detail sheet, undo toast, tiles */
+.tag.plain{text-transform:none}
+.convo{display:flex;flex-direction:column;gap:10px;margin-top:4px}
+.msgx{max-width:min(620px,88%);padding:10px 14px;border-radius:14px;border:1px solid var(--line);background:var(--well);align-self:flex-start;display:flex;flex-direction:column;gap:4px}
+.msgx.us{align-self:flex-end;background:var(--brand-soft);border-color:var(--brand-line)}
+.msgx.us.fail{border-color:var(--crit);background:var(--crit-soft)}
+.msgx.note{align-self:stretch;max-width:none;background:#fff;border-style:dashed}
+.msgx .who{font:700 12px/1.3 var(--sans);color:var(--fg2)}
+.msgx .body{white-space:pre-wrap;font-size:14.5px;line-height:1.55;overflow-wrap:anywhere}
+.msgx details summary{cursor:pointer;font-size:12.5px;color:var(--brand);font-weight:700}
+.msgx details .body{margin-top:6px;padding-top:6px;border-top:1px solid var(--line);font-size:13px;color:var(--fg2)}
+.msgx .warnline{font-size:12.5px;color:var(--warn)}
 .subnav .chip{min-height:40px;display:inline-flex;align-items:center;gap:6px}
 .subnav .chip .count{min-width:20px;padding:2px 6px;border-radius:999px;background:var(--well);font:800 11px/1.3 var(--sans);text-align:center}
 .subnav .chip.crit .count{background:var(--crit);color:#fff}
@@ -254,6 +277,9 @@ footer .mono{color:rgba(255,255,255,.75)}
 .sheet-bg{position:fixed;inset:0;z-index:40;background:rgba(26,26,26,.35);display:flex;justify-content:flex-end}
 .sheet-bg[hidden]{display:none}
 .sheet{background:#fff;width:min(560px,100%);height:100%;overflow:auto;padding:18px 18px 40px;box-shadow:-10px 0 30px rgba(0,0,0,.12);display:flex;flex-direction:column;gap:14px}
+.sheet-bg.wide .sheet{width:min(1000px,100%)}
+.ib-cols{display:grid;gap:14px;align-items:start}
+@media (min-width:900px){.sheet-bg.wide .ib-cols{grid-template-columns:1.5fr 1fr}}
 .sheet-head{display:flex;justify-content:space-between;align-items:center;gap:10px;position:sticky;top:-18px;background:#fff;padding:6px 0;z-index:1}
 .sheet-head h3{margin:0;font:400 24px/1.2 var(--serif)}
 .undo{position:fixed;left:50%;bottom:calc(18px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:50;background:#1a1a1a;color:#fff;border-radius:999px;padding:8px 8px 8px 18px;display:flex;align-items:center;gap:12px;box-shadow:0 10px 30px rgba(0,0,0,.25);max-width:calc(100% - 32px)}
@@ -391,6 +417,8 @@ footer .mono{color:rgba(255,255,255,.75)}
     <button role="tab" id="t-today" aria-selected="true" data-go="today">Today</button>
     <button role="tab" id="t-act" aria-selected="false" data-go="act">Act<span class="count" id="actCount">0</span></button>
     <button role="tab" id="t-users" aria-selected="false" data-go="users" hidden>Users</button>
+    <button role="tab" id="t-content" aria-selected="false" data-go="content" hidden>Content<span class="count" id="ceCount">0</span></button>
+    <button role="tab" id="t-comms" aria-selected="false" data-go="comms" hidden>Comms</button>
     <button role="tab" id="t-outreach" aria-selected="false" data-go="outreach">Outreach<span class="count" id="outCount">0</span></button>
     <button role="tab" id="t-admin" aria-selected="false" data-go="admin" hidden>Admin</button>
     <button role="tab" id="t-consoles" aria-selected="false" data-go="consoles">Consoles</button>
@@ -498,6 +526,22 @@ footer .mono{color:rgba(255,255,255,.75)}
     <button class="chip" data-s="banned" aria-pressed="false">Banned</button>
   </div>
   <div class="stack" id="userList"><div class="empty">Loading customers.</div></div>
+ </div>
+
+ <div data-tab="content" class="stack" hidden>
+  <p class="note" style="margin:0">Website pieces that are approved go live on barkfind.com at the next website deploy, and leave it if moved back to needs edit or deleted. Nothing here posts to social media: Exported only records that a person has posted it.</p>
+  <div class="tiles" id="ceTiles"></div>
+  <nav class="filter subnav" id="ceNav" aria-label="Content sections">
+    <button class="chip" data-sec="queue" aria-pressed="true">Queue</button>
+    <button class="chip" data-sec="new" aria-pressed="false">New post</button>
+    <button class="chip" data-sec="generate" aria-pressed="false">Generate</button>
+    <button class="chip" data-sec="runs" aria-pressed="false">Recent runs</button>
+  </nav>
+  <div class="stack" id="cePane"><div class="empty">Loading.</div></div>
+ </div>
+
+ <div data-tab="comms" class="stack" hidden>
+  <div class="stack" id="anPane"><div class="empty">Loading.</div></div>
  </div>
 
  <div data-tab="outreach" class="stack" hidden>
@@ -933,12 +977,13 @@ footer .mono{color:rgba(255,255,255,.75)}
   // Tabs and panels follow the signed-in person's permissions. The server enforces them regardless.
   function applyPerms(){
     var c=HQ.can, show=function(id,on){var e=$(id);if(e)e.hidden=!on};
-    show("t-act",c("safety")||c("privacy")||c("reviews")||c("reports")||c("claims")||c("support")||c("places_edit"));
-    show("t-users",c("users_view"));show("t-outreach",c("outreach"));show("t-admin",c("staff_manage"));
+    show("t-act",c("safety")||c("privacy")||c("reviews")||c("reports")||c("claims")||c("support_read")||c("places_moderate")||c("places_delete"));
+    show("t-users",c("users_view"));show("t-content",c("content"));show("t-comms",c("announce"));show("t-outreach",c("outreach"));show("t-admin",c("staff_manage"));
     show("p-money",c("money"));show("p-costs",c("money"));show("p-renewals",c("renewals"));
     var ask=document.querySelector("section.cta");if(ask)ask.hidden=!c("ask_ralphy");
     show("miniForm",c("ask_ralphy"));show("miniLinks",c("ask_ralphy"));
     if(window.HQAct)HQAct.init();
+    if(window.HQContent)HQContent.init();
   }
 
   // ---------- tabs ----------
@@ -950,10 +995,12 @@ footer .mono{color:rgba(255,255,255,.75)}
     window.scrollTo(0,0);
     if(t==="act"&&window.HQAct)HQAct.show();
     if(t==="users"&&window.HQUsers)HQUsers.show();
+    if(t==="content"&&window.HQContent)HQContent.show();
+    if(t==="comms"&&window.HQComms)HQComms.show();
     if(t==="admin"&&window.HQAdmin)HQAdmin.show();
   }
   document.querySelector(".tabs").addEventListener("click",function(ev){var b=ev.target.closest("button[data-go]");if(b)go(b.dataset.go)});
-  document.addEventListener("click",function(ev){var a=ev.target.closest('a[href^="#"]');if(!a)return;var t=a.getAttribute("href").slice(1);if(["today","act","users","outreach","admin","consoles"].indexOf(t)>=0){ev.preventDefault();go(t)}});
+  document.addEventListener("click",function(ev){var a=ev.target.closest('a[href^="#"]');if(!a)return;var t=a.getAttribute("href").slice(1);if(["today","act","users","content","comms","outreach","admin","consoles"].indexOf(t)>=0){ev.preventDefault();go(t)}});
   var startTab=(location.hash||"").slice(1);
 
   $("refresh").addEventListener("click",load);
@@ -1047,7 +1094,7 @@ footer .mono{color:rgba(255,255,255,.75)}
     checking=true;gate("checking","Checking access.");
     api("history").then(function(r){state.history=r.data||[];return api("me")}).then(function(m){
         HQ.perms=(m.data&&m.data.perms)||[];HQ.me=m.data||{};ready=true;applyPerms();gate("app");
-        if(["act","users","outreach","admin","consoles"].indexOf(startTab)>=0)go(startTab);load()})
+        if(["act","users","content","comms","outreach","admin","consoles"].indexOf(startTab)>=0)go(startTab);load()})
       .catch(function(e){if(e.code!=="denied"&&e.code!=="auth"&&e.code!=="mfa")gate("signin",e.message)})
       .then(function(){checking=false});
   }
@@ -1233,8 +1280,8 @@ footer .mono{color:rgba(255,255,255,.75)}
   window.addEventListener("pagehide",flushUndo);
 
   // ---------- detail sheet ----------
-  function openSheet(title,html){$("sheetTitle").textContent=title;$("sheetBody").innerHTML=html;$("sheetBg").hidden=false;document.body.style.overflow="hidden"}
-  function closeSheet(){$("sheetBg").hidden=true;document.body.style.overflow=""}
+  function openSheet(title,html){$("sheetBg").classList.remove("wide");$("sheetTitle").textContent=title;$("sheetBody").innerHTML=html;$("sheetBg").hidden=false;document.body.style.overflow="hidden"}
+  function closeSheet(){stopHeartbeat();$("sheetBg").hidden=true;document.body.style.overflow=""}
   $("sheetClose").addEventListener("click",closeSheet);
   $("sheetBg").addEventListener("click",function(ev){if(ev.target===this)closeSheet()});
   document.addEventListener("keydown",function(ev){if(ev.key==="Escape"&&!$("sheetBg").hidden)closeSheet()});
@@ -1249,16 +1296,17 @@ footer .mono{color:rgba(255,255,255,.75)}
   // ---------- Act sub-sections ----------
   var SECTIONS=[
     {k:"safety",label:"Safety",ok:function(){return H.can("safety")||H.can("privacy")}},
-    {k:"reviews",label:"Reviews",ok:function(){return H.can("reviews")||H.can("places_edit")}},
-    {k:"support",label:"Support",ok:function(){return H.can("support")}},
+    {k:"inbox",label:"Inbox",ok:function(){return H.can("support_read")}},
+    {k:"reviews",label:"Reviews",ok:function(){return H.can("reviews")}},
+    {k:"flags",label:"Flagged places",ok:function(){return H.can("places_moderate")||H.can("places_delete")}},
     {k:"reports",label:"Reports",ok:function(){return H.can("reports")}},
     {k:"claims",label:"Claims",ok:function(){return H.can("claims")}}
   ];
-  var cur=null, st={reviewPeriod:"all",ticketStatus:"",ticketPeriod:"all",reportPeriod:"all",flag:{q:"",type:"all",cat:"",sort:"new"}};
+  var cur=null, st={reviewPeriod:"all",ticketStatus:"",ticketPeriod:"all",reportPeriod:"all"};
   function counts(){
     var q=H.state.queue||{}, sq=(H.state.snap&&H.state.snap.queues)||{};
     return {safety:(H.can("safety")?(sq.csae_escalations||0):0)+(H.can("privacy")?(sq.privacy_open||0):0),
-      reviews:(q.reviews||[]).length,support:(q.tickets||[]).length,reports:(q.user_reports||[]).length+(q.location_reports||[]).length,claims:(q.business_claims||[]).length};
+      reviews:(q.reviews||[]).length,inbox:(q.tickets||[]).length,reports:(q.user_reports||[]).length+(q.location_reports||[]).length,claims:(q.business_claims||[]).length};
   }
   function nav(){
     var c=counts();
@@ -1266,7 +1314,7 @@ footer .mono{color:rgba(255,255,255,.75)}
       var n=c[s.k]||0;return '<button class="chip'+(s.k==="safety"&&n?" crit":"")+'" data-sec="'+s.k+'" aria-pressed="'+(s.k===cur)+'">'+s.label+(n?'<span class="count">'+n+'</span>':'')+'</button>'}).join("");
   }
   $("actNav").addEventListener("click",function(ev){var b=ev.target.closest("button[data-sec]");if(!b)return;cur=b.dataset.sec;nav();load()});
-  function load(){var el=$("actPane");el.innerHTML='<div class="empty">Loading.</div>';({safety:safety,reviews:reviews,support:support,reports:reports,claims:claims})[cur](el)}
+  function load(){var el=$("actPane");el.innerHTML='<div class="empty">Loading.</div>';({safety:safety,inbox:inboxSection,reviews:reviews,flags:flagsSection,reports:reports,claims:claims})[cur](el)}
   window.HQAct={
     init:function(){var ok=SECTIONS.filter(function(s){return s.ok()});cur=ok.length?ok[0].k:null;nav()},
     onQueue:function(){nav()},
@@ -1295,47 +1343,11 @@ footer .mono{color:rgba(255,255,255,.75)}
       (r.ai_reason||flags.length?'<div class="prior">AI note: '+esc(r.ai_reason||"")+(flags.length?" ("+esc(flags.map(pretty).join(", "))+")":"")+'</div>':'')+
       '<div class="row"><button class="btn ok small" data-do="approve_review" data-confirm="Confirm approve">Approve</button><button class="btn danger small" data-do="reject_review" data-confirm="Confirm reject">Reject</button></div></div>';
   }
-  var flagged=[];
-  function flaggedHtml(){
-    var f=st.flag, isAuto=function(l){return String(l.flag_reason||"").indexOf("Auto-excluded")===0};
-    var rows=flagged.filter(function(l){if(f.type==="manual"&&isAuto(l))return false;if(f.type==="auto"&&!isAuto(l))return false;if(f.cat&&l.category!==f.cat)return false;
-      if(f.q&&((l.name||"")+" "+(l.address||"")+" "+(l.flag_reason||"")).toLowerCase().indexOf(f.q)<0)return false;return true});
-    rows.sort(function(a,b){if(f.sort==="name")return String(a.name||"").localeCompare(String(b.name||""));var ta=a.flagged_at?Date.parse(a.flagged_at):0,tb=b.flagged_at?Date.parse(b.flagged_at):0;return f.sort==="old"?ta-tb:tb-ta});
-    return '<div class="note">'+rows.length+(rows.length!==flagged.length?" of "+flagged.length:" places")+'</div>'+(rows.slice(0,200).map(function(l){var auto=isAuto(l);return '<div class="card" data-lid="'+esc(l.id)+'"><div class="meta"><span class="tag">'+esc(l.category||"")+'</span><span class="tag '+(auto?"":"warn")+'">'+(auto?"auto-excluded":"manual or report")+'</span>'+(l.flagged_at?'<span>flagged '+esc(dateOnly(l.flagged_at))+'</span>':'')+'</div><div class="title">'+esc(l.name||"")+'</div><div class="note">'+esc(l.address||"")+'</div><div class="prior">'+esc(l.flag_reason||"No reason recorded")+'</div><div class="row"><button class="btn small" data-do="place_unflag">'+(auto?"Restore":"Unflag")+'</button></div></div>'}).join("")||'<div class="empty">No matches.</div>')+(rows.length>200?'<div class="note">Showing the first 200. Narrow the search to see more.</div>':'');
-  }
   function reviews(el){
-    var parts=[];
-    var a=H.can("reviews")?H.api("reviews_list",{period:st.reviewPeriod}).then(function(r){var ai=r.data.filter(function(x){return x.ai_status==="approve"&&arr(x.ai_flags).indexOf("csae_escalate")<0}).length;
-      parts[0]='<div class="subhead"><h3>Reviews to moderate</h3><span>'+(r.data.length?r.data.length+" waiting":"none waiting")+'</span></div><div class="filter" data-f="reviewPeriod">'+periodChips(st.reviewPeriod)+'</div>'+
+    H.api("reviews_list",{period:st.reviewPeriod}).then(function(r){var ai=r.data.filter(function(x){return x.ai_status==="approve"&&arr(x.ai_flags).indexOf("csae_escalate")<0}).length;
+      el.innerHTML='<div class="subhead"><h3>Reviews to moderate</h3><span>'+(r.data.length?r.data.length+" waiting":"none waiting")+'</span></div><div class="filter" data-f="reviewPeriod">'+periodChips(st.reviewPeriod)+'</div>'+
         (ai?'<div class="row"><button class="btn ok" data-do="bulk_ai" data-confirm="Confirm approve '+ai+'">Approve all AI-cleared ('+ai+')</button></div>':'')+
-        (r.data.length?r.data.map(reviewCard).join(""):'<div class="empty">No reviews waiting.</div>')}):Promise.resolve();
-    var b=H.can("places_edit")?H.api("flagged_list").then(function(r){flagged=r.data;var cats=[...new Set(flagged.map(function(l){return l.category}).filter(Boolean))].sort();
-      parts[1]='<div class="subhead"><h3>Flagged and excluded places</h3></div><div class="row"><input type="search" class="pill-in" id="flagQ" placeholder="Search name, address or reason" value="'+esc(st.flag.q)+'" style="flex:1 1 200px"></div>'+
-        '<div class="row"><select id="flagType"><option value="all">All types</option><option value="manual">Manual or report</option><option value="auto">Auto-excluded</option></select><select id="flagCat"><option value="">All categories</option>'+cats.map(function(c){return '<option>'+esc(c)+'</option>'}).join("")+'</select><select id="flagSort"><option value="new">Newest</option><option value="old">Oldest</option><option value="name">Name</option></select></div><div class="stack" id="flagList">'+flaggedHtml()+'</div>'}):Promise.resolve();
-    Promise.all([a,b]).then(function(){el.innerHTML=parts.join("");if($("flagType")){$("flagType").value=st.flag.type;$("flagCat").value=st.flag.cat;$("flagSort").value=st.flag.sort}}).catch(function(e){fail(el,e)});
-  }
-
-  // Support: status and period filters, SLA, priority, tags, notes, macros, replies, delete to trash.
-  var tk={};
-  function support(el){
-    H.api("tickets_list",{status:st.ticketStatus,period:st.ticketPeriod}).then(function(r){
-      var d=r.data, sla=d.sla||{};tk=d;
-      var byT=function(list){var m={};list.forEach(function(x){(m[x.ticket_id]=m[x.ticket_id]||[]).push(x)});return m}, resp=byT(d.responses), notes=byT(d.notes);
-      var macros='<option value="">Insert a saved reply</option>'+d.macros.map(function(m){return '<option value="'+esc(m.id)+'">'+esc(m.title)+'</option>'}).join("");
-      el.innerHTML='<div class="tiles"><div class="tile"><div class="lbl">Open</div><div class="val">'+(sla.open_now||0)+'</div></div><div class="tile"><div class="lbl">Awaiting first reply</div><div class="val">'+(sla.awaiting||0)+'</div></div><div class="tile"><div class="lbl">Older than 24h</div><div class="val">'+(sla.ageing||0)+'</div></div><div class="tile"><div class="lbl">Average first reply</div><div class="val">'+(sla.avg_first_h!=null?sla.avg_first_h+"h":"–")+'</div></div></div>'+
-        '<div class="filter" data-f="ticketStatus">'+[["","All"],["open","Open"],["in_progress","In progress"],["resolved","Resolved"]].map(function(x){return '<button class="chip" data-v="'+x[0]+'" aria-pressed="'+(x[0]===st.ticketStatus)+'">'+x[1]+'</button>'}).join("")+'</div><div class="filter" data-f="ticketPeriod">'+periodChips(st.ticketPeriod)+'</div>'+
-        (d.tickets.length?d.tickets.map(function(t){var pr=t.priority||"normal", th=resp[t.id]||[], nt=notes[t.id]||[];
-          return '<div class="card" data-tid="'+esc(t.id)+'"><div class="meta"><span class="tag '+(t.status==="open"?"warn":"info")+'">'+esc((t.status||"").replace("_"," "))+'</span><span class="tag'+(pr==="urgent"?" crit":pr==="high"?" warn":"")+'">'+esc(pr)+'</span><span>'+esc(t.full_name||"")+' '+(t.email?'&lt;'+esc(t.email)+'&gt;':'<span class="note">email hidden</span>')+'</span><span>'+esc(t.category||"")+'</span><span>opened '+esc(dateOnly(t.created_at))+'</span></div>'+
-            '<div class="title">'+esc(t.subject||"(no subject)")+'</div><div class="text">'+esc(t.message||"")+'</div>'+
-            '<div class="grid2"><label>Priority<select data-do="priority">'+["low","normal","high","urgent"].map(function(p){return '<option'+(p===pr?" selected":"")+'>'+p+'</option>'}).join("")+'</select></label><label>Tags (comma separated)<input type="text" data-do="tags" value="'+esc((t.tags||[]).join(", "))+'"></label></div>'+
-            th.map(function(x){return '<div class="prior">You replied '+esc(H.when(x.created_at))+' ('+esc(x.status||"")+(x.status==="failed"&&x.error?": "+esc(String(x.error).slice(0,90)):"")+'): '+esc(x.body)+'</div>'}).join("")+
-            '<details><summary class="note">Internal notes ('+nt.length+')</summary>'+nt.map(function(n){return '<div class="prior">'+esc(H.when(n.created_at))+': '+esc(n.body)+'</div>'}).join("")+'<div class="row"><input type="text" class="pill-in" data-note placeholder="Add an internal note, not sent to the customer" style="flex:1 1 200px"><button class="btn small" data-do="note">Add note</button></div></details>'+
-            (d.macros.length?'<select data-do="macro">'+macros+'</select>':'')+
-            '<textarea data-reply placeholder="Write a reply, sent from support@barkfind.com and signed Josh"></textarea>'+
-            '<div class="row"><button class="btn small" data-do="draft">Draft with Claude</button><button class="btn primary small" data-do="reply" data-confirm="Confirm send">Send reply</button><button class="btn ok small" data-do="reply_resolve" data-confirm="Confirm send and resolve">Send and resolve</button>'+
-            (t.status!=="in_progress"&&t.status!=="resolved"?'<button class="btn small" data-do="in_progress">In progress</button>':'')+
-            (t.status!=="resolved"?'<button class="btn small" data-do="resolve" data-confirm="Confirm resolve">Resolve</button>':'<button class="btn small" data-do="reopen">Reopen</button>')+
-            '<button class="btn danger small" data-do="delete" data-confirm="Confirm delete">Delete</button></div></div>'}).join(""):'<div class="empty">No tickets in this view.</div>');
+        (r.data.length?r.data.map(reviewCard).join(""):'<div class="empty">No reviews waiting.</div>');
     }).catch(function(e){fail(el,e)});
   }
 
@@ -1365,8 +1377,294 @@ footer .mono{color:rgba(255,255,255,.75)}
     }).catch(function(e){fail(el,e)});
   }
 
+  // ---------- Flagged places (Part A): tabs, server-side filters, grouping, multi-select ----------
+  var CATS=["park","cafe","pub","bar","restaurant","beach","pet-store","vet","groomer"];
+  var RULE={hard_reject:["Hard reject","crit"],soft_reject:["Soft reject","warn"],dogs_not_allowed:["Dogs not allowed","info"],manual:["Manual","info"],report:["From a report","info"]};
+  var fl={filter:{tab:"to_review",rule:"",gtype:"",category:"",by:"",from:"",to:"",q:""},sort:"new",page:0,group:false,allTabs:false,sel:{},selAll:false,rows:[],total:0,counts:null};
+  function catOpts(sel){return '<option value="">Choose a category</option>'+CATS.map(function(c){return '<option value="'+c+'"'+(c===sel?" selected":"")+'>'+c+'</option>'}).join("")}
+  function flFilter(){var f=Object.assign({},fl.filter);if(fl.allTabs&&f.q)f.tab="all";return f}
+  function selIds(){return Object.keys(fl.sel)}
+  function selection(){return fl.selAll?{all:true,filter:flFilter()}:{ids:selIds()}}
+  function selCount(){return fl.selAll?fl.total:selIds().length}
+  function mapsUrl(r){return r.place_id?"https://www.google.com/maps/search/?api=1&query="+encodeURIComponent(r.name||"place")+"&query_place_id="+encodeURIComponent(r.place_id):(r.latitude!=null?"https://www.google.com/maps/search/?api=1&query="+r.latitude+","+r.longitude:"")}
+  function flagsSection(el){
+    var f=fl.filter;
+    el.innerHTML='<div class="filter" id="flTabs"></div>'+
+      '<div class="fbar"><input type="search" class="pill-in" id="flQ" placeholder="Search name, address or reason" value="'+esc(f.q)+'"><label class="note fcheck"><input type="checkbox" id="flAllTabs"'+(fl.allTabs?" checked":"")+'> Search all three tabs</label><label class="note fcheck"><input type="checkbox" id="flGroup"'+(fl.group?" checked":"")+'> Group by Google type</label><button class="btn small end" data-fa="clear">Clear filters</button></div>'+
+      '<div class="fbar" id="flFilters"></div>'+
+      '<div id="flBody" class="stack"><div class="empty">Loading.</div></div>';
+    flLoad();
+  }
+  function flLoad(){
+    var body=$("flBody");if(!body)return;body.innerHTML='<div class="empty">Loading.</div>';
+    Promise.all([H.api("flags_counts",{filter:flFilter()}),fl.group?Promise.resolve(null):H.api("flags_list",{filter:flFilter(),page:fl.page,sort:fl.sort})]).then(function(r){
+      var c=r[0].data;fl.counts=c;var f=fl.filter;
+      $("flTabs").innerHTML=[["to_review","To review"],["keep_excluded","Kept excluded"],["restored","Restored"]].map(function(t){return '<button class="chip" data-fa="tab" data-v="'+t[0]+'" aria-pressed="'+(f.tab===t[0]&&!(fl.allTabs&&f.q))+'">'+t[1]+' <span class="count">'+(c.tabs[t[0]]||0).toLocaleString("en-GB")+'</span></button>'}).join("")+(fl.allTabs&&f.q?'<span class="note">Searching all three tabs</span>':'');
+      var opt=function(list,cur,none){return '<option value="">'+none+'</option>'+list.map(function(x){return '<option value="'+esc(x.k)+'"'+(x.k===cur?" selected":"")+'>'+esc(RULE[x.k]?RULE[x.k][0]:x.k)+' ('+x.n.toLocaleString("en-GB")+')</option>'}).join("")};
+      $("flFilters").innerHTML='<select data-ff="rule" aria-label="Rule">'+opt(c.rules,f.rule,"Any rule")+'</select>'+
+        '<select data-ff="gtype" aria-label="Google type">'+opt(c.gtypes,f.gtype,"Any Google type")+'</select>'+
+        '<select data-ff="category" aria-label="BarkFind category">'+opt(c.categories,f.category,"Any category")+'</select>'+
+        '<select data-ff="by" aria-label="Flagged by"><option value="">Flagged by anyone</option><option value="auto"'+(f.by==="auto"?" selected":"")+'>Flagged automatically</option>'+c.flaggers.map(function(p){return '<option value="'+esc(p.id)+'"'+(p.id===f.by?" selected":"")+'>'+esc(p.name)+' ('+p.n+')</option>'}).join("")+'</select>'+
+        '<label class="fdate">From<input type="date" data-ff="from" value="'+esc(f.from)+'"></label><label class="fdate">To<input type="date" data-ff="to" value="'+esc(f.to)+'"></label>'+
+        '<select data-ff="sort" aria-label="Sort"><option value="new">Newest flag</option><option value="old"'+(fl.sort==="old"?" selected":"")+'>Oldest flag</option><option value="name"'+(fl.sort==="name"?" selected":"")+'>Name</option></select>';
+      if(fl.group){
+        $("flBody").innerHTML='<div class="note">Open a Google type to work through it.</div>'+(c.gtypes.length?c.gtypes.map(function(g){return '<button class="card" data-fa="opengroup" data-v="'+esc(g.k)+'" style="text-align:left;cursor:pointer"><div class="row" style="justify-content:space-between"><span class="title">'+esc(g.k)+'</span><span class="tag">'+g.n.toLocaleString("en-GB")+'</span></div></button>'}).join(""):'<div class="empty">Nothing here.</div>');
+        return;
+      }
+      var d=r[1].data;fl.rows=d.rows;fl.total=d.total;flRender();
+    }).catch(function(e){$("flBody").innerHTML='<div class="empty">'+esc(e.message||"That did not load.")+'</div>'});
+  }
+  function flRender(){
+    var f=fl.filter, tab=fl.allTabs&&f.q?"all":f.tab, from=fl.page*50;
+    var canDel=H.can("places_delete");
+    var bar='<div class="card" id="flBar"><div class="row"><label class="note" style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="flPageAll"'+(fl.rows.length&&fl.rows.every(function(r){return fl.sel[r.id]})?" checked":"")+'> Select this page</label>'+
+      (fl.total>fl.rows.length?'<button class="btn small" data-fa="selall">'+(fl.selAll?"Selecting all "+fl.total.toLocaleString("en-GB")+" matching":"Select all "+fl.total.toLocaleString("en-GB")+" matching")+'</button>':'')+
+      '<span class="note" id="flSelN">'+selCount().toLocaleString("en-GB")+' selected</span>'+(selCount()?'<button class="btn small" data-fa="none">Clear selection</button>':'')+'</div>'+
+      (selCount()?'<div class="row">'+(tab==="to_review"||tab==="all"?'<button class="btn small" data-fa="keep" data-confirm="Confirm keep">Keep excluded</button>':'')+(tab==="keep_excluded"?'<button class="btn small" data-fa="to_review" data-confirm="Confirm move">Move back to review</button>':'')+
+        (tab!=="restored"?'<select id="flBulkCat">'+catOpts("")+'</select><button class="btn ok small" data-fa="restore" data-confirm="Confirm restore">Restore</button>':'')+
+        (tab==="keep_excluded"&&canDel?'<button class="btn danger small" data-fa="delete" data-confirm="Confirm delete">Delete</button>':'')+'</div><div class="note" id="flConfirm"></div>':'')+'</div>';
+    var cards=fl.rows.map(function(r){var rl=RULE[r.flag_rule]||[r.flag_rule||"unknown",""], mu=mapsUrl(r);
+      return '<div class="card" data-flid="'+esc(r.id)+'"><div class="row" style="align-items:flex-start;flex-wrap:nowrap"><input type="checkbox" data-fa="pick" aria-label="Select '+esc(r.name)+'"'+(fl.sel[r.id]||fl.selAll?" checked":"")+(fl.selAll?" disabled":"")+' style="width:22px;height:22px;margin-top:2px;flex:none"><div class="stack" style="gap:6px;min-width:0;flex:1">'+
+        '<div class="meta"><span class="tag '+rl[1]+'">'+esc(rl[0])+'</span>'+(r.flag_google_type?'<span class="tag">'+esc(r.flag_google_type)+'</span>':'')+'<span class="tag">filed as '+esc(r.category||"none")+'</span>'+(r.category_locked?'<span class="tag ok">category locked</span>':'')+(tab==="all"?'<span class="tag info">'+esc((r.flag_review||"").replace("_"," "))+'</span>':'')+'</div>'+
+        '<div class="title">'+esc(r.name||"Unnamed place")+'</div><div class="note">'+esc(r.address||"")+'</div>'+
+        '<div class="note">'+(r.flagged_by_name?"Flagged by "+esc(r.flagged_by_name):"Flagged automatically")+(r.flagged_at?", "+esc(H.when(r.flagged_at)):"")+'</div>'+
+        '<div class="prior">'+esc(r.flag_reason||"No reason recorded")+'</div>'+
+        '<div class="row">'+(mu?'<a class="btn small" href="'+esc(mu)+'" target="_blank" rel="noopener noreferrer">Open in Google Maps</a>':'')+
+        (r.flagged?'<select data-card-cat>'+catOpts("")+'</select><button class="btn ok small" data-fa="restore1" data-confirm="Confirm restore">Restore</button>':'')+'</div></div></div></div>'}).join("");
+    var pager='<div class="row" style="justify-content:space-between"><span class="note">'+(fl.total?(from+1).toLocaleString("en-GB")+" to "+Math.min(from+50,fl.total).toLocaleString("en-GB")+" of "+fl.total.toLocaleString("en-GB"):"Nothing matches")+'</span><div class="row">'+(fl.page>0?'<button class="btn small" data-fa="prev">Previous</button>':'')+(from+50<fl.total?'<button class="btn small" data-fa="next">Next</button>':'')+'</div></div>';
+    $("flBody").innerHTML=(fl.rows.length?bar:'')+(cards||'<div class="empty">Nothing matches these filters.</div>')+(fl.total>50?pager:'');
+  }
+  function flReset(keepSel){if(!keepSel){fl.sel={};fl.selAll=false}fl.page=0;flLoad()}
+  // Big actions (over 50 places): the exact count and first names before the second tap.
+  function flBulk(b,op,extra,label){
+    var n=selCount(), card=$("flBar");
+    if(n>50&&b.dataset.armed!=="1"){
+      b.disabled=true;H.api("flags_preview",Object.assign({action:op==="flags_restore"?"restore":op==="flags_delete"?"delete":op==="flags_keep"?"keep":"to_review"},selection())).then(function(r){
+        var d=r.data;$("flConfirm").textContent="This will "+label.replace("{n}",d.count.toLocaleString("en-GB"))+": "+d.names.join(", ")+(d.count>d.names.length?" and "+(d.count-d.names.length).toLocaleString("en-GB")+" more.":".")+" Tap again to confirm.";
+        b.disabled=false;H.armed(b);
+      }).catch(function(e){b.disabled=false;H.note(card,false,e.message)});return;
+    }
+    if(n<=50&&!H.armed(b))return;
+    var go=function(){return H.api(op,Object.assign({},selection(),extra||{})).then(function(r){H.note(card,true,r.message);flReset()}).catch(function(e){H.note(card,false,e.message)})};
+    if(op==="flags_delete"){deferOp("Deleting "+n.toLocaleString("en-GB")+" place"+(n===1?"":"s"),go,function(){b.dataset.armed="";b.textContent=b.dataset.label||"Delete";b.classList.remove("confirm")});return}
+    b.disabled=true;go().then(function(){b.disabled=false});
+  }
+  function flClick(ev){
+    var b=ev.target.closest("[data-fa]");if(!b||!$("flBody"))return false;var what=b.dataset.fa, f=fl.filter;
+    if(what==="tab"){f.tab=b.dataset.v;fl.allTabs=false;flReset();return true}
+    if(what==="clear"){fl.filter={tab:f.tab,rule:"",gtype:"",category:"",by:"",from:"",to:"",q:""};fl.allTabs=false;var el=$("actPane");flagsSection(el);return true}
+    if(what==="opengroup"){f.gtype=b.dataset.v;fl.group=false;var g=$("flGroup");if(g)g.checked=false;flReset();return true}
+    if(what==="prev"||what==="next"){fl.page+=what==="next"?1:-1;flLoad();window.scrollTo(0,$("actPane").offsetTop-120);return true}
+    if(what==="selall"){fl.selAll=!fl.selAll;fl.sel={};flRender();return true}
+    if(what==="none"){fl.sel={};fl.selAll=false;flRender();return true}
+    if(what==="pick"){var id=b.closest("[data-flid]").dataset.flid;if(b.checked)fl.sel[id]=1;else delete fl.sel[id];flRender();return true}
+    if(what==="keep"){flBulk(b,"flags_keep",null,"keep {n} places excluded");return true}
+    if(what==="to_review"){flBulk(b,"flags_to_review",null,"move {n} places back to review");return true}
+    if(what==="restore"){var c=$("flBulkCat").value;if(!c){H.note($("flBar"),false,"Choose the correct category first.");b.dataset.armed="";return true}flBulk(b,"flags_restore",{category:c},"restore {n} places as "+c);return true}
+    if(what==="delete"){flBulk(b,"flags_delete",null,"delete {n} places");return true}
+    if(what==="restore1"){var card=b.closest("[data-flid]"), cc=card.querySelector("[data-card-cat]").value;if(!cc){H.note(card,false,"Choose the correct category first.");return true}
+      if(!H.armed(b))return true;b.disabled=true;H.api("flags_restore",{ids:[card.dataset.flid],category:cc}).then(function(r){H.note(card,true,r.message);setTimeout(flLoad,900)}).catch(function(e){H.note(card,false,e.message);b.disabled=false});return true}
+    return false;
+  }
+  function flChange(ev){
+    var t=ev.target;if(!$("flBody"))return false;
+    if(t.id==="flPageAll"){fl.rows.forEach(function(r){if(t.checked)fl.sel[r.id]=1;else delete fl.sel[r.id]});flRender();return true}
+    if(t.id==="flGroup"){fl.group=t.checked;flReset();return true}
+    if(t.id==="flAllTabs"){fl.allTabs=t.checked;flReset();return true}
+    if(t.dataset.ff){if(t.dataset.ff==="sort")fl.sort=t.value;else fl.filter[t.dataset.ff]=t.value;flReset();return true}
+    return false;
+  }
+  var flQTimer=null;
+  function flInput(ev){if(ev.target.id!=="flQ")return false;clearTimeout(flQTimer);var v=ev.target.value.trim().toLowerCase();flQTimer=setTimeout(function(){fl.filter.q=v;flReset()},400);return true}
+
+  // ---------- Inbox (Part B): one queue over every kind of request ----------
+  var KIND={support_ticket:"Support",listing_change:"Listing change",business_claim:"Business claim",place_report:"Place report",user_report:"User report",privacy_request:"Privacy",treat_claim:"Treat claim"};
+  var SEV={urgent:["Urgent","crit",2],high:["High","warn",8],normal:["Normal","",24],low:["Low","",72]};
+  var VIEW=[["unassigned","Unassigned"],["mine","Mine"],["open","All open"],["waiting","Waiting"],["snoozed","Snoozed"],["closed","Closed"]];
+  var ib={filter:{view:"open",kind:"",tag:"",q:""},page:0,open:null,hb:null};
+  function left(r){
+    if(r.state!=="open"||!r.due_from)return "";
+    var ms=new Date(r.due_at).getTime()-Date.now(), tgt=(SEV[r.severity]||SEV.normal)[2]*36e5, abs=Math.abs(ms), h=Math.floor(abs/36e5), m=Math.floor(abs%36e5/6e4);
+    var t=(h>=48?Math.round(h/24)+" days":h?h+"h "+m+"m":m+"m");
+    return '<span class="tag plain '+(ms<0?"crit":ms<tgt/4?"warn":"")+'">'+(ms<0?t+" over target":t+" left")+'</span>';
+  }
+  function inboxSection(el){
+    var f=ib.filter;
+    el.innerHTML='<div class="tiles" id="ibTiles"></div><div class="filter" id="ibViews"></div>'+
+      '<div class="fbar"><input type="search" class="pill-in" id="ibQ" placeholder="Search subject, name'+(H.can("users_contact")?" or email":"")+'" value="'+esc(f.q)+'"><select id="ibKind" aria-label="Type"></select><select id="ibTag" aria-label="Tag"></select>'+
+      (H.can("places_edit")?'<button class="btn small end" data-ia="newchange">New listing change</button>':'')+'</div><div class="stack" id="ibList"><div class="empty">Loading.</div></div>';
+    ibLoad();
+  }
+  function ibLoad(){
+    if(!$("ibList"))return;var f=ib.filter;
+    Promise.all([H.api("inbox_counts",{filter:f}),H.api("inbox_list",{filter:f,page:ib.page})]).then(function(r){
+      var c=r[0].data, v=c.views, s=c.sla||{}, d=r[1].data;
+      $("ibTiles").innerHTML=[["Open",v.open||0],["Awaiting first reply",s.awaiting||0],["Older than 24h",s.ageing||0],["Average first reply",s.avg_first_h!=null?s.avg_first_h+"h":"–"],["Breaching target",v.breaching||0]].map(function(t,i){return '<div class="tile"'+(i===4&&t[1]?' style="border-color:var(--crit)"':'')+'><div class="lbl">'+t[0]+'</div><div class="val"'+(i===4&&t[1]?' style="color:var(--crit)"':'')+'>'+t[1]+'</div></div>'}).join("");
+      $("ibViews").innerHTML=VIEW.map(function(x){var n=x[0]==="closed"?"":v[x[0]];return '<button class="chip" data-ia="view" data-v="'+x[0]+'" aria-pressed="'+(f.view===x[0])+'">'+x[1]+(n?' <span class="count">'+n+'</span>':'')+'</button>'}).join("");
+      $("ibKind").innerHTML='<option value="">All types</option>'+c.kinds.map(function(k){return '<option value="'+k+'"'+(k===f.kind?" selected":"")+'>'+KIND[k]+'</option>'}).join("");
+      $("ibTag").innerHTML='<option value="">All tags</option>'+c.tags.map(function(t){return '<option'+(t===f.tag?" selected":"")+'>'+esc(t)+'</option>'}).join("");
+      $("ibList").innerHTML=(d.rows.length?d.rows.map(function(x){var sv=SEV[x.severity]||SEV.normal;
+        return '<button class="card" data-ia="open" data-k="'+x.kind+'" data-id="'+esc(x.id)+'" style="text-align:left;cursor:pointer;width:100%"><div class="meta"><span class="tag info">'+KIND[x.kind]+'</span><span class="tag '+sv[1]+'">'+sv[0]+'</span>'+(x.kind==="support_ticket"&&x.first_reply_at&&x.due_from&&x.state!=="closed"?'<span class="tag plain warn">Customer replied</span>':'')+left(x)+
+          (x.state==="waiting"?'<span class="tag plain">Waiting on customer</span>':'')+(x.snoozed_until&&new Date(x.snoozed_until)>new Date()?'<span class="tag plain">Snoozed until '+esc(H.when(x.snoozed_until))+'</span>':'')+
+          '<span>'+(x.assignee?esc(x.assignee):"Unassigned")+'</span>'+(x.viewers&&x.viewers.length?'<span class="tag plain warn">'+esc(x.viewers.join(", "))+' viewing</span>':'')+'</div>'+
+          '<div class="title">'+esc(x.title||"")+'</div><div class="note">'+esc(x.person||"")+(x.email?" &lt;"+esc(x.email)+"&gt;":"")+" · "+esc(H.when(x.created_at))+'</div>'+
+          ((x.tags||[]).length?'<div class="chips-sm">'+x.tags.map(function(t){return '<span>'+esc(t)+'</span>'}).join("")+'</div>':'')+'</button>'}).join(""):'<div class="empty">Nothing in this view.</div>')+
+        (d.total>d.page_size?'<div class="row" style="justify-content:space-between"><span class="note">'+(d.page*d.page_size+1)+" to "+Math.min((d.page+1)*d.page_size,d.total)+" of "+d.total+'</span><div class="row">'+(d.page>0?'<button class="btn small" data-ia="prev">Previous</button>':'')+((d.page+1)*d.page_size<d.total?'<button class="btn small" data-ia="next">Next</button>':'')+'</div></div>':'');
+    }).catch(function(e){$("ibList").innerHTML='<div class="empty">'+esc(e.message||"That did not load.")+'</div>'});
+  }
+
+  // ---------- one conversation, in the side sheet ----------
+  function snoozeTime(v){var d=new Date();if(v==="3h")return new Date(Date.now()+3*36e5);if(v==="tomorrow"){d.setDate(d.getDate()+1);d.setHours(9,0,0,0);return d}if(v==="monday"){d.setDate(d.getDate()+((8-d.getDay())%7||7));d.setHours(9,0,0,0);return d}return null}
+  function stopHeartbeat(){if(ib.hb){clearInterval(ib.hb);ib.hb=null}if(ib.open){H.api("inbox_leave",{kind:ib.open.kind,id:ib.open.id}).catch(function(){});ib.open=null}$("sheetBg").classList.remove("wide")}
+  function beat(){if(!ib.open)return;var ta=$("sheetBody").querySelector("textarea[data-ib-reply]");H.api("inbox_heartbeat",{kind:ib.open.kind,id:ib.open.id,action:ta&&ta.value.trim()?"replying":"viewing"}).then(function(r){var b=$("ibViewing");if(b){b.hidden=!r.data.length;b.textContent=r.data.map(function(v){return v.name+" is "+v.action}).join(". ")+(r.data.length?".":"")}}).catch(function(){})}
+  function ibOpen(kind,id){
+    stopHeartbeat();ib.open={kind:kind,id:id};openSheet(KIND[kind],'<div class="empty">Loading.</div>');$("sheetBg").classList.add("wide");
+    H.api("inbox_get",{kind:kind,id:id}).then(function(r){ib.data=r.data;ibRender();beat();ib.hb=setInterval(beat,20000)}).catch(function(e){$("sheetBody").innerHTML='<div class="empty">'+esc(e.message||"That did not load.")+'</div>'});
+  }
+  function ibRender(){
+    var d=ib.data, row=d.row, meta=d.meta||{}, can=d.can, k=d.kind;
+    var sev=k==="support_ticket"?row.priority:(meta.severity||(k==="privacy_request"?"urgent":"normal"));
+    var assigned=k==="support_ticket"?row.assigned_to:meta.assigned_to, snoozed=k==="support_ticket"?row.snoozed_until:meta.snoozed_until;
+    var waiting=k==="support_ticket"?row.status==="waiting":!!meta.waiting_since, tags=(k==="support_ticket"?row.tags:meta.tags)||[];
+    var closed={support_ticket:row.status==="resolved",listing_change:row.status&&row.status!=="pending",business_claim:row.status&&row.status!=="pending",place_report:row.status&&row.status!=="open",user_report:row.status&&row.status!=="pending",privacy_request:row.status&&["pending","in_progress"].indexOf(row.status)<0,treat_claim:row.status&&row.status!=="pending"}[k];
+    var triage='<div class="card" data-ib-triage><div class="note" id="ibViewing" hidden></div><div class="grid2">'+
+      '<label>Assigned to<select data-ib="assign"'+(can.assign?"":" disabled")+'><option value="">Unassigned</option>'+d.staff.map(function(s){return '<option value="'+esc(s.id)+'"'+(s.id===assigned?" selected":"")+'>'+esc(s.name)+'</option>'}).join("")+'</select></label>'+
+      '<label>Severity<select data-ib="severity"'+(can.reply?"":" disabled")+'>'+Object.keys(SEV).map(function(s){return '<option value="'+s+'"'+(s===sev?" selected":"")+'>'+SEV[s][0]+'</option>'}).join("")+'</select></label>'+
+      '<label>Snooze<select data-ib="snooze"'+(can.reply&&!closed?"":" disabled")+'><option value="">'+(snoozed&&new Date(snoozed)>new Date()?"Until "+esc(H.when(snoozed)):"Not snoozed")+'</option><option value="3h">For 3 hours</option><option value="tomorrow">Tomorrow 9am</option><option value="monday">Next Monday 9am</option>'+(snoozed?'<option value="wake">Wake up now</option>':'')+'</select></label>'+
+      '<label>Tags (comma separated)<input type="text" data-ib="tags" value="'+esc(tags.join(", "))+'"'+(can.reply?"":" disabled")+'></label></div>'+
+      '<div class="row">'+(can.reply?'<button class="btn small" data-ia="me">Assign to me</button>':'')+(can.reply&&!closed?'<button class="btn small" data-ia="waiting">'+(waiting?"Back to open":"Waiting on customer")+'</button>':'')+'</div></div>';
+    var body='';
+    if(k==="support_ticket"){
+      // The conversation in time order: the ticket, customer replies (left), our replies (right), internal notes.
+      var them=row.full_name||"Customer";
+      var thread=[{at:row.created_at,kind:"them",who:them+(row.email?" <"+row.email+">":""),text:row.message,label:"Opened the ticket"}]
+        .concat(d.responses.map(function(x){
+          if(x.direction==="in")return {at:x.created_at,kind:"them",who:them+(x.from_email?" <"+x.from_email+">":""),text:x.body,full:x.body_full,differs:x.from_differs,label:"Replied by email"};
+          return {at:x.created_at,kind:"us"+(x.status==="failed"?" fail":""),who:"Josh, BarkFind",text:x.body,label:x.status==="sent"?"Sent":x.status==="failed"?"Not sent"+(x.error?": "+String(x.error).slice(0,80):""):pretty(x.status||"queued")};
+        }),d.notes.map(function(x){return {at:x.created_at,kind:"note",who:"Internal note",text:x.body,label:"Only staff see this"}}))
+        .sort(function(a,b){return new Date(a.at)-new Date(b.at)});
+      var awaiting=!closed&&d.responses.length&&d.responses.filter(function(x){return x.direction==="out"&&x.status!=="failed"}).length&&d.responses[d.responses.length-1].direction==="in";
+      body='<div class="card"><div class="meta"><span class="tag">'+esc(row.category||"")+'</span><span class="tag">'+esc((row.status||"").replace("_"," "))+'</span><span>'+esc(row.full_name||"")+(row.email?" &lt;"+esc(row.email)+"&gt;":"")+'</span></div><div class="title">'+esc(row.subject||"(no subject)")+'</div>'+
+        (awaiting?'<div class="note" style="color:var(--warn)">The customer has replied since your last message, so it is waiting on you again.</div>':'')+
+        '<div class="convo">'+thread.map(function(t){return '<div class="msgx '+t.kind+'"><div class="who">'+esc(t.who)+' · '+esc(H.when(t.at))+' · '+esc(t.label)+'</div>'+
+          (t.differs?'<div class="warnline">Sent from a different address than the ticket'+(row.email?" ("+esc(row.email)+")":"")+'. Check it is the same person before sharing account details.</div>':'')+
+          '<div class="body">'+esc(t.text||"")+'</div>'+
+          (t.full&&t.full!==t.text?'<details><summary>Show full email</summary><div class="body">'+esc(t.full)+'</div></details>':'')+'</div>'}).join("")+'</div></div>'+
+        (can.reply?'<div class="card" data-ib-ticket>'+(d.macros.length?'<select data-ib="macro"><option value="">Insert a saved reply</option>'+d.macros.map(function(m){return '<option value="'+esc(m.id)+'">'+esc(m.title)+'</option>'}).join("")+'</select>':'')+
+          '<textarea data-ib-reply placeholder="Write a reply, sent from support@barkfind.com and signed Josh"></textarea><div class="row"><button class="btn small" data-ia="draft">Draft with Claude</button><button class="btn primary small" data-ia="send" data-confirm="Confirm send">Send and wait</button><button class="btn ok small" data-ia="sendclose" data-confirm="Confirm send and close">Send and close</button><button class="btn small" data-ia="note">Save as note</button></div>'+
+          '<div class="row">'+(closed?'<button class="btn small" data-ia="reopen">Reopen</button>':'<button class="btn small" data-ia="close" data-confirm="Confirm close">Close without reply</button>')+'<button class="btn danger small" data-ia="delete" data-confirm="Confirm delete">Delete</button></div></div>':'');
+    }else if(k==="listing_change"){
+      var ch=row.changes||{}, loc=d.location||{}, cur=row.current_values||{};
+      var val=function(v){return v==null?"–":Array.isArray(v)?v.join("\n"):typeof v==="boolean"?(v?"Yes":"No"):String(v)};
+      body='<div class="card"><div class="meta"><span class="tag">'+esc(row.status)+'</span><span class="tag">from '+esc(row.source)+'</span><span>'+esc(row.requester_role)+'</span><span>'+esc(row.requester_name||"")+(row.requester_email?" &lt;"+esc(row.requester_email)+"&gt;":"")+'</span></div>'+
+        '<div class="title">'+esc(loc.name||"A place")+'</div><div class="note">'+esc(loc.address||"")+'</div>'+(row.message?'<div class="text">'+esc(row.message)+'</div>':'')+
+        '<div class="stack" style="gap:8px">'+Object.keys(ch).map(function(f){var now=f==="closed"?!!loc.flagged:loc[f];return '<label class="card" style="padding:10px 12px;gap:6px"><span class="row" style="gap:8px"><input type="checkbox" data-field="'+esc(f)+'" checked'+(row.status!=="pending"||!can.apply?" disabled":"")+'> <b>'+esc(f.replace(/_/g," "))+'</b>'+((loc.locked_fields||[]).indexOf(f)>=0?' <span class="tag ok">locked</span>':'')+'</span><span class="grid2"><span><span class="note">Now</span><div class="prior" style="white-space:pre-wrap">'+esc(val(now))+'</div>'+(cur[f]!==undefined&&JSON.stringify(cur[f])!==JSON.stringify(now)?'<div class="note">When asked: '+esc(val(cur[f]))+'</div>':'')+'</span><span><span class="note">Requested</span><div class="text" style="white-space:pre-wrap">'+esc(val(ch[f]))+'</div></span></span></label>'}).join("")+'</div>'+
+        (row.status==="pending"&&can.apply?'<div class="row"><button class="btn ok small" data-ia="apply" data-confirm="Confirm apply">Apply ticked changes</button></div><label class="note">Reason for declining (sent to them)</label><textarea data-ib-decline style="min-height:70px"></textarea><div class="row"><button class="btn danger small" data-ia="decline" data-confirm="Confirm decline">Decline</button></div>':(row.decline_reason?'<div class="prior">Declined: '+esc(row.decline_reason)+'</div>':''))+'</div>';
+    }else if(k==="business_claim"){
+      body='<div class="card"><div class="meta"><span class="tag">'+esc(row.status)+'</span></div><div class="title">'+esc((d.place||{}).name||"A place")+'</div><dl class="kvs"><dt>Claimant</dt><dd>'+esc(row.claimant_name||"–")+'</dd><dt>Email</dt><dd>'+(row.claimant_email?esc(row.claimant_email):'<span class="note">hidden</span>')+'</dd></dl>'+(row.message?'<div class="text">'+esc(row.message)+'</div>':'')+(row.evidence_url?'<div class="note">Evidence: <a href="'+esc(row.evidence_url)+'" target="_blank" rel="noopener noreferrer">'+esc(row.evidence_url)+'</a></div>':'')+
+        (row.status==="pending"&&H.can("claims")?'<div class="row"><button class="btn small" data-ia="assess">AI assessment</button><button class="btn ok small" data-ia="verify" data-confirm="Confirm verify">Verify</button><button class="btn danger small" data-ia="reject" data-confirm="Confirm reject">Reject</button></div><div data-assess></div>':'')+'</div>';
+    }else if(k==="place_report"){
+      body='<div class="card"><div class="meta"><span class="tag">'+esc(row.status)+'</span></div><div class="title">'+esc((d.place||{}).name||"A place")+': '+esc(row.reason||"")+'</div>'+(row.details?'<div class="text">'+esc(row.details)+'</div>':'')+
+        (row.status==="open"&&H.can("reports")?'<label class="note">Reason for flagging the place</label><input type="text" class="pill-in" data-ib-flag value="'+esc(row.reason||"User report")+'"><div class="row"><button class="btn danger small" data-ia="flag" data-confirm="Confirm flag">Flag place</button><button class="btn small" data-ia="dismiss" data-confirm="Confirm dismiss">Dismiss</button></div>':'')+'</div>';
+    }else if(k==="user_report"){
+      body='<div class="card"><div class="meta"><span class="tag">'+esc(row.status)+'</span></div><div class="title">Reason: '+esc(row.reason||"not given")+'</div>'+
+        (row.status==="pending"&&H.can("reports")?'<div class="row"><button class="btn small" data-ia="ur_actioned" data-confirm="Confirm actioned">Mark actioned</button><button class="btn small" data-ia="ur_dismissed" data-confirm="Confirm dismiss">Dismiss</button></div>':'')+'</div>';
+    }else if(k==="privacy_request"){
+      body='<div class="card"><div class="meta"><span class="tag crit">'+esc(row.request_type)+'</span><span class="tag">'+esc(row.status)+'</span></div><div class="text">'+esc(row.details||"No details given.")+'</div><p class="note" style="margin:0">UK GDPR allows one month; the house rule is 48 hours. For a deletion, run the delete-user-account function, then mark it processed.</p>'+
+        (["pending","in_progress"].indexOf(row.status)>=0&&H.can("privacy")?'<div class="row"><button class="btn small" data-ia="processed" data-confirm="Confirm processed">Mark processed</button></div>':'')+'</div>';
+    }else{
+      body='<div class="card"><div class="meta"><span class="tag">'+esc(row.status)+'</span><span class="tag">'+esc(String(row.tier||"").replace(/_/g," "))+'</span></div><dl class="kvs"><dt>Claimed</dt><dd>'+esc(H.when(row.claimed_at))+'</dd><dt>Points</dt><dd>'+esc(row.points_at_claim)+'</dd><dt>Plan</dt><dd>'+esc(row.plan_at_claim||"–")+'</dd>'+(row.failure_reason?'<dt>Failure</dt><dd>'+esc(row.failure_reason)+'</dd>':'')+'</dl><p class="note" style="margin:0">Treat claims are fulfilled automatically. This view is for reading; the 15-minute sweep clears stuck ones.</p></div>';
+    }
+    var c=d.customer||{};
+    var cust='<div class="card"><div class="subhead"><h3 style="font-size:18px">Customer</h3></div>'+(c.known?'<dl class="kvs"><dt>Name</dt><dd>'+esc(c.name||"–")+'</dd><dt>Email</dt><dd>'+(c.email?esc(c.email):'<span class="note">hidden</span>')+'</dd><dt>Plan</dt><dd>'+esc(c.sub_status==="active"?(c.plan||"paid"):c.sub_status==="trial"?"trial":"free")+(c.trial_end?", trial ends "+esc(H.when(c.trial_end)):"")+'</dd><dt>Joined</dt><dd>'+esc(H.when(c.joined))+'</dd>'+(c.banned?'<dt>Account</dt><dd style="color:var(--crit)">banned</dd>':'')+'</dl>'+
+      '<div class="note">Dogs</div>'+(c.dogs.length?'<div class="chips-sm">'+c.dogs.map(function(g){return '<span>'+esc(g.name||"Dog")+(g.breed?", "+esc(g.breed):"")+'</span>'}).join("")+'</div>':'<div class="note">None.</div>')+
+      '<div class="note">Recent reviews</div>'+(c.reviews.length?c.reviews.map(function(x){return '<div class="prior">'+esc(x.paw_rating)+' paws, '+esc(x.status)+', '+esc(x.place||"")+'</div>'}).join(""):'<div class="note">None.</div>')+
+      '<div class="note">Reports about them</div>'+(c.reports.length?c.reports.map(function(x){return '<div class="prior">'+esc(x.reason||"")+' ('+esc(x.status)+')</div>'}).join(""):'<div class="note">None.</div>')
+      :'<div class="note">No BarkFind account found'+(c.email?" for "+esc(c.email):"")+'.</div>')+
+      '<div class="note">Past conversations</div>'+((c.conversations||[]).length?c.conversations.map(function(x){return '<button class="btn small" data-ia="goto" data-id="'+esc(x.id)+'" style="justify-content:flex-start">'+esc(H.when(x.created_at))+': '+esc(x.subject||"")+' ('+esc(x.status)+')</button>'}).join(""):'<div class="note">None.</div>')+'</div>';
+    $("sheetBody").innerHTML='<div class="ib-cols"><div class="stack">'+triage+body+'</div><div class="stack">'+cust+'</div></div>';
+  }
+  // Refresh the open conversation in place: anything typed in the reply or decline boxes is kept,
+  // and the "viewing" heartbeat carries on.
+  function ibRefresh(){
+    if(!ib.open)return;var o=ib.open, keep={};
+    ["textarea[data-ib-reply]","[data-ib-decline]"].forEach(function(q){var e=$("sheetBody").querySelector(q);if(e&&e.value)keep[q]=e.value});
+    H.api("inbox_get",{kind:o.kind,id:o.id}).then(function(r){if(!ib.open||ib.open.id!==o.id)return;ib.data=r.data;ibRender();
+      Object.keys(keep).forEach(function(q){var e=$("sheetBody").querySelector(q);if(e)e.value=keep[q]});beat()}).catch(function(){});
+  }
+  function ibAct(p,b,card,msg,clearReply){
+    b.disabled=true;return p.then(function(r){r=r&&r.data&&r.ok===undefined?r.data:r;var ok=r&&r.ok!==false;H.note(card,ok,(r&&r.message)||msg||"Saved.");
+      if(ok&&clearReply){var t=$("sheetBody").querySelector("textarea[data-ib-reply]");if(t)t.value=""}
+      setTimeout(function(){ibRefresh();ibLoad();H.loadQueue()},700)}).catch(function(e){H.note(card,false,(e&&e.message)||"That did not work.")}).then(function(){b.disabled=false});
+  }
+  $("sheetBody").addEventListener("click",function(ev){
+    var b=ev.target.closest("[data-ia]");if(!b||!ib.open)return;var o=ib.open, d=ib.data, card=b.closest(".card")||$("sheetBody"), w=b.dataset.ia;
+    if(w==="goto"){ibOpen("support_ticket",b.dataset.id);return}
+    if(w==="me"){ibAct(H.api("inbox_assign",{kind:o.kind,id:o.id,user_id:H.me&&H.me.id||null}),b,card);return}
+    if(w==="waiting"){var on=!(o.kind==="support_ticket"?d.row.status==="waiting":!!(d.meta&&d.meta.waiting_since));ibAct(H.api("inbox_waiting",{kind:o.kind,id:o.id,on:on}),b,card);return}
+    if(w==="draft"){var ta=$("sheetBody").querySelector("textarea[data-ib-reply]");b.disabled=true;ta.value="Drafting…";H.api("draft_ticket",{id:o.id}).then(function(r){ta.value=r.text}).catch(function(e){ta.value="";H.note(card,false,e.message)}).then(function(){b.disabled=false});return}
+    if(w==="note"){var t2=$("sheetBody").querySelector("textarea[data-ib-reply]");if(!t2.value.trim()){H.note(card,false,"Write the note first.");return}ibAct(H.act("note_ticket",{ticket_id:o.id,body:t2.value.trim()}),b,card,null,true);return}
+    if(b.dataset.confirm&&!H.armed(b))return;
+    if(w==="send"||w==="sendclose"){var t3=$("sheetBody").querySelector("textarea[data-ib-reply]");if(!t3.value.trim()){H.note(card,false,"Write the reply first.");return}ibAct(H.api("inbox_reply",{id:o.id,body:t3.value,close:w==="sendclose"}),b,card,null,true);return}
+    if(w==="close"||w==="reopen"){ibAct(H.act("set_ticket_status",{ticket_id:o.id,status:w==="close"?"resolved":"open"}),b,card);return}
+    if(w==="delete"){deferOp("Deleting the conversation",function(){H.api("ticket_delete",{id:o.id}).then(function(){closeSheet();ibLoad();H.loadQueue()}).catch(function(e){H.note(card,false,e.message)})},function(){b.dataset.armed="";b.textContent=b.dataset.label||"Delete";b.classList.remove("confirm")});return}
+    if(w==="apply"){var fields=[].map.call($("sheetBody").querySelectorAll("[data-field]:checked"),function(x){return x.dataset.field});if(!fields.length){H.note(card,false,"Tick at least one change.");return}ibAct(H.api("listing_change_apply",{id:o.id,fields:fields}),b,card);return}
+    if(w==="decline"){var rs=$("sheetBody").querySelector("[data-ib-decline]").value.trim();if(!rs){H.note(card,false,"Give a reason first. It is sent to them.");return}ibAct(H.api("listing_change_decline",{id:o.id,reason:rs}),b,card);return}
+    if(w==="assess"){var box=card.querySelector("[data-assess]");b.disabled=true;box.innerHTML='<div class="note">Assessing the claim.</div>';H.api("claim_assess",{id:o.id}).then(function(r){box.innerHTML='<div class="assess">'+esc(r.text)+'</div>'}).catch(function(e){box.innerHTML="";H.note(card,false,e.message)}).then(function(){b.disabled=false});return}
+    if(w==="verify"||w==="reject"){ibAct(H.api("claim_set_status",{id:o.id,status:w==="verify"?"verified":"rejected"}),b,card);return}
+    if(w==="flag"){ibAct(H.api("report_flag_place",{report_id:o.id,reason:$("sheetBody").querySelector("[data-ib-flag]").value.trim()||"User report"}),b,card);return}
+    if(w==="dismiss"){ibAct(H.act("location_report",{id:o.id,status:"dismissed"}),b,card);return}
+    if(w==="ur_actioned"||w==="ur_dismissed"){ibAct(H.act("user_report",{id:o.id,status:w==="ur_actioned"?"actioned":"dismissed"}),b,card);return}
+    if(w==="processed"){ibAct(H.api("privacy_processed",{id:o.id}),b,card);return}
+  });
+  $("sheetBody").addEventListener("change",function(ev){
+    var t=ev.target;if(!ib.open||!t.dataset.ib)return;var o=ib.open, card=t.closest(".card")||$("sheetBody");
+    if(t.dataset.ib==="assign")ibAct(H.api("inbox_assign",{kind:o.kind,id:o.id,user_id:t.value||null}),t,card);
+    else if(t.dataset.ib==="severity")ibAct(H.api("inbox_severity",{kind:o.kind,id:o.id,severity:t.value}),t,card);
+    else if(t.dataset.ib==="snooze"&&t.value){var until=t.value==="wake"?null:snoozeTime(t.value);ibAct(H.api("inbox_snooze",{kind:o.kind,id:o.id,until:until?until.toISOString():null}),t,card)}
+    else if(t.dataset.ib==="tags")ibAct(H.api("inbox_tags",{kind:o.kind,id:o.id,tags:t.value.split(",").map(function(x){return x.trim()}).filter(Boolean)}),t,card);
+    else if(t.dataset.ib==="macro"&&t.value){var m=(ib.data.macros||[]).filter(function(x){return x.id===t.value})[0], ta=$("sheetBody").querySelector("textarea[data-ib-reply]");if(m)ta.value=(ta.value?ta.value+"\n\n":"")+m.body;t.value="";ta.focus()}
+  });
+
+  // ---------- New listing change (from an email or a call) ----------
+  function newChange(){
+    stopHeartbeat();openSheet("New listing change",'<div class="card" data-nc><label class="note">Place</label><input type="search" class="pill-in" id="ncQ" placeholder="Search by name or address"><div class="stack" id="ncResults" style="gap:6px"></div><input type="hidden" id="ncLoc"><div class="note" id="ncPicked"></div>'+
+      '<div class="grid2"><label>Name<input type="text" data-nc="name"></label><label>Address<input type="text" data-nc="address"></label><label>Website (https)<input type="text" data-nc="website"></label><label>Photo URL (https)<input type="text" data-nc="image_url"></label>'+
+      '<label>Dog policy<select data-nc="dog_policy"><option value="">No change</option><option value="welcome">Welcome</option><option value="restricted">Restricted</option><option value="not_allowed">Not allowed</option></select></label><label>Dog policy note<input type="text" data-nc="dog_policy_note"></label></div>'+
+      '<label class="note">Opening hours, one day per line (Monday: 9:00 AM – 5:00 PM)</label><textarea data-nc="opening_hours" style="min-height:120px"></textarea>'+
+      '<label class="note" style="display:flex;gap:8px;align-items:center"><input type="checkbox" data-nc="closed"> The place has closed permanently</label>'+
+      '<div class="grid2"><label>Their name<input type="text" id="ncName"></label><label>Their email<input type="email" id="ncEmail"></label><label>They are<select id="ncRole"><option value="business">The business</option><option value="user">A customer</option></select></label><label>Came in by<select id="ncSource"><option value="email">Email</option><option value="hq">Phone or in person</option></select></label></div>'+
+      '<label class="note">Their message</label><textarea id="ncMsg" style="min-height:70px"></textarea><div class="row"><button class="btn primary small" data-nca="create">Add to the inbox</button></div></div>');
+    $("sheetBg").classList.add("wide");
+  }
+  var ncTimer=null;
+  $("sheetBody").addEventListener("input",function(ev){if(ev.target.id!=="ncQ")return;clearTimeout(ncTimer);var q=ev.target.value.trim();if(q.length<2){$("ncResults").innerHTML="";return}
+    ncTimer=setTimeout(function(){H.api("places_search",{q:q}).then(function(r){$("ncResults").innerHTML=r.data.map(function(p){return '<button class="btn small" data-nca="pick" data-id="'+esc(p.id)+'" data-name="'+esc(p.name)+'" style="justify-content:flex-start">'+esc(p.name)+' <span class="note">'+esc(p.address)+'</span></button>'}).join("")||'<div class="note">No match.</div>'})},350)});
+  $("sheetBody").addEventListener("click",function(ev){
+    var b=ev.target.closest("[data-nca]");if(!b)return;var card=b.closest(".card");
+    if(b.dataset.nca==="pick"){$("ncLoc").value=b.dataset.id;$("ncPicked").textContent="Chosen: "+b.dataset.name;$("ncResults").innerHTML="";return}
+    var loc=$("ncLoc").value;if(!loc){H.note(card,false,"Choose the place first.");return}
+    var ch={};card.querySelectorAll("[data-nc]").forEach(function(el){var k=el.dataset.nc,v=el.type==="checkbox"?el.checked:el.value.trim();if(k==="closed"){if(v)ch.closed=true}else if(k==="opening_hours"){if(v)ch.opening_hours=v.split("\n").map(function(x){return x.trim()}).filter(Boolean)}else if(v)ch[k]=v});
+    if(!Object.keys(ch).length){H.note(card,false,"Fill in at least one change.");return}
+    b.disabled=true;H.api("listing_change_create",{location_id:loc,changes:ch,requester_name:$("ncName").value.trim(),requester_email:$("ncEmail").value.trim(),requester_role:$("ncRole").value,source:$("ncSource").value,message:$("ncMsg").value.trim()})
+      .then(function(r){H.note(card,true,r.message);setTimeout(function(){ibOpen("listing_change",r.id);ibLoad()},700)}).catch(function(e){H.note(card,false,e.message||"Check the values: web addresses must start with https.")}).then(function(){b.disabled=false});
+  });
+
+  function ibClick(ev){
+    var b=ev.target.closest("[data-ia]");if(!b||!$("ibList"))return false;var w=b.dataset.ia;
+    if(w==="view"){ib.filter.view=b.dataset.v;ib.page=0;ibLoad();return true}
+    if(w==="open"){ibOpen(b.dataset.k,b.dataset.id);return true}
+    if(w==="prev"||w==="next"){ib.page+=w==="next"?1:-1;ibLoad();return true}
+    if(w==="newchange"){newChange();return true}
+    return false;
+  }
+  function ibChange(ev){var t=ev.target;if(t.id==="ibKind"){ib.filter.kind=t.value;ib.page=0;ibLoad();return true}if(t.id==="ibTag"){ib.filter.tag=t.value;ib.page=0;ibLoad();return true}return false}
+  var ibQT=null;
+  function ibInput(ev){if(ev.target.id!=="ibQ")return false;clearTimeout(ibQT);var v=ev.target.value.trim();ibQT=setTimeout(function(){ib.filter.q=v;ib.page=0;ibLoad()},400);return true}
+
   // ---------- Act clicks and changes ----------
   $("actPane").addEventListener("click",function(ev){
+    if(flClick(ev)||ibClick(ev))return;
     var ch=ev.target.closest("[data-f] .chip");
     if(ch){var f=ch.parentNode.dataset.f;st[f]=ch.dataset.period!==undefined?ch.dataset.period:ch.dataset.v;load();return}
     var rb=ev.target.closest("[data-reason]");if(rb){rb.closest(".card").querySelector("[data-flag-reason]").value=rb.dataset.reason;return}
@@ -1379,15 +1677,7 @@ footer .mono{color:rgba(255,255,255,.75)}
     if(what==="approve_review"||what==="reject_review"){run(b,card,H.act(what,{id:card.dataset.id}),refresh);return}
     if(what==="bulk_ai"){var n=b.textContent;b.disabled=true;
       deferOp("Approving AI-cleared reviews",function(){H.api("reviews_bulk_approve_ai").then(function(r){H.note(card,true,r.message);refresh()}).catch(function(e){H.note(card,false,e.message)}).then(function(){b.disabled=false})},function(){b.disabled=false});return}
-    if(what==="place_unflag"){run(b,card,H.api("place_unflag",{id:card.dataset.lid}),function(){flagged=flagged.filter(function(l){return l.id!==card.dataset.lid});setTimeout(function(){card.remove()},700)});return}
     if(what==="privacy_processed"){run(b,card,H.api("privacy_processed",{id:card.dataset.pid}),refresh);return}
-    // Support
-    var tid=card&&card.dataset.tid, ta=card&&card.querySelector("textarea[data-reply]");
-    if(what==="draft"){b.disabled=true;ta.value="Drafting…";H.api("draft_ticket",{id:tid}).then(function(r){ta.value=r.text}).catch(function(e){ta.value="";H.note(card,false,e.message)}).then(function(){b.disabled=false});return}
-    if(what==="reply"||what==="reply_resolve"){if(!ta.value.trim()){H.note(card,false,"Write the reply first.");return}run(b,card,H.act("reply_ticket",{ticket_id:tid,body:ta.value,resolve:what==="reply_resolve"}),refresh);return}
-    if(what==="note"){var ni=card.querySelector("[data-note]");if(!ni.value.trim()){H.note(card,false,"Write the note first.");return}run(b,card,H.act("note_ticket",{ticket_id:tid,body:ni.value.trim()}),function(){setTimeout(load,700)});return}
-    if(what==="in_progress"||what==="resolve"||what==="reopen"){run(b,card,H.act("set_ticket_status",{ticket_id:tid,status:what==="resolve"?"resolved":what==="reopen"?"open":"in_progress"}),refresh);return}
-    if(what==="delete"){card.hidden=true;deferOp("Ticket deleted",function(){H.api("ticket_delete",{id:tid}).then(refresh).catch(function(e){card.hidden=false;H.note(card,false,e.message)})},function(){card.hidden=false;b.dataset.armed="";b.textContent=b.dataset.label||"Delete";b.classList.remove("confirm")});return}
     // Reports
     if(what==="ur_actioned"||what==="ur_dismissed"){run(b,card,H.act("user_report",{id:card.dataset.uid,status:what==="ur_actioned"?"actioned":"dismissed"}),refresh);return}
     if(what==="lr_dismissed"){run(b,card,H.act("location_report",{id:card.dataset.lrid,status:"dismissed"}),refresh);return}
@@ -1398,14 +1688,11 @@ footer .mono{color:rgba(255,255,255,.75)}
     if(what==="verify"||what==="reject"){run(b,card,H.api("claim_set_status",{id:cid,status:what==="verify"?"verified":"rejected"}),refresh);return}
   });
   $("actPane").addEventListener("change",function(ev){
+    if(flChange(ev)||ibChange(ev))return;
     var t=ev.target, card=t.closest(".card");
-    if(t.id==="flagType"||t.id==="flagCat"||t.id==="flagSort"){st.flag.type=$("flagType").value;st.flag.cat=$("flagCat").value;st.flag.sort=$("flagSort").value;$("flagList").innerHTML=flaggedHtml();return}
-    if(!card)return;var tid=card.dataset.tid;
-    if(t.dataset.do==="priority"){H.api("ticket_set_priority",{id:tid,priority:t.value}).then(function(r){H.note(card,true,r.message)}).catch(function(e){H.note(card,false,e.message)});return}
-    if(t.dataset.do==="tags"){var tags=t.value.split(",").map(function(x){return x.trim()}).filter(Boolean);H.api("ticket_set_tags",{id:tid,tags:tags}).then(function(r){H.note(card,true,r.message)}).catch(function(e){H.note(card,false,e.message)});return}
-    if(t.dataset.do==="macro"&&t.value){var m=(tk.macros||[]).filter(function(x){return x.id===t.value})[0];var ta=card.querySelector("textarea[data-reply]");if(m)ta.value=(ta.value?ta.value+"\n\n":"")+m.body;t.value="";ta.focus()}
+    if(!card)return;
   });
-  $("actPane").addEventListener("input",function(ev){if(ev.target.id==="flagQ"){st.flag.q=ev.target.value.trim().toLowerCase();$("flagList").innerHTML=flaggedHtml()}});
+  $("actPane").addEventListener("input",function(ev){flInput(ev)||ibInput(ev)});
 
   // ---------- Users ----------
   var seg="", qTimer=null, loaded=false;
@@ -1454,7 +1741,7 @@ footer .mono{color:rgba(255,255,255,.75)}
 // the password, your permissions, "not yourself" and "not the last owner" again.
 (function(){
   var $=function(id){return document.getElementById(id)}, H=window.HQ, esc=H.esc;
-  var LABEL={owner:"Owner",admin:"Admin",moderator:"Moderator",support:"Support",viewer:"Viewer"};
+  var LABEL={owner:"Owner",admin:"Admin",moderator:"Moderator",support:"Moderator",viewer:"Viewer"};
   function dt(ts){return ts?H.when(ts):"never"}
   function fail(el,e){el.innerHTML='<div class="empty">'+esc((e&&e.message)||"That did not load. Try again.")+'</div>'}
   function busy(b,p,card,after){b.disabled=true;return p.then(function(r){H.note(card,r&&r.ok!==false,(r&&r.message)||"Done.");if(after)after(r)}).catch(function(e){H.note(card,false,(e&&e.message)||"That did not work.")}).then(function(){b.disabled=false})}
@@ -1553,6 +1840,324 @@ footer .mono{color:rgba(255,255,255,.75)}
         .catch(function(e){H.note(card,false,(e&&e.message)||"That did not work.")}).then(function(){b.disabled=false});
     }
   });
+})();
+</script>
+<script>
+// ---------- Content engine (queue, New post, Generate, Recent runs) ----------
+// Rules from docs/content-contract.md: statuses are draft, needs_edit, approved, exported;
+// approving a website piece publishes it on the next website deploy; generation starts in the
+// database and HQ reads content_runs, treating 10 minutes unfinished as failed.
+(function(){
+  var $=function(id){return document.getElementById(id)}, H=window.HQ, esc=H.esc;
+  var ST={draft:"Draft",needs_edit:"Needs edit",approved:"Approved",exported:"Exported"};
+  var STC={draft:"",needs_edit:"warn",approved:"ok",exported:"ok"};
+  var GEN={release_notes:"Release notes",restriction_spotlight:"Restriction spotlights",location_page:"Area pages"};
+  var ce={sec:"queue",rows:[],counts:{},onWebsite:0,f:{status:"",channel:"",type:"",q:""},open:null,dirty:false,
+    pending:{},runs:null,timer:null,loaded:false,preview:null,newType:"news"};
+  function pretty(k){return String(k||"").replace(/_/g," ").replace(/^\w/,function(c){return c.toUpperCase()})}
+  function web(r){return r.channel==="website_blog"}
+  function live(r){return web(r)&&(r.status==="approved"||r.status==="exported")}
+  function fail(el,e){el.innerHTML='<div class="empty">'+esc((e&&e.message)||"That did not load. Try again.")+'</div>'}
+  function busy(b,p,card,after){b.disabled=true;return p.then(function(r){H.note(card,r&&r.ok!==false,(r&&r.message)||"Done.");if(after)after(r)}).catch(function(e){H.note(card,false,(e&&e.message)||"That did not work.")}).then(function(){b.disabled=false})}
+
+  // ---------- tiles and nav ----------
+  function tiles(){
+    var c=ce.counts;
+    $("ceTiles").innerHTML=[["Drafts",c.draft||0],["Needs edit",c.needs_edit||0],["Approved",c.approved||0],["Exported",c.exported||0],["On the website",ce.onWebsite||0]]
+      .map(function(t){return '<div class="tile"><div class="lbl">'+t[0]+'</div><div class="val">'+t[1]+'</div></div>'}).join("");
+    var n=$("ceCount");n.textContent=c.draft||0;n.className="count"+(c.draft?" hot":"");
+  }
+  function loadList(){
+    return H.api("content_list").then(function(r){ce.rows=r.data.rows;ce.counts=r.data.counts;ce.onWebsite=r.data.on_website;tiles();return r});
+  }
+  $("ceNav").addEventListener("click",function(ev){var b=ev.target.closest("[data-sec]");if(!b)return;ce.sec=b.dataset.sec;
+    this.querySelectorAll("[data-sec]").forEach(function(x){x.setAttribute("aria-pressed",x===b?"true":"false")});render()});
+  function render(){
+    var el=$("cePane");
+    if(ce.sec==="queue"){queue(el);return}
+    if(ce.sec==="new"){newPost(el);return}
+    if(ce.sec==="generate"){generate(el);return}
+    runsView(el);
+  }
+
+  // ---------- queue ----------
+  function queue(el){
+    var f=ce.f;
+    var chans=[], types=[];ce.rows.forEach(function(r){if(chans.indexOf(r.channel)<0)chans.push(r.channel);if(types.indexOf(r.content_type)<0)types.push(r.content_type)});chans.sort();types.sort();
+    el.innerHTML='<div class="filter" id="ceStatus">'+[["","All"],["draft","Drafts"],["needs_edit","Needs edit"],["approved","Approved"],["exported","Exported"]].map(function(s){
+        var n=s[0]?(ce.counts[s[0]]||0):0;return '<button class="chip" data-st="'+s[0]+'" aria-pressed="'+(f.status===s[0])+'">'+s[1]+(n?' <span class="count">'+n+'</span>':'')+'</button>'}).join("")+'</div>'+
+      '<div class="fbar"><input type="search" class="pill-in" id="ceQ" placeholder="Search titles" value="'+esc(f.q)+'">'+
+      '<select id="ceChan" aria-label="Channel"><option value="">All channels</option>'+chans.map(function(c){return '<option value="'+esc(c)+'"'+(c===f.channel?" selected":"")+'>'+esc(pretty(c))+'</option>'}).join("")+'</select>'+
+      '<select id="ceType" aria-label="Type"><option value="">All types</option>'+types.map(function(t){return '<option value="'+esc(t)+'"'+(t===f.type?" selected":"")+'>'+esc(pretty(t))+'</option>'}).join("")+'</select>'+
+      '<button class="btn small end" data-ce="tonew">New post</button></div><div class="stack" id="ceList"></div>';
+    list();
+  }
+  function list(){
+    var f=ce.f, q=f.q.toLowerCase();
+    var rows=ce.rows.filter(function(r){return (!f.status||r.status===f.status)&&(!f.channel||r.channel===f.channel)&&(!f.type||r.content_type===f.type)&&(!q||String(r.title||"").toLowerCase().indexOf(q)>=0)});
+    var box=$("ceList");if(!box)return;
+    box.innerHTML=rows.length?'<div class="note">'+rows.length+(rows.length===1?" piece":" pieces")+(ce.rows.length>=300?" (newest 300)":"")+'</div>'+rows.map(function(r){
+      var m=r.meta||{};
+      return '<button class="card" data-ce="open" data-id="'+esc(r.id)+'" style="text-align:left;cursor:pointer"><div class="meta"><span class="tag '+STC[r.status]+'">'+esc(ST[r.status]||r.status)+'</span>'+
+        (live(r)?'<span class="tag ok plain">On the website</span>':'')+'<span class="tag plain">'+esc(pretty(r.channel))+'</span><span class="tag plain">'+esc(pretty(r.content_type))+'</span>'+
+        (r.ai_generated?'':'<span class="tag plain">Written by a person</span>')+'<span>'+esc(H.when(r.created_at))+'</span></div>'+
+        '<div class="title">'+esc(r.title||"(untitled)")+'</div>'+
+        (r.content_type==="event"&&m.event_date?'<div class="note">Event on '+esc(H.day(m.event_date))+(m.town?", "+esc(m.town):"")+'</div>':'')+
+        (r.source_ref?'<div class="note">'+esc(String(r.source_ref).replace(/^area:/,"Area: "))+'</div>':'')+
+        (r.published_url?'<div class="note">'+esc(r.published_url)+'</div>':'')+'</button>'}).join(""):
+      '<div class="empty">Nothing here. Drafts appear when a review, restriction or claim is approved, when you generate, or from New post.</div>';
+  }
+  $("cePane").addEventListener("click",function(ev){
+    var st=ev.target.closest("[data-st]");if(st){ce.f.status=st.dataset.st;$("ceStatus").querySelectorAll("[data-st]").forEach(function(x){x.setAttribute("aria-pressed",x===st?"true":"false")});list();return}
+    var b=ev.target.closest("[data-ce]");if(!b)return;var w=b.dataset.ce, card=b.closest(".card")||$("cePane");
+    if(w==="open"){openPiece(b.dataset.id);return}
+    if(w==="tonew"){ce.sec="new";$("ceNav").querySelectorAll("[data-sec]").forEach(function(x){x.setAttribute("aria-pressed",x.dataset.sec==="new"?"true":"false")});render();return}
+    if(w==="newtype"){ce.newType=b.dataset.v;newPost($("cePane"));return}
+    if(w==="create"){createPost(b,card);return}
+    if(w==="gen"&&b.dataset.v==="release_notes"&&!$("ceDiff").value.trim()){H.note(card,false,"Paste the diff first.");return}
+    if(b.dataset.confirm&&!H.armed(b))return;
+    if(w==="gen"){startGen(b,card,b.dataset.v);return}
+    if(w==="preview"){areaPreview(b,card);return}
+    if(w==="refreshruns"){runsView($("cePane"));return}
+  });
+  $("cePane").addEventListener("input",function(ev){if(ev.target.id==="ceQ"){ce.f.q=ev.target.value.trim();list()}});
+  $("cePane").addEventListener("change",function(ev){var t=ev.target;if(t.id==="ceChan"){ce.f.channel=t.value;list()}if(t.id==="ceType"){ce.f.type=t.value;list()}});
+
+  // ---------- one piece, in the side panel ----------
+  function fieldsFor(type,m){
+    m=m||{};
+    if(type==="event")return '<div class="grid2"><label>Event date (required)<input type="date" data-cf="event_date" value="'+esc(m.event_date||"")+'"></label>'+
+      '<label>Source link (required, https)<input type="text" data-cf="source_url" value="'+esc(m.source_url||"")+'" placeholder="The organiser\'s event page"></label>'+
+      '<label>Town<input type="text" data-cf="town" maxlength="80" value="'+esc(m.town||"")+'"></label><label>Venue<input type="text" data-cf="venue_name" maxlength="120" value="'+esc(m.venue_name||"")+'"></label></div>';
+    if(type==="news")return '<div class="grid2"><label>Published date (optional)<input type="date" data-cf="published_date" value="'+esc(m.published_date||"")+'"></label>'+
+      '<label class="fcheck" style="flex-direction:row;align-items:center;gap:8px;margin-top:18px"><input type="checkbox" data-cf="press_release"'+(m.press_release?" checked":"")+' style="width:20px;height:20px"> Press release</label></div>';
+    return "";
+  }
+  function readFields(root,type){
+    var o={};if(type!=="news"&&type!=="event")return o;
+    root.querySelectorAll("[data-cf]").forEach(function(i){var k=i.dataset.cf;o[k]=i.type==="checkbox"?i.checked:i.value.trim()});
+    if(type==="event"){if(!/^\d{4}-\d{2}-\d{2}$/.test(o.event_date||""))return {err:"Events need a date."};if(!/^https:\/\/\S+$/i.test(o.source_url||""))return {err:"Events need a source link starting with https://"};
+      if(!o.town)delete o.town;if(!o.venue_name)delete o.venue_name}
+    if(type==="news"){if(!o.published_date)delete o.published_date}
+    return o;
+  }
+  function openPiece(id){
+    var bg=$("sheetBg");bg.classList.add("wide");$("sheetTitle").textContent="Content";$("sheetBody").innerHTML='<div class="empty">Loading.</div>';bg.hidden=false;document.body.style.overflow="hidden";
+    ce.dirty=false;
+    H.api("content_get",{id:id}).then(function(r){var p=r.data;ce.open=p;pieceView(p)}).catch(function(e){$("sheetBody").innerHTML='<div class="empty">'+esc(e.message||"That did not load.")+'</div>'});
+  }
+  function pieceView(p){
+    var w=web(p), st=p.status, m=p.meta||{};
+    $("sheetTitle").textContent=p.title||"(untitled)";
+    var btns=[];
+    if(st==="draft"||st==="needs_edit")btns.push('<button class="btn ok small" data-ce="approve" data-confirm="'+(w?"Confirm: goes live on the next deploy":"Confirm approve")+'">'+(w?"Approve: goes live on the next website deploy":"Approve")+'</button>');
+    if(st!=="needs_edit")btns.push('<button class="btn small" data-ce="reject" data-confirm="Confirm needs edit">'+(live(p)?"Reject (needs edit): takes it off the website at the next deploy":"Reject (needs edit)")+'</button>');
+    btns.push('<button class="btn danger small" data-ce="delete" data-confirm="Confirm delete">Delete</button>');
+    $("sheetBody").innerHTML='<div class="card" data-ce-piece><div class="meta"><span class="tag '+STC[st]+'">'+esc(ST[st]||st)+'</span>'+(live(p)?'<span class="tag ok plain">On the website from the next deploy</span>':'')+
+        '<span class="tag plain">'+esc(pretty(p.channel))+'</span><span class="tag plain">'+esc(pretty(p.content_type))+'</span><span class="tag plain">'+(p.ai_generated?"Drafted by Claude":"Written by a person")+'</span></div>'+
+        '<dl class="kvs"><dt>Created</dt><dd>'+esc(H.when(p.created_at))+'</dd>'+(p.approved_at?'<dt>Approved</dt><dd>'+esc(H.when(p.approved_at))+(p.approved_by_name?" by "+esc(p.approved_by_name):"")+'</dd>':'')+
+        (p.source_ref?'<dt>Source</dt><dd>'+esc(p.source_ref)+'</dd>':'')+(p.published_url?'<dt>Posted at</dt><dd><a href="'+esc(p.published_url)+'" target="_blank" rel="noopener noreferrer">'+esc(p.published_url)+'</a></dd>':'')+'</dl>'+
+        (w&&st!=="exported"?'<p class="note" style="margin:0">'+(live(p)?"This is approved, so the website build publishes it. Saved edits show after the next deploy.":"This is a website piece. Approving it means it goes live on barkfind.com at the next website deploy.")+'</p>':'')+
+        '<label class="note">Title</label><input type="text" class="pill-in" data-ce-title maxlength="300" value="'+esc(p.title||"")+'">'+
+        fieldsFor(p.content_type,m)+
+        '<label class="note">Text (Markdown)</label><textarea data-ce-body style="min-height:340px;font-family:ui-monospace,Menlo,monospace;font-size:13.5px">'+esc(p.body_md||"")+'</textarea>'+
+        '<div class="row"><button class="btn primary small" data-ce="save">Save edits</button></div><div class="row">'+btns.join("")+'</div></div>'+
+      (st==="approved"?'<div class="card" data-ce-exp><div class="subhead"><h3 style="font-size:18px">Mark exported</h3></div><p class="note" style="margin:0">Only once you have checked it is live or posted. Add the link if there is one.</p>'+
+        '<input type="text" class="pill-in" data-ce-url placeholder="https://"><div class="row"><button class="btn small" data-ce="exported" data-confirm="Confirm exported">Mark exported</button></div></div>':'');
+  }
+  $("sheetBody").addEventListener("input",function(ev){if(ce.open&&ev.target.closest("[data-ce-piece]"))ce.dirty=true});
+  $("sheetBody").addEventListener("click",function(ev){
+    var b=ev.target.closest("button[data-ce]");if(!b||!ce.open)return;var p=ce.open, card=b.closest(".card"), w=b.dataset.ce, root=$("sheetBody");
+    if(w==="approve"&&ce.dirty){H.note(card,false,"Save your edits first, then approve.");return}
+    if(b.dataset.confirm&&!H.armed(b))return;
+    var after=function(r){if(r&&r.ok===false)return;ce.dirty=false;loadList().then(function(){if(ce.sec==="queue")list()});
+      if(w==="delete"){setTimeout(function(){$("sheetBg").hidden=true;document.body.style.overflow=""},900);return}
+      H.api("content_get",{id:p.id}).then(function(x){ce.open=x.data;pieceView(x.data);var c=root.querySelector("[data-ce-piece]");if(c)H.note(c,true,r.message)}).catch(function(){})};
+    if(w==="save"){
+      var title=root.querySelector("[data-ce-title]").value.trim(), body=root.querySelector("[data-ce-body]").value;
+      if(!title||!body.trim()){H.note(card,false,"Add a title and some text.");return}
+      var args={id:p.id,title:title,body_md:body}, fx=readFields(root,p.content_type);
+      if(fx.err){H.note(card,false,fx.err);return}
+      for(var k in fx)args[k]=fx[k];
+      busy(b,H.api("content_save",args),card,after);return}
+    if(w==="approve"){busy(b,H.api("content_set_status",{id:p.id,status:"approved"}),card,after);return}
+    if(w==="reject"){busy(b,H.api("content_set_status",{id:p.id,status:"needs_edit"}),card,after);return}
+    if(w==="exported"){var u=root.querySelector("[data-ce-url]").value.trim();if(u&&!/^https:\/\/\S+$/i.test(u)){H.note(card,false,"Links must start with https://");return}
+      busy(b,H.api("content_exported",{id:p.id,url:u}),card,after);return}
+    if(w==="delete"){busy(b,H.api("content_delete",{id:p.id}),card,after);return}
+  });
+
+  // ---------- New post (news and events for the website) ----------
+  function newPost(el){
+    var t=ce.newType;
+    el.innerHTML='<div class="card" data-ce-new><div class="subhead"><h3>New post for the website</h3></div>'+
+      '<p class="note" style="margin:0">News and events typed in by a person. It saves as a draft in the queue; nothing appears on barkfind.com until it is approved and the website is deployed.</p>'+
+      '<div class="filter">'+[["news","News"],["event","Event"]].map(function(x){return '<button class="chip" data-ce="newtype" data-v="'+x[0]+'" aria-pressed="'+(t===x[0])+'">'+x[1]+'</button>'}).join("")+'</div>'+
+      '<label class="note">Title</label><input type="text" class="pill-in" id="ceNewTitle" maxlength="300">'+fieldsFor(t,{})+
+      '<label class="note">Text (Markdown)</label><textarea id="ceNewBody" style="min-height:260px"></textarea>'+
+      '<div class="row"><button class="btn primary" data-ce="create">Save as draft</button></div></div>';
+  }
+  function createPost(b,card){
+    var title=$("ceNewTitle").value.trim(), body=$("ceNewBody").value;
+    if(!title||!body.trim()){H.note(card,false,"Add a title and some text.");return}
+    var fx=readFields(card,ce.newType);if(fx.err){H.note(card,false,fx.err);return}
+    var args={type:ce.newType,title:title,body_md:body};for(var k in fx)args[k]=fx[k];
+    busy(b,H.api("content_new",args),card,function(r){if(!r||r.ok===false)return;$("ceNewTitle").value="";$("ceNewBody").value="";card.querySelectorAll("[data-cf]").forEach(function(i){if(i.type==="checkbox")i.checked=false;else i.value=""});loadList()});
+  }
+
+  // ---------- Generate ----------
+  function genStatus(type){
+    var pd=ce.pending[type], runs=(ce.runs&&ce.runs.runs)||[];
+    var run=runs.filter(function(r){return r.source_type===type&&r.triggered_by==="hq"})[0];
+    if(pd&&!pd.run){var mins=(Date.now()-pd.at)/60000;
+      if(mins>=10)return '<div class="msg bad">No run started within 10 minutes, so treat it as failed. Try again, and if it keeps happening the generator may be down.</div>';
+      return '<div class="msg good">Starting. Waiting for the generator to pick it up.</div>'}
+    if(!run)return "";
+    return '<div class="msg '+(run.state==="done"||run.state==="running"?"good":"bad")+'">'+runLine(run)+'</div>';
+  }
+  function runLine(r){
+    var when=H.when(r.started_at), n=r.pieces_created||0, f=r.pieces_failed||0;
+    if(r.state==="running")return "Drafting since "+esc(when)+". This can take a few minutes.";
+    if(r.state==="failed")return "Started "+esc(when)+" and not finished after 10 minutes, so treat it as failed."+(r.error_detail?" "+esc(r.error_detail):"");
+    if(r.state==="refused")return "Refused, "+esc(when)+": "+esc(r.error_detail||"no reason given");
+    return "Finished "+esc(H.when(r.finished_at))+": "+n+(n===1?" piece":" pieces")+" drafted"+(f?", "+f+" failed":"")+"."+(r.error_detail?" "+esc(r.error_detail):"");
+  }
+  function generate(el){
+    el.innerHTML='<p class="note" style="margin:0">Each run drafts pieces into the queue as drafts. Nothing is published until a person approves it. Results show here and under Recent runs.</p>'+
+      '<div class="card" data-gen="release_notes"><div class="subhead"><h3>Release notes</h3></div><p class="note" style="margin:0">Paste the code changes for a build. Claude writes the What\'s New notes from them and nothing else.</p>'+
+        '<input type="text" class="pill-in" id="ceBuild" maxlength="80" placeholder="Build label, for example build 10"><textarea id="ceDiff" placeholder="Paste the diff here" style="min-height:160px;font-family:ui-monospace,Menlo,monospace;font-size:13px"></textarea>'+
+        '<div class="row"><button class="btn primary small" data-ce="gen" data-v="release_notes" data-confirm="Confirm: draft release notes">Draft release notes</button></div><div data-gen-status></div></div>'+
+      '<div class="card" data-gen="restriction_spotlight"><div class="subhead"><h3>Restriction spotlights</h3></div><p class="note" style="margin:0">Drafts posts for approved council restrictions that do not have one yet.</p>'+
+        '<div class="row"><button class="btn primary small" data-ce="gen" data-v="restriction_spotlight" data-confirm="Confirm: draft spotlights">Draft missing spotlights</button></div><div data-gen-status></div></div>'+
+      '<div class="card" data-gen="location_page"><div class="subhead"><h3>Area pages</h3></div><p class="note" style="margin:0">One page per town for the website, best-covered towns first, up to 5 a run. A town needs 5 venues that pass the quality bar (opening hours and a verdict), and runs refuse below 20 such venues overall.</p>'+
+        '<div class="row"><button class="btn small" data-ce="preview">Check what the next batch would draft</button></div><div id="cePreview"></div>'+
+        '<div class="row"><button class="btn primary small" data-ce="gen" data-v="location_page" data-confirm="Confirm: draft up to 5 area pages">Generate next batch</button></div><div data-gen-status></div></div>';
+    if(ce.preview)showPreview(ce.preview);
+    paintGen();
+    if(!ce.runs)pollRuns();
+  }
+  function paintGen(){document.querySelectorAll("#cePane [data-gen]").forEach(function(c){var s=c.querySelector("[data-gen-status]");if(s)s.innerHTML=genStatus(c.dataset.gen)})}
+  function showPreview(d){
+    var s=d.stats||{}, sc=(d.scope||[]).map(function(x){return x.value+(x.label?" ("+x.label+")":"")}).join(", ")||"none";
+    $("cePreview").innerHTML='<div class="prior">Scope: '+esc(sc)+'.<br>'+(s.in_scope||0)+' places in scope, '+(s.eligible||0)+' venues pass the quality bar, '+(s.areas_ready||0)+' towns have enough for a page, '+(s.areas_remaining||0)+' still without one.<br>'+
+      (d.below_floor?'Below the floor of '+d.floor+' venues, so a run would refuse and draft nothing.':(d.areas.length?'The next run would draft '+d.areas.length+(d.areas.length===1?" page":" pages")+': '+esc(d.areas.map(function(a){return a.town+" ("+a.visitable_count+" venues)"}).join(", "))+'.':'Every town with enough venues already has a page, so a run would draft nothing.'))+'</div>';
+  }
+  function areaPreview(b,card){
+    b.disabled=true;$("cePreview").innerHTML='<div class="note">Checking. This takes a few seconds.</div>';
+    H.api("content_area_preview").then(function(r){ce.preview=r.data;showPreview(r.data)}).catch(function(e){$("cePreview").innerHTML='<div class="msg bad">'+esc(e.message||"That did not load.")+'</div>'}).then(function(){b.disabled=false});
+  }
+  function startGen(b,card,type){
+    var args={source_type:type};
+    if(type==="release_notes"){var diff=$("ceDiff").value;if(!diff.trim()){H.note(card,false,"Paste the diff first.");return}if(diff.length>60000){H.note(card,false,"That diff is too long. Keep it under 60,000 characters.");return}
+      args.diff=diff;var lbl=$("ceBuild").value.trim();if(lbl)args.build_label=lbl}
+    b.disabled=true;
+    H.api("content_generate",args).then(function(r){
+      ce.pending[type]={at:Date.now(),since:new Date(r.started_at).getTime(),run:null};
+      if(type==="release_notes"){$("ceDiff").value=""}
+      paintGen();pollRuns();
+    }).catch(function(e){H.note(card,false,(e&&e.message)||"That did not start.")}).then(function(){b.disabled=false});
+  }
+
+  // ---------- Recent runs, and polling while anything is going ----------
+  function visible(){var t=document.querySelector('[data-tab="content"]');return t&&!t.hidden}
+  function pollRuns(){
+    clearTimeout(ce.timer);
+    return H.api("content_runs").then(function(r){
+      ce.runs=r.data;var runs=r.data.runs, again=false;
+      Object.keys(ce.pending).forEach(function(t){var pd=ce.pending[t];
+        if(!pd.run){var m=runs.filter(function(x){return x.source_type===t&&x.triggered_by==="hq"&&new Date(x.started_at).getTime()>=pd.since-5000})[0];
+          if(m)pd.run=m.id;else if(Date.now()-pd.at<600000)again=true}
+      });
+      if(runs.some(function(x){return x.state==="running"}))again=true;
+      // A run that just finished: refresh the queue so its drafts appear.
+      var done=Object.keys(ce.pending).some(function(t){var pd=ce.pending[t],x=pd.run&&runs.filter(function(y){return y.id===pd.run})[0];if(x&&x.state!=="running"&&!pd.counted){pd.counted=true;return true}return false});
+      if(done)loadList();
+      if(ce.sec==="generate")paintGen();
+      if(ce.sec==="runs")paintRuns();
+      if(again&&visible())ce.timer=setTimeout(pollRuns,5000);
+    }).catch(function(){if(visible())ce.timer=setTimeout(pollRuns,15000)});
+  }
+  function paintRuns(){
+    var el=$("ceRuns");if(!el||!ce.runs)return;var runs=ce.runs.runs;
+    el.innerHTML=runs.length?runs.map(function(r){var cls=r.state==="done"?"ok":r.state==="running"?"warn":"crit";
+      return '<div class="card'+(r.state==="failed"||r.state==="refused"?" crit":"")+'"><div class="meta"><span class="tag '+cls+'">'+esc({done:"done",running:"running",failed:"failed",refused:"refused",partial:"some failed"}[r.state]||r.state)+'</span><span class="tag plain">'+esc(GEN[r.source_type]||pretty(r.source_type))+'</span><span>'+esc(r.triggered_by)+'</span><span>'+esc(H.when(r.started_at))+'</span></div>'+
+        '<div class="note">'+runLine(r)+'</div></div>'}).join(""):'<div class="empty">No runs yet.</div>';
+  }
+  function runsView(el){
+    el.innerHTML='<div class="row" style="justify-content:space-between"><span class="note">The last 25 generation runs, from any source: HQ, the triggers and the weekly cron. A run unfinished after 10 minutes counts as failed.</span><button class="btn small" data-ce="refreshruns">Refresh</button></div><div class="stack" id="ceRuns"><div class="empty">Loading.</div></div>';
+    if(ce.runs)paintRuns();
+    pollRuns();
+  }
+
+  window.HQContent={
+    show:function(){
+      if(!ce.loaded){ce.loaded=true;$("cePane").innerHTML='<div class="empty">Loading.</div>';loadList().then(render).catch(function(e){ce.loaded=false;fail($("cePane"),e)});pollRuns();return}
+      render();pollRuns();
+    },
+    init:function(){if(H.can("content"))loadList().catch(function(){})}
+  };
+})();
+</script>
+<script>
+// ---------- Comms: announcements ----------
+// An in-app message to a group of customers (notifications, type system). No push and no
+// email. Sending needs SEND typed; HQ deletes only its own sends, to the trash.
+(function(){
+  var $=function(id){return document.getElementById(id)}, H=window.HQ, esc=H.esc;
+  var SEG={me:"Just me (test)",all:"Everyone",subscribed:"Subscribed",trial:"On a trial",free:"Free"};
+  var LINKS=[["","No link"],["explore","Explore screen"],["upgrade","Upgrade screen"],["reviews","Reviews screen"],["dogProfile","Dog profile screen"],["onboarding","Onboarding"],["place","A place"],["web","A web page"]];
+  var an={seg:"me",counts:null,loaded:false};
+  var UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  function busy(b,p,card,after){b.disabled=true;return p.then(function(r){H.note(card,r&&r.ok!==false,(r&&r.message)||"Done.");if(after)after(r)}).catch(function(e){H.note(card,false,(e&&e.message)||"That did not work.")}).then(function(){b.disabled=false})}
+  function render(){
+    var el=$("anPane");
+    el.innerHTML='<div class="card" id="anCompose"><div class="subhead"><h3>Send an announcement</h3></div>'+
+      '<p class="note" style="margin:0">It appears in the app\'s notifications for everyone in the group you choose. It does not send a push notification or an email. Banned accounts are left out.</p>'+
+      '<label class="note" for="anTitle">Title</label><input type="text" class="pill-in" id="anTitle" maxlength="100" placeholder="Short and specific">'+
+      '<label class="note" for="anMsg">Message <span id="anLen"></span></label><textarea id="anMsg" maxlength="600" style="min-height:110px"></textarea>'+
+      '<div class="fbar"><select id="anLink" aria-label="Link">'+LINKS.map(function(l){return '<option value="'+l[0]+'">'+l[1]+'</option>'}).join("")+'</select><input type="text" class="pill-in" id="anLinkVal" placeholder="" hidden></div>'+
+      '<label class="note">Send to</label><div class="filter" id="anSeg"></div>'+
+      '<div class="prior" id="anPrev"></div>'+
+      '<label class="note" for="anConfirm">Type SEND to confirm</label><div class="fbar"><input type="text" class="pill-in" id="anConfirm" autocomplete="off" autocapitalize="characters" placeholder="SEND"><button class="btn primary end" id="anSend" disabled>Send</button></div></div>'+
+      '<div class="subhead"><h3>Recent announcements</h3></div><div class="stack" id="anList"><div class="empty">Loading.</div></div>';
+    segs();prev();list();
+    H.api("announce_preview").then(function(r){an.counts=r.data;segs();prev()}).catch(function(){});
+  }
+  function segs(){var c=an.counts;$("anSeg").innerHTML=Object.keys(SEG).map(function(k){return '<button class="chip" data-seg="'+k+'" aria-pressed="'+(an.seg===k)+'">'+SEG[k]+(c?' <span class="count">'+c[k]+'</span>':'')+'</button>'}).join("")}
+  function linkValue(){
+    var k=$("anLink").value, v=$("anLinkVal").value.trim();
+    if(k==="place"){v=v.replace(/^location:/i,"");return UUID.test(v)?{v:"location:"+v.toLowerCase()}:{err:"Paste the place's id (from Places or the app link)."}}
+    if(k==="web")return /^https:\/\/\S+$/i.test(v)?{v:v}:{err:"Web links must start with https://"};
+    return {v:k};
+  }
+  function prev(){
+    var t=$("anTitle").value.trim(), m=$("anMsg").value.trim(), n=an.counts?an.counts[an.seg]:null;
+    $("anLen").textContent=m.length?"("+m.length+" of 600)":"";
+    $("anPrev").innerHTML=(t||m?'<b>'+esc(t||"(no title)")+'</b><br>'+esc(m||"(no message)").replace(/\n/g,"<br>")+'<br><br>':'')+
+      (n==null?"Counting the group.":an.seg==="me"?(n?"A test: goes only to your own BarkFind app account. In the app only.":"Your HQ account has no BarkFind app profile, so a test has nowhere to go. Sign in to the app with the same email first."):"Goes to "+n.toLocaleString("en-GB")+(n===1?" person":" people")+" ("+SEG[an.seg].toLowerCase()+"). In the app only.");
+    $("anSend").disabled=!(t&&m&&$("anConfirm").value.trim()==="SEND");
+  }
+  function list(){
+    H.api("announce_list").then(function(r){
+      $("anList").innerHTML=r.data.length?r.data.map(function(x){
+        var mine=!!x.id, pct=x.recipients?Math.round(100*x.read/x.recipients):0;
+        return '<div class="card"'+(mine?' data-anid="'+esc(x.id)+'"':'')+'><div class="meta">'+(mine?'<span class="tag plain">'+esc(SEG[x.segment]||x.segment||"")+'</span>':'<span class="tag plain">Older, from /admin or automatic</span>')+
+          '<span>'+esc(H.when(x.sent_at))+'</span><span>'+x.recipients.toLocaleString("en-GB")+(x.recipients===1?" person":" people")+', '+x.read+' read ('+pct+'%)</span>'+(x.sent_by_name?'<span>by '+esc(x.sent_by_name)+'</span>':'')+'</div>'+
+          '<div class="title">'+esc(x.title||"(no title)")+'</div><div class="text">'+esc(x.message||"")+'</div>'+(x.action_url?'<div class="note">Opens: '+esc(x.action_url)+'</div>':'')+
+          (mine?'<div class="row"><button class="btn danger small" data-an="delete" data-confirm="Confirm: remove from everyone">Delete</button></div>':(x.last_at&&x.last_at!==x.sent_at?'<div class="note">Sent over time, last '+esc(H.when(x.last_at))+'. Read only here.</div>':'<div class="note">Read only here.</div>'))+'</div>'}).join(""):'<div class="empty">No announcements yet.</div>';
+    }).catch(function(e){$("anList").innerHTML='<div class="empty">'+esc(e.message||"That did not load.")+'</div>'});
+  }
+  $("anPane").addEventListener("input",function(ev){if(["anTitle","anMsg","anConfirm","anLinkVal"].indexOf(ev.target.id)>=0)prev()});
+  $("anPane").addEventListener("change",function(ev){if(ev.target.id==="anLink"){var k=ev.target.value,i=$("anLinkVal");i.hidden=!(k==="place"||k==="web");i.value="";i.placeholder=k==="place"?"Place id":"https://"}});
+  $("anPane").addEventListener("click",function(ev){
+    var s=ev.target.closest("[data-seg]");if(s){an.seg=s.dataset.seg;segs();prev();return}
+    if(ev.target.id==="anSend"){var b=ev.target, card=$("anCompose"), l=linkValue();if(l.err){H.note(card,false,l.err);return}
+      busy(b,H.api("announce_send",{title:$("anTitle").value.trim(),message:$("anMsg").value.trim(),url:l.v,segment:an.seg,confirm:$("anConfirm").value.trim()}),card,function(r){
+        if(!r||r.ok===false)return;if(an.seg==="me"){$("anConfirm").value="";prev();list();return}$("anTitle").value="";$("anMsg").value="";$("anConfirm").value="";$("anLink").value="";$("anLinkVal").hidden=true;prev();list()}).then(prev);return}
+    var d=ev.target.closest("[data-an]");if(!d)return;var c=d.closest("[data-anid]");if(!c||!H.armed(d))return;
+    busy(d,H.api("announce_delete",{id:c.dataset.anid}),c,function(r){if(r&&r.ok!==false)setTimeout(list,900)});
+  });
+  window.HQComms={show:function(){if(!an.loaded){an.loaded=true;render()}else{list();H.api("announce_preview").then(function(r){an.counts=r.data;segs();prev()}).catch(function(){})}}};
 })();
 </script>
 </body>
