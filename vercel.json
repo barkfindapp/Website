@@ -12,7 +12,8 @@
       "statusCode": 308
     },
     { "source": "/resources", "destination": "/discover", "permanent": true },
-    { "source": "/resources/", "destination": "/discover", "permanent": true }
+    { "source": "/resources/", "destination": "/discover", "permanent": true },
+    { "source": "/pricing", "destination": "/#pricing", "permanent": false }
   ],
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api/$1" },
