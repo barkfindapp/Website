@@ -15,6 +15,7 @@ import { inboxOps } from './_lib/hq-inbox.js';
 import { contentOps } from './_lib/hq-content.js';
 import { announceOps } from './_lib/hq-announce.js';
 import { placeOps } from './_lib/hq-places.js';
+import { usdToGbp, type Fx } from './_lib/hq-fx.js';
 import { HttpError, bad, obj, only, uuid, str, oneOf, date, bool, scrubEmails, writeTx, toTrash } from './_lib/hq-core.js';
 
 const DB_URL = process.env.SUPABASE_DB_URL!;
@@ -214,8 +215,19 @@ function house(text: string) {
 }
 const voiced = async (p: Promise<{ text: string; truncated: boolean; metered: boolean }>) => { const r = await p; return { ...r, text: house(r.text) }; };
 
+// RevenueCat's stored revenue totals add up every subscription, sandbox included. HQ shows and
+// passes on production revenue only: metrics.revenue_usd_production when revenuecat-sync
+// provides it, otherwise nothing.
+function productionRevenue(snap: any) {
+  const m = snap?.subscriptions?.revenuecat?.metrics;
+  if (!m) return snap;
+  const { revenue_usd, revenue_usd_production, ...rest } = m;
+  const metrics = { ...rest, revenue_usd: revenue_usd_production || null, revenue_note: revenue_usd_production ? 'production only' : 'not available: the stored totals include sandbox test purchases' };
+  return { ...snap, subscriptions: { ...snap.subscriptions, revenuecat: { ...snap.subscriptions.revenuecat, metrics } } };
+}
+
 function askPrompt(ctx: unknown, q: string) {
-  return "You are Ralphy, Josh's spaniel, working as the operations assistant inside BarkFind HQ. BarkFind is a solo-founded UK iOS app for finding places that are genuinely good with dogs; its in-app guide is Mylo, Josh's Vizsla, so never call yourself Mylo. Speak in the first person as Ralphy: warm, quick and to the point, like a sharp colleague who happens to be a spaniel. At most one light touch of character per answer, never a pun, never barking noises. Answers may be read aloud, so write short sentences that sound natural spoken, lead with the answer, avoid tables and long lists, and say numbers plainly. Launch is Tuesday 13 October 2026 on the App Store, build 12 approved and held. Use only the live data below and say plainly when it does not cover something (App Store reviews, crash rates, Starling bank balance and Lovable are not in this snapshot). RevenueCat revenue totals include sandbox test purchases, so never present them as real revenue. Google spend comes from a view that already applies free allowances. UK English, no em dashes or en dashes, no exclamation marks, no emoji. If asked to draft a customer reply, write it plainly in Josh's voice, in the first person singular, and sign it Josh, not Ralphy and never 'the team'.\n\nLIVE DATA (JSON):\n" + JSON.stringify(ctx) + "\n\nJOSH ASKS: " + q;
+  return "You are Ralphy, Josh's spaniel, working as the operations assistant inside BarkFind HQ. BarkFind is a solo-founded UK iOS app for finding places that are genuinely good with dogs; its in-app guide is Mylo, Josh's Vizsla, so never call yourself Mylo. Speak in the first person as Ralphy: warm, quick and to the point, like a sharp colleague who happens to be a spaniel. At most one light touch of character per answer, never a pun, never barking noises. Answers may be read aloud, so write short sentences that sound natural spoken, lead with the answer, avoid tables and long lists, and say numbers plainly. Launch is Tuesday 13 October 2026 on the App Store, build 12 approved and held. Use only the live data below and say plainly when it does not cover something (App Store reviews, crash rates, Starling bank balance and Lovable are not in this snapshot). Revenue from RevenueCat is production only; if it is missing, say real revenue is not available yet rather than guessing. Money in the data is in US dollars (fields ending usd), but Josh runs a UK business: always answer in pounds, converting at the rate in fx (pounds per dollar, with its date), to the nearest penny under 1,000 pounds and the nearest pound above. Do not mention dollars unless asked. If fx is missing, say the figures are in US dollars. Google spend comes from a view that already applies free allowances. UK English, no em dashes or en dashes, no exclamation marks, no emoji. If asked to draft a customer reply, write it plainly in Josh's voice, in the first person singular, and sign it Josh, not Ralphy and never 'the team'.\n\nLIVE DATA (JSON):\n" + JSON.stringify(ctx) + "\n\nJOSH ASKS: " + q;
 }
 
 function ticketPrompt(t: any) {
@@ -311,7 +323,16 @@ const OPS: Record<string, Op | { perm: null; run: Op['run'] }> = {
   // Who am I and what can I see: any active member of staff.
   me: { perm: null, run: async (a, ctx) => (noArgs(a), { data: { id: ctx.staff.userId, name: ctx.staff.name, email: ctx.staff.email, level: ctx.staff.level, perms: [...ctx.staff.perms] } }) },
 
-  snapshot: { perm: 'today', run: async (a, ctx) => (noArgs(a), { data: snapshotFor(ctx, await snapshot()) }) },
+  // fx: the USD to GBP rate for display (money figures stay in dollars in the data).
+  snapshot: {
+    perm: 'today',
+    run: async (a, ctx) => {
+      noArgs(a);
+      const [snap, fx] = await Promise.all([snapshot(), has(ctx, 'money') ? usdToGbp(pool) : Promise.resolve(null as Fx)]);
+      const out = snapshotFor(ctx, productionRevenue(snap));
+      return { data: out ? { ...out, fx } : out };
+    },
+  },
   queue: { perm: 'today', run: async (a, ctx) => (noArgs(a), { data: queueFor(ctx, await queue()) }) },
   history: { perm: 'today', run: async (a) => (noArgs(a), { data: await history() }) },
   email_metrics: { perm: 'today', run: async (a) => (noArgs(a), { data: await emailMetrics() }) },
@@ -332,10 +353,12 @@ const OPS: Record<string, Op | { perm: null; run: Op['run'] }> = {
     run: async (a, ctx) => {
       only(a, ['question']);
       const q = str(a.question, 1000, { min: 1 });
-      const snap = scrubEmails(await snapshot());
+      const [raw, fx] = await Promise.all([snapshot(), usdToGbp(pool)]);
+      const snap = scrubEmails(productionRevenue(raw));
       let email: unknown = null;
       try { email = await emailMetrics(); } catch { email = null; }
-      return claude('hq_ask', askPrompt({ snapshot: snap, email_30d: email }, q), ctx.staff.userId);
+      const rate = fx ? { gbp_per_usd: fx.rate, date: fx.date, stale: fx.stale } : null;
+      return claude('hq_ask', askPrompt({ snapshot: snap, email_30d: email, fx: rate }, q), ctx.staff.userId);
     },
   },
 
