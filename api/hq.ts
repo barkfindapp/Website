@@ -13,6 +13,7 @@ import { teamOps } from './_lib/hq-team.js';
 import { flagOps } from './_lib/hq-flags.js';
 import { inboxOps } from './_lib/hq-inbox.js';
 import { contentOps } from './_lib/hq-content.js';
+import { announceOps } from './_lib/hq-announce.js';
 import { HttpError, bad, obj, only, uuid, str, oneOf, date, bool, scrubEmails, writeTx, toTrash } from './_lib/hq-core.js';
 
 const DB_URL = process.env.SUPABASE_DB_URL!;
@@ -338,6 +339,7 @@ const OPS: Record<string, Op | { perm: null; run: Op['run'] }> = {
   ...flagOps(pool),
   ...inboxOps(pool),
   ...contentOps(pool),
+  ...announceOps(pool),
 };
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
