@@ -69,8 +69,9 @@ Discover page at once. Check each line after the flip; edit only if it did not s
   - "BarkFind is coming to iPhone soon." -> "Free to download on iPhone." (automatic)
   - button "Get early access" (href `/#download`) -> "Download BarkFind" pointing at
     `APP_STORE_URL` (automatic)
-  - Unchanged on the day: the line before it ("Opening times, dog policies and reviews for
-    every place, plus Mylo, are in the app." / "...and Mylo's verdict for all N are in the app.").
+  - Unchanged on the day: the line before it ("Opening times and dog policies for every place,
+    plus Mylo, are in the app." / on guide pages "Opening times and dog policies for all N, plus
+    Mylo, are in the app.").
 - Press box on `/discover` and `/news` (`PressBox` in the same file): no launch wording. If the
   launch press release was approved before release day with "coming soon" wording, edit it in
   the content queue and redeploy so the "Latest press release" link points at current copy.

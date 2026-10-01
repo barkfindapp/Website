@@ -41,10 +41,10 @@ export function DownloadCta({ placeCount }: { placeCount?: number }) {
   const note = LAUNCHED
     ? "Free to download on iPhone."
     : "BarkFind is coming to iPhone soon.";
-  const adds =
-    placeCount && placeCount > 1
-      ? `Opening times, dog policies and Mylo's verdict for all ${placeCount} are in the app.`
-      : "Opening times, dog policies and reviews for every place, plus Mylo, are in the app.";
+  // No claim that every place has reviews or a Mylo verdict.
+  const adds = placeCount
+    ? `Opening times and dog policies for ${placeCount === 1 ? "the 1 place" : `all ${placeCount}`}, plus Mylo, are in the app.`
+    : "Opening times and dog policies for every place, plus Mylo, are in the app.";
   return (
     <aside className="mt-14 rounded-2xl bg-[#FAEFD1] px-6 py-8 md:px-10 md:py-10">
       <h2 className="font-serif text-2xl md:text-3xl text-[#1a1a1a] mb-3">The full picture is in the app</h2>
@@ -133,8 +133,8 @@ export function PressBox({ latest }: { latest?: { slug: string; title: string } 
       <h2 id="press-box" className="font-serif text-2xl md:text-3xl text-[#1a1a1a] mb-3">For press</h2>
       <div className="flex flex-col gap-1 text-[#444] leading-relaxed">
         <p>BarkFind was built in Weston-super-Mare by Josh Holder.</p>
-        <p>His Vizsla, Mylo, is reactive, so a "dogs welcome" sign has never been enough to go on.</p>
-        <p>BarkFind shows which places really welcome dogs, from owners who have been there with theirs.</p>
+        <p>His Vizsla, Mylo, is reactive, so a sign saying dogs welcome was never enough to go on.</p>
+        <p>BarkFind checks what each place actually allows, so you know before you set off.</p>
       </div>
       <ul className="mt-5 flex flex-col gap-2 text-sm">
         {latest && (
