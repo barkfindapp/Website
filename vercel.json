@@ -2,6 +2,15 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "cleanUrls": true,
+  "redirects": [
+    { "source": "/", "has": [{ "type": "host", "value": "hq.barkfind.com" }], "destination": "/hq", "permanent": false },
+    {
+      "source": "/:path((?!hq$|api/hq$|barkfind-logo-rust\\.png$|barkfind-logo-white\\.png$|admin-icon-180\\.png$|admin-icon-192\\.png$).*)",
+      "has": [{ "type": "host", "value": "hq.barkfind.com" }],
+      "destination": "https://www.barkfind.com/:path",
+      "statusCode": 308
+    }
+  ],
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api/$1" },
     { "source": "/admin", "destination": "/admin.html" },
@@ -34,6 +43,18 @@
     },
     {
       "source": "/hq",
+      "headers": [
+        { "key": "X-Robots-Tag", "value": "noindex, nofollow" },
+        { "key": "Cache-Control", "value": "no-store" },
+        { "key": "X-Frame-Options", "value": "DENY" },
+        { "key": "Content-Security-Policy", "value": "frame-ancestors 'none'" },
+        { "key": "Referrer-Policy", "value": "no-referrer" },
+        { "key": "X-Content-Type-Options", "value": "nosniff" }
+      ]
+    },
+    {
+      "source": "/(.*)",
+      "has": [{ "type": "host", "value": "hq.barkfind.com" }],
       "headers": [
         { "key": "X-Robots-Tag", "value": "noindex, nofollow" },
         { "key": "Cache-Control", "value": "no-store" },

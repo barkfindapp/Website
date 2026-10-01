@@ -258,7 +258,7 @@ function hqUrlFor(req: VercelRequest): string {
   const raw = String(req.headers.origin || '') || ('https://' + String(req.headers['x-forwarded-host'] || req.headers.host || ''));
   let host = '';
   try { const u = new URL(raw); host = u.protocol === 'https:' ? u.hostname.toLowerCase() : ''; } catch { host = ''; }
-  const ok = host === 'www.barkfind.com' || /^barkfind-website-v1-[a-z0-9-]+-bark-find\.vercel\.app$/.test(host);
+  const ok = host === 'www.barkfind.com' || host === 'hq.barkfind.com' || /^barkfind-website-v1-[a-z0-9-]+-bark-find\.vercel\.app$/.test(host);
   return ok ? `https://${host}/hq` : 'https://www.barkfind.com/hq';
 }
 
