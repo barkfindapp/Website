@@ -16,6 +16,7 @@ import { contentOps } from './_lib/hq-content.js';
 import { announceOps } from './_lib/hq-announce.js';
 import { placeOps } from './_lib/hq-places.js';
 import { usdToGbp, type Fx } from './_lib/hq-fx.js';
+import { rewardOps } from './_lib/hq-rewards.js';
 import { HttpError, bad, obj, only, uuid, str, oneOf, date, bool, scrubEmails, writeTx, toTrash } from './_lib/hq-core.js';
 
 const DB_URL = process.env.SUPABASE_DB_URL!;
@@ -262,6 +263,8 @@ async function runAction(ctx: Ctx, action: string, rawArgs: unknown) {
       throw new HttpError(403, 'You do not have access to this');
     }
     const r = (await c.query('select public.hq_action($1, $2::jsonb) as r', [action, JSON.stringify(a)])).rows[0].r;
+    // hq_action sets status and handled_at on a user report; record who handled it too.
+    if (action === 'user_report' && id && r && r.ok) await c.query('update public.user_reports set handled_by = $2 where id = $1', [id, userId]);
     const newId = id || (r && typeof r.id === 'string' ? r.id : null);
     const after = newId ? await rowOf(c, spec.table, newId) : null;
     if (action === 'outreach_delete' && id && before) await toTrash(c, userId, spec.table, id, before);
@@ -391,6 +394,7 @@ const OPS: Record<string, Op | { perm: null; run: Op['run'] }> = {
   ...contentOps(pool),
   ...announceOps(pool),
   ...placeOps(pool),
+  ...rewardOps(pool),
 };
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {

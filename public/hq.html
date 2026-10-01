@@ -278,6 +278,7 @@ footer .mono{color:rgba(255,255,255,.75)}
 .tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px}
 .tile{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px 14px;box-shadow:var(--shadow)}
 .tile .lbl{font:800 11px/1.2 var(--sans);letter-spacing:.08em;text-transform:uppercase;color:var(--mute)}
+.tile .sub{font:600 12.5px/1.3 var(--sans);color:var(--fg2);margin-top:4px}
 .tile .val{font:400 28px/1.1 var(--serif);color:var(--fg);margin-top:4px}
 .kvs{display:grid;grid-template-columns:auto 1fr;gap:6px 12px;font-size:14px}.kvs dt{color:var(--fg2)}.kvs dd{margin:0;font-weight:700;overflow-wrap:anywhere}
 .photos{display:flex;gap:8px;flex-wrap:wrap}.photos img{width:84px;height:84px;object-fit:cover;border-radius:10px;border:1px solid var(--line)}
@@ -529,6 +530,11 @@ footer .mono{color:rgba(255,255,255,.75)}
  </div>
 
  <div data-tab="users" class="stack" hidden>
+  <nav class="filter subnav" id="usNav" aria-label="Users sections">
+    <button class="chip" data-sec="customers" aria-pressed="true">Customers</button>
+    <button class="chip" data-sec="rewards" aria-pressed="false">Rewards</button>
+  </nav>
+  <div class="stack" id="usCustomers">
   <div class="row"><input type="search" id="userQ" class="pill-in" placeholder="Search by name" autocomplete="off" style="flex:1 1 220px"></div>
   <div class="filter" id="userSeg">
     <button class="chip" data-s="" aria-pressed="true">All</button>
@@ -538,6 +544,8 @@ footer .mono{color:rgba(255,255,255,.75)}
     <button class="chip" data-s="banned" aria-pressed="false">Banned</button>
   </div>
   <div class="stack" id="userList"><div class="empty">Loading customers.</div></div>
+  </div>
+  <div class="stack" id="usRewards" hidden></div>
  </div>
 
  <div data-tab="places" class="stack" hidden>
@@ -2409,6 +2417,38 @@ footer .mono{color:rgba(255,255,255,.75)}
   }
 
   window.HQPlaces={show:function(){nav();if(!pl.loaded){pl.loaded=true;render()}else if(pl.sec==="list")load()}};
+})();
+</script>
+<script>
+// ---------- Users: Rewards (read only, as /admin's Rewards tab) ----------
+(function(){
+  var $=function(id){return document.getElementById(id)}, H=window.HQ, esc=H.esc;
+  var TIER={extend_30:"30 extra days",discount_25:"25% off",year_free:"A year free"};
+  var ST={pending:"waiting",fulfilled:"fulfilled",cancelled:"cancelled",failed:"failed"};
+  var STC={pending:"warn",fulfilled:"ok",cancelled:"",failed:"crit"};
+  function tierName(t){return TIER[t]||String(t||"–").replace(/_/g," ")}
+  function day(ts){return ts?new Date(ts).toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"}):""}
+  $("usNav").addEventListener("click",function(ev){var b=ev.target.closest("[data-sec]");if(!b)return;
+    this.querySelectorAll("[data-sec]").forEach(function(x){x.setAttribute("aria-pressed",x===b?"true":"false")});
+    var rw=b.dataset.sec==="rewards";$("usCustomers").hidden=rw;$("usRewards").hidden=!rw;if(rw)load()});
+  function tile(l,v,sub){return '<div class="tile"><div class="lbl">'+l+'</div><div class="val">'+v+'</div>'+(sub?'<div class="sub">'+sub+'</div>':'')+'</div>'}
+  function who(id,name){return id?'<button type="button" class="btn small" data-rw="user" data-id="'+esc(id)+'">'+esc(name||"Open customer")+'</button>':''}
+  function load(){
+    var el=$("usRewards");el.innerHTML='<div class="empty">Loading.</div>';
+    H.api("rewards_summary").then(function(r){var d=r.data,t=d.tiles||{};
+      el.innerHTML='<div class="tiles">'+tile("Promo codes",t.codes,(t.codes_claimed||0)+" claimed")+tile("Treat claims",t.treats,(t.treats_fulfilled||0)+" fulfilled"+(t.treats_pending?", "+t.treats_pending+" waiting":""))+
+          tile("10-review milestone",t.m10)+tile("20-review",t.m20)+tile("50-review",t.m50)+'</div>'+
+        '<div class="subhead"><h3>Treat claims by tier</h3></div>'+
+        (d.tiers.length?d.tiers.map(function(x){return '<div class="card"><div class="row" style="justify-content:space-between"><span class="title">'+esc(tierName(x.tier))+'</span><span class="tag plain">'+x.total+(x.total===1?" claim":" claims")+'</span></div><div class="meta">'+
+          Object.keys(x.by_status||{}).map(function(k){return '<span class="tag plain '+(STC[k]||"")+'">'+x.by_status[k]+' '+esc(ST[k]||k)+'</span>'}).join("")+'</div></div>'}).join(""):'<div class="empty">No treat claims yet.</div>')+
+        '<div class="subhead"><h3>Latest treat claims</h3></div>'+
+        (d.recent.length?d.recent.map(function(x){return '<div class="card"><div class="meta"><span class="tag plain '+(STC[x.status]||"")+'">'+esc(ST[x.status]||x.status||"")+'</span><span>'+esc(tierName(x.tier))+'</span><span>claimed '+esc(day(x.claimed_at))+'</span>'+(x.fulfilled_at?'<span>fulfilled '+esc(day(x.fulfilled_at))+'</span>':'')+(x.points_at_claim!=null?'<span>'+x.points_at_claim+' points</span>':'')+'</div>'+
+          (x.failure_reason?'<div class="note">'+esc(x.failure_reason)+'</div>':'')+'<div class="row">'+who(x.user_id,x.full_name)+'</div></div>'}).join(""):'<div class="empty">None yet.</div>')+
+        '<div class="subhead"><h3>Promo codes</h3><span>latest '+d.codes.length+'</span></div>'+
+        (d.codes.length?'<div class="card" style="padding:0 16px"><dl class="kv">'+d.codes.map(function(c){return '<dt><b style="font-family:ui-monospace,Menlo,monospace">'+esc(c.code)+'</b><div class="note">'+(c.milestone!=null?c.milestone+" reviews · ":"")+(c.discount_percent!=null?c.discount_percent+"% off":"")+(c.platform?" · "+esc(c.platform):"")+'</div></dt><dd>'+(c.claimed_at?'claimed '+esc(day(c.claimed_at))+(c.claimed_by?'<div>'+who(c.claimed_by,c.claimed_by_name)+'</div>':''):'<span class="note">not claimed</span>')+'</dd>'}).join("")+'</dl></div>':'<div class="empty">No promo codes.</div>');
+    }).catch(function(e){el.innerHTML='<div class="empty">'+esc((e&&e.message)||"That did not load.")+'</div>'});
+  }
+  $("usRewards").addEventListener("click",function(ev){var b=ev.target.closest('[data-rw="user"]');if(b&&window.HQUsers&&HQUsers.open)HQUsers.open(b.dataset.id)});
 })();
 </script>
 </body>
