@@ -43,3 +43,4 @@ src/data/generated/
 
 # Licensed guide photos copied in at build time (scripts/build-resources.mjs).
 public/guide-photos/
+public/place-photos/

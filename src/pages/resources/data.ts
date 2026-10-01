@@ -24,6 +24,23 @@ export type GuidePhoto = {
   licenceUrl: string | null;
 };
 
+// Teaser place card on a guide page, placed after block `after`. Never carries
+// ratings, opening hours, Mylo verdicts or review text.
+export type PlaceTeaser = {
+  id: string;
+  name: string;
+  category: string | null;
+  categoryLabel: string | null;
+  street: string | null;
+  policy: { kind: "welcome" | "restricted" | "not_allowed"; label: string } | null;
+  amenities: string[];
+  photo:
+    | { kind: "geograph"; src: string; width: number; height: number; credit: string; creditUrl: string | null; licence: string; licenceUrl: string | null }
+    | { kind: "website"; src: string; credit: string; creditUrl: string }
+    | null;
+  after: number;
+};
+
 export type Guide = GuideSummary & {
   id: string;
   title: string;
@@ -33,7 +50,8 @@ export type Guide = GuideSummary & {
   photo: GuidePhoto | null;
   approvedAt: string | null;
   updated: string | null;
-  html: string;
+  blocks: { kind: "heading" | "text"; html: string }[];
+  places: PlaceTeaser[];
   nearby: string[];
 };
 
@@ -133,3 +151,5 @@ export function formatDate(iso: string | null, withWeekday = false) {
   if (!withWeekday) return date;
   return `${d.toLocaleDateString("en-GB", { timeZone: "Europe/London", weekday: "long" })} ${date}`;
 }
+
+export const slug = (s: string) => s.toLowerCase().replace(/&/g, "and").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
