@@ -250,6 +250,16 @@ footer .mono{color:rgba(255,255,255,.75)}
 #app [hidden]{display:none!important}
 /* Phase 1: sub-sections, detail sheet, undo toast, tiles */
 .tag.plain{text-transform:none}
+.convo{display:flex;flex-direction:column;gap:10px;margin-top:4px}
+.msgx{max-width:min(620px,88%);padding:10px 14px;border-radius:14px;border:1px solid var(--line);background:var(--well);align-self:flex-start;display:flex;flex-direction:column;gap:4px}
+.msgx.us{align-self:flex-end;background:var(--brand-soft);border-color:var(--brand-line)}
+.msgx.us.fail{border-color:var(--crit);background:var(--crit-soft)}
+.msgx.note{align-self:stretch;max-width:none;background:#fff;border-style:dashed}
+.msgx .who{font:700 12px/1.3 var(--sans);color:var(--fg2)}
+.msgx .body{white-space:pre-wrap;font-size:14.5px;line-height:1.55;overflow-wrap:anywhere}
+.msgx details summary{cursor:pointer;font-size:12.5px;color:var(--brand);font-weight:700}
+.msgx details .body{margin-top:6px;padding-top:6px;border-top:1px solid var(--line);font-size:13px;color:var(--fg2)}
+.msgx .warnline{font-size:12.5px;color:var(--warn)}
 .subnav .chip{min-height:40px;display:inline-flex;align-items:center;gap:6px}
 .subnav .chip .count{min-width:20px;padding:2px 6px;border-radius:999px;background:var(--well);font:800 11px/1.3 var(--sans);text-align:center}
 .subnav .chip.crit .count{background:var(--crit);color:#fff}
@@ -1467,7 +1477,7 @@ footer .mono{color:rgba(255,255,255,.75)}
   var VIEW=[["unassigned","Unassigned"],["mine","Mine"],["open","All open"],["waiting","Waiting"],["snoozed","Snoozed"],["closed","Closed"]];
   var ib={filter:{view:"open",kind:"",tag:"",q:""},page:0,open:null,hb:null};
   function left(r){
-    if(r.state!=="open"||r.first_reply_at)return "";
+    if(r.state!=="open"||!r.due_from)return "";
     var ms=new Date(r.due_at).getTime()-Date.now(), tgt=(SEV[r.severity]||SEV.normal)[2]*36e5, abs=Math.abs(ms), h=Math.floor(abs/36e5), m=Math.floor(abs%36e5/6e4);
     var t=(h>=48?Math.round(h/24)+" days":h?h+"h "+m+"m":m+"m");
     return '<span class="tag plain '+(ms<0?"crit":ms<tgt/4?"warn":"")+'">'+(ms<0?t+" over target":t+" left")+'</span>';
@@ -1488,7 +1498,7 @@ footer .mono{color:rgba(255,255,255,.75)}
       $("ibKind").innerHTML='<option value="">All types</option>'+c.kinds.map(function(k){return '<option value="'+k+'"'+(k===f.kind?" selected":"")+'>'+KIND[k]+'</option>'}).join("");
       $("ibTag").innerHTML='<option value="">All tags</option>'+c.tags.map(function(t){return '<option'+(t===f.tag?" selected":"")+'>'+esc(t)+'</option>'}).join("");
       $("ibList").innerHTML=(d.rows.length?d.rows.map(function(x){var sv=SEV[x.severity]||SEV.normal;
-        return '<button class="card" data-ia="open" data-k="'+x.kind+'" data-id="'+esc(x.id)+'" style="text-align:left;cursor:pointer;width:100%"><div class="meta"><span class="tag info">'+KIND[x.kind]+'</span><span class="tag '+sv[1]+'">'+sv[0]+'</span>'+left(x)+
+        return '<button class="card" data-ia="open" data-k="'+x.kind+'" data-id="'+esc(x.id)+'" style="text-align:left;cursor:pointer;width:100%"><div class="meta"><span class="tag info">'+KIND[x.kind]+'</span><span class="tag '+sv[1]+'">'+sv[0]+'</span>'+(x.kind==="support_ticket"&&x.first_reply_at&&x.due_from&&x.state!=="closed"?'<span class="tag plain warn">Customer replied</span>':'')+left(x)+
           (x.state==="waiting"?'<span class="tag plain">Waiting on customer</span>':'')+(x.snoozed_until&&new Date(x.snoozed_until)>new Date()?'<span class="tag plain">Snoozed until '+esc(H.when(x.snoozed_until))+'</span>':'')+
           '<span>'+(x.assignee?esc(x.assignee):"Unassigned")+'</span>'+(x.viewers&&x.viewers.length?'<span class="tag plain warn">'+esc(x.viewers.join(", "))+' viewing</span>':'')+'</div>'+
           '<div class="title">'+esc(x.title||"")+'</div><div class="note">'+esc(x.person||"")+(x.email?" &lt;"+esc(x.email)+"&gt;":"")+" · "+esc(H.when(x.created_at))+'</div>'+
@@ -1519,9 +1529,21 @@ footer .mono{color:rgba(255,255,255,.75)}
       '<div class="row">'+(can.reply?'<button class="btn small" data-ia="me">Assign to me</button>':'')+(can.reply&&!closed?'<button class="btn small" data-ia="waiting">'+(waiting?"Back to open":"Waiting on customer")+'</button>':'')+'</div></div>';
     var body='';
     if(k==="support_ticket"){
-      var thread=[{at:row.created_at,who:(row.full_name||"Customer"),text:row.message,cls:""}].concat(d.responses.map(function(x){return {at:x.created_at,who:"You replied ("+x.status+(x.status==="failed"&&x.error?": "+String(x.error).slice(0,80):"")+")",text:x.body,cls:"prior"}}),d.notes.map(function(x){return {at:x.created_at,who:"Internal note",text:x.body,cls:"prior"}})).sort(function(a,b){return String(a.at).localeCompare(String(b.at))});
+      // The conversation in time order: the ticket, customer replies (left), our replies (right), internal notes.
+      var them=row.full_name||"Customer";
+      var thread=[{at:row.created_at,kind:"them",who:them+(row.email?" <"+row.email+">":""),text:row.message,label:"Opened the ticket"}]
+        .concat(d.responses.map(function(x){
+          if(x.direction==="in")return {at:x.created_at,kind:"them",who:them+(x.from_email?" <"+x.from_email+">":""),text:x.body,full:x.body_full,differs:x.from_differs,label:"Replied by email"};
+          return {at:x.created_at,kind:"us"+(x.status==="failed"?" fail":""),who:"Josh, BarkFind",text:x.body,label:x.status==="sent"?"Sent":x.status==="failed"?"Not sent"+(x.error?": "+String(x.error).slice(0,80):""):pretty(x.status||"queued")};
+        }),d.notes.map(function(x){return {at:x.created_at,kind:"note",who:"Internal note",text:x.body,label:"Only staff see this"}}))
+        .sort(function(a,b){return new Date(a.at)-new Date(b.at)});
+      var awaiting=!closed&&d.responses.length&&d.responses.filter(function(x){return x.direction==="out"&&x.status!=="failed"}).length&&d.responses[d.responses.length-1].direction==="in";
       body='<div class="card"><div class="meta"><span class="tag">'+esc(row.category||"")+'</span><span class="tag">'+esc((row.status||"").replace("_"," "))+'</span><span>'+esc(row.full_name||"")+(row.email?" &lt;"+esc(row.email)+"&gt;":"")+'</span></div><div class="title">'+esc(row.subject||"(no subject)")+'</div>'+
-        thread.map(function(t){return '<div class="'+(t.cls||"text")+'"><div class="note">'+esc(t.who)+", "+esc(H.when(t.at))+'</div>'+esc(t.text||"")+'</div>'}).join("")+'</div>'+
+        (awaiting?'<div class="note" style="color:var(--warn)">The customer has replied since your last message, so it is waiting on you again.</div>':'')+
+        '<div class="convo">'+thread.map(function(t){return '<div class="msgx '+t.kind+'"><div class="who">'+esc(t.who)+' · '+esc(H.when(t.at))+' · '+esc(t.label)+'</div>'+
+          (t.differs?'<div class="warnline">Sent from a different address than the ticket'+(row.email?" ("+esc(row.email)+")":"")+'. Check it is the same person before sharing account details.</div>':'')+
+          '<div class="body">'+esc(t.text||"")+'</div>'+
+          (t.full&&t.full!==t.text?'<details><summary>Show full email</summary><div class="body">'+esc(t.full)+'</div></details>':'')+'</div>'}).join("")+'</div></div>'+
         (can.reply?'<div class="card" data-ib-ticket>'+(d.macros.length?'<select data-ib="macro"><option value="">Insert a saved reply</option>'+d.macros.map(function(m){return '<option value="'+esc(m.id)+'">'+esc(m.title)+'</option>'}).join("")+'</select>':'')+
           '<textarea data-ib-reply placeholder="Write a reply, sent from support@barkfind.com and signed Josh"></textarea><div class="row"><button class="btn small" data-ia="draft">Draft with Claude</button><button class="btn primary small" data-ia="send" data-confirm="Confirm send">Send and wait</button><button class="btn ok small" data-ia="sendclose" data-confirm="Confirm send and close">Send and close</button><button class="btn small" data-ia="note">Save as note</button></div>'+
           '<div class="row">'+(closed?'<button class="btn small" data-ia="reopen">Reopen</button>':'<button class="btn small" data-ia="close" data-confirm="Confirm close">Close without reply</button>')+'<button class="btn danger small" data-ia="delete" data-confirm="Confirm delete">Delete</button></div></div>':'');

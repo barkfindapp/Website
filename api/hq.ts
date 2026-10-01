@@ -319,7 +319,8 @@ const OPS: Record<string, Op | { perm: null; run: Op['run'] }> = {
       const id = uuid(only(a, ['id']).id);
       const t = (await pool.query('select subject, category, message from public.support_tickets where id = $1', [id])).rows[0];
       if (!t) throw new HttpError(404, 'That ticket no longer exists.');
-      const replies = (await pool.query('select body from public.support_responses where ticket_id = $1 order by created_at', [id])).rows;
+      // The whole conversation, labelled, so the draft answers the customer's latest message.
+      const replies = (await pool.query("select (case when direction = 'in' then 'Customer replied: ' else 'Josh replied: ' end) || body as body from public.support_responses where ticket_id = $1 and not (direction = 'out' and status = 'failed') order by created_at", [id])).rows;
       return claude('hq_draft_ticket', ticketPrompt(scrubEmails({ ...t, replies })), ctx.staff.userId);
     },
   },
