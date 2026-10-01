@@ -662,7 +662,7 @@ footer .mono{color:rgba(255,255,255,.75)}
         if(r.status===401&&j&&j.code==="mfa"){window.hqMfa&&window.hqMfa();throw {code:"mfa",message:"Enter your 6-digit code"}}
         if(r.status===401){window.hqGate&&window.hqGate("signin");throw {code:"auth",message:"Your session has ended. Sign in again."}}
         if(r.status===403){window.hqGate&&window.hqGate("denied");throw {code:"denied",message:"This account does not have access."}}
-        if(!r.ok||!j)throw {code:"http",message:(j&&j.error)||"The server did not answer. Try again."};
+        if(!r.ok||!j)throw {code:"http",message:(j&&j.error)||"The server did not answer. Try again.",reason:(j&&j.code)||""};
         return j;
       })});
   }
@@ -2316,6 +2316,7 @@ footer .mono{color:rgba(255,255,255,.75)}
     var b=ev.target.closest("[data-pl]");if(!b)return;var w=b.dataset.pl;
     if(w==="open"||w==="view"){ev.preventDefault();openPlace(b.dataset.id);return}
     if(w==="prev"){pl.page--;load();return}if(w==="next"){pl.page++;load();return}
+    if(w==="lookup"){lookup(b);return}
     if(w==="add"||w==="addforce"){addPlace(b,w==="addforce");return}
     var c=b.closest("[data-dg]");if(!c)return;var grp=pl.dups[+c.dataset.dg];
     if(!H.armed(b))return;
@@ -2325,22 +2326,46 @@ footer .mono{color:rgba(255,255,255,.75)}
 
   // ---------- add ----------
   function addView(el){
-    el.innerHTML='<div class="card" data-pl-card="add"><div class="subhead"><h3>Add a place</h3></div><p class="note" style="margin:0">It shows in the app straight away. Paste a Google Maps link to fill in where it is, or type the latitude and longitude.</p>'+
+    el.innerHTML='<div class="card" data-pl-card="add"><div class="subhead"><h3>Add a place</h3></div><p class="note" style="margin:0">It shows in the app straight away. Paste a Google Maps link to fill in where it is (or type the latitude and longitude), then find it on Google so it is stored with its Google place ID.</p>'+
       fields({category:"pub"})+'<div class="grid2"><label>Google Maps link<input type="text" id="plMaps" placeholder="https://www.google.com/maps/..."></label><label>Latitude<input type="text" id="plLat" inputmode="decimal"></label><label>Longitude<input type="text" id="plLng" inputmode="decimal"></label></div>'+
-      '<div class="row"><button class="btn primary" data-pl="add">Add place</button></div></div>';
+      '<div class="row"><button class="btn small" data-pl="lookup">Find on Google</button></div><div class="stack" id="plMatches" style="gap:8px"></div>'+
+      '<div class="row"><button class="btn primary" data-pl="add" disabled>Add place</button></div></div>';
+  }
+  var BLOCKED={merged:"merged into another place",deleted:"deleted"};
+  function coordsFrom(){var lat=parseFloat($("plLat").value),lng=parseFloat($("plLng").value);return lat>=49.8&&lat<=61.1&&lng>=-8.7&&lng<=2.1?{lat:lat,lng:lng}:null}
+  function lookup(b){
+    var card=b.closest(".card"), o=readFields(card), at=coordsFrom();
+    if(!o.name||o.name.length<2){H.note(card,false,"Give it a name first.");return}
+    if(!at){H.note(card,false,"Add where it is first: a Google Maps link, or a UK latitude and longitude.");return}
+    $("plMatches").innerHTML='<div class="note">Looking it up on Google.</div>';card.querySelector('[data-pl="add"]').disabled=true;
+    b.disabled=true;
+    H.api("place_lookup",{name:o.name,address:o.address||"",latitude:at.lat,longitude:at.lng}).then(function(r){
+      var m=r.data.matches;
+      $("plMatches").innerHTML=m.length?m.map(function(x,i){
+        return '<label class="card" style="padding:10px 12px;gap:4px'+(x.status==="new"?';cursor:pointer':'')+'"><span class="row" style="gap:8px;flex-wrap:nowrap;align-items:flex-start">'+
+          (x.status==="new"?'<input type="radio" name="plMatch" value="'+esc(x.place_id)+'" style="width:20px;height:20px;flex:none;margin-top:2px"'+(i===0?' checked':'')+'>':'')+
+          '<span class="stack" style="gap:4px;min-width:0"><span class="title" style="font-size:15px">'+esc(x.name)+'</span><span class="note">'+esc(x.address)+' · '+x.metres+' m from where you put it</span>'+
+          (x.status==="exists"?'<span class="note" style="color:var(--warn)">Already in BarkFind'+(x.existing.flagged?' (flagged)':'')+'.</span><span><button type="button" class="btn small" data-pl="view" data-id="'+esc(x.existing.id)+'">Open it</button></span>':'')+
+          (x.status==="blocked"?'<span class="note" style="color:var(--crit)">Blocked: this Google place was '+BLOCKED[x.blocked.reason]+' on '+esc(H.day(String(x.blocked.at).slice(0,10)))+', so it cannot be added again.</span>'+(x.blocked.kept_location_id?'<span><button type="button" class="btn small" data-pl="view" data-id="'+esc(x.blocked.kept_location_id)+'">Open the kept place</button></span>':''):'')+
+          '</span></span></label>'}).join(""):'<div class="note">Google has no match within 1 km. Check the name and the location, then try again.</div>';
+      card.querySelector('[data-pl="add"]').disabled=!card.querySelector('input[name="plMatch"]:checked');
+    }).catch(function(e){$("plMatches").innerHTML='<div class="msg bad">'+esc(e.message||"That did not work.")+'</div>'}).then(function(){b.disabled=false});
   }
   // Reads coordinates from a Google Maps link (…/@lat,lng,… or …!3dlat!4dlng or ?q=lat,lng).
   $("plPane").addEventListener("input",function(ev){if(ev.target.id!=="plMaps")return;var u=ev.target.value,m=/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/.exec(u)||/@(-?\d+\.\d+),(-?\d+\.\d+)/.exec(u)||/[?&](?:q|query|ll)=(-?\d+\.\d+),\s*(-?\d+\.\d+)/.exec(u);if(m){$("plLat").value=m[1];$("plLng").value=m[2]}});
   function addPlace(b,force){
-    var card=b.closest(".card"), o=readFields(card), err=checkFields(o), lat=parseFloat($("plLat").value), lng=parseFloat($("plLng").value);
+    var card=b.closest("[data-pl-card]"), o=readFields(card), err=checkFields(o), at=coordsFrom(), pick=card.querySelector('input[name="plMatch"]:checked');
     if(!o.name){H.note(card,false,"Give it a name.");return}if(err){H.note(card,false,err);return}
-    if(!(lat>=49.8&&lat<=61.1&&lng>=-8.7&&lng<=2.1)){H.note(card,false,"Add where it is: a Google Maps link, or a UK latitude and longitude.");return}
+    if(!at){H.note(card,false,"Add where it is: a Google Maps link, or a UK latitude and longitude.");return}
+    if(!pick){H.note(card,false,"Find it on Google first and choose the match.");return}
     Object.keys(o).forEach(function(k){if(o[k]===""||(Array.isArray(o[k])&&!o[k].length))delete o[k]});
-    o.latitude=lat;o.longitude=lng;if(force)o.confirm=true;
+    o.latitude=at.lat;o.longitude=at.lng;o.place_id=pick.value;if(force)o.confirm=true;
     var old=card.querySelector('[data-pl="addforce"]');if(old)old.remove();
     busy(b,H.api("place_add",o),card,function(r,e){
-      if(r&&r.ok!==false){var id=r.id;card.querySelectorAll("input,textarea").forEach(function(i){i.value=""});setTimeout(function(){openPlace(id)},600);return}
-      if(e&&/already listed/.test(e.message||"")){var f=document.createElement("button");f.className="btn small";f.dataset.pl="addforce";f.textContent="Add anyway";b.parentNode.appendChild(f)}
+      if(r&&r.ok!==false){var id=r.id;card.querySelectorAll("input,textarea").forEach(function(i){i.value=""});$("plMatches").innerHTML="";b.disabled=true;setTimeout(function(){openPlace(id)},600);return}
+      var why=(e&&e.reason)||"";
+      if(why.indexOf("exists:")===0){var ex=why.slice(7);setTimeout(function(){openPlace(ex)},900);return}
+      if(why==="near_duplicate"){var f=document.createElement("button");f.className="btn small";f.dataset.pl="addforce";f.textContent="Add anyway";b.parentNode.appendChild(f)}
     });
   }
 

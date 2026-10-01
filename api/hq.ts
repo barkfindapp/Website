@@ -407,7 +407,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const token = String(req.headers.authorization || '').replace(/^Bearer\s+/i, '');
     return res.status(200).json(await op.run(args, { staff: gate.staff, token, hqUrl: hqUrlFor(req) }));
   } catch (e: any) {
-    if (e instanceof HttpError) return res.status(e.status).json({ error: e.message });
+    if (e instanceof HttpError) return res.status(e.status).json(e.code ? { error: e.message, code: e.code } : { error: e.message });
     console.error('hq', e?.message || e);
     return res.status(500).json({ error: 'Something went wrong on the server. Try again.' });
   }

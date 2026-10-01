@@ -13,6 +13,12 @@
 // claims, listing changes, restrictions and the dog policy check move to the kept place.
 // Where a person reviewed or favourited both, the kept place's one stays. Every row that is
 // moved or removed is recorded in hq_trash with the merged place.
+//
+// Google place IDs. A merged or deleted place's place_id goes on location_place_id_blocklist
+// in the same transaction (trg_skip_blocked_place_id then stops the scanners re-adding it),
+// and the blocklist row is recorded in hq_trash so undoing the merge or delete can lift it.
+// Add a place looks the Google place ID up on the server (the key never reaches the browser):
+// an ID already in locations opens that place instead; a blocked ID cannot be added.
 import type { Pool, PoolClient } from 'pg';
 import { HttpError, bad, only, uuid, str, oneOf, bool, writeTx, toTrash } from './hq-core.js';
 import { CATEGORIES } from './hq-flags.js';
@@ -47,6 +53,58 @@ function lines(v: unknown): string[] {
   if (!Array.isArray(v) || v.length > 14) throw bad();
   return v.map((x) => str(x, 80, { min: 1 }));
 }
+// ---------- Google Places (server side only) ----------
+// The same key the edge functions use (GOOGLE_PLACES_API_KEY, else GOOGLE_MAPS_API_KEY),
+// set in Vercel. Calls are recorded in api_usage like the scanners' (provider google_places).
+const GOOGLE_KEY = process.env.GOOGLE_PLACES_API_KEY || process.env.GOOGLE_MAPS_API_KEY || '';
+const PLACE_ID_RE = /^[A-Za-z0-9_-]{10,300}$/;
+const metres = (a: { lat: number; lng: number }, b: { lat: number; lng: number }) => {
+  const t = Math.PI / 180, dl = (b.lat - a.lat) * t, dn = (b.lng - a.lng) * t;
+  const x = Math.sin(dl / 2) ** 2 + Math.cos(a.lat * t) * Math.cos(b.lat * t) * Math.sin(dn / 2) ** 2;
+  return Math.round(2 * 6371000 * Math.asin(Math.sqrt(x)));
+};
+async function meter(pool: Pool, operation: string, cost: number, userId: string, meta: Record<string, unknown>) {
+  try {
+    await pool.query("insert into public.api_usage (provider, operation, units, cost_usd, meta, user_id) values ('google_places', $1, 1, $2, $3::jsonb, $4)",
+      [operation, cost, JSON.stringify({ ...meta, source: 'hq' }), userId]);
+  } catch (e: any) { console.error('hq google api_usage', e?.message); }
+}
+async function google(pool: Pool, userId: string, path: string, init: { method: string; body?: unknown; fields: string }, op: string, cost: number) {
+  if (!GOOGLE_KEY) throw new HttpError(503, 'The Google lookup is not set up on the server: add GOOGLE_PLACES_API_KEY in Vercel.');
+  let r: Response;
+  try {
+    r = await fetch('https://places.googleapis.com/v1/' + path, {
+      method: init.method,
+      headers: { 'Content-Type': 'application/json', 'X-Goog-Api-Key': GOOGLE_KEY, 'X-Goog-FieldMask': init.fields },
+      body: init.body === undefined ? undefined : JSON.stringify(init.body),
+    });
+  } catch { throw new HttpError(502, 'Google did not answer. Try again in a minute.'); }
+  await meter(pool, op, cost, userId, { path: path.split('?')[0].slice(0, 80) });
+  const j: any = await r.json().catch(() => null);
+  if (r.status === 404) return null;
+  if (!r.ok || !j) {
+    console.error('hq google', r.status, JSON.stringify(j).slice(0, 300));
+    throw new HttpError(502, `Google refused the lookup (status ${r.status}${j?.error?.status ? ', ' + String(j.error.status).replace(/[^A-Z_]/g, '') : ''}).`);
+  }
+  return j;
+}
+// Is this place ID already a place, or blocked?
+async function placeIdState(c: PoolClient | Pool, placeId: string) {
+  const [ex, bl] = await Promise.all([
+    c.query('select id, name, flagged from public.locations where place_id = $1', [placeId]),
+    c.query('select reason, kept_location_id, created_at from public.location_place_id_blocklist where place_id = $1', [placeId]),
+  ]);
+  return { existing: ex.rows[0] || null, blocked: bl.rows[0] || null };
+}
+// Puts a removed place's place_id on the blocklist; returns the row added (null if it had none or it was already there).
+async function block(c: PoolClient, placeId: string | null, reason: 'merged' | 'deleted', keptId: string | null, userId: string) {
+  if (!placeId) return null;
+  const r = await c.query(
+    `insert into public.location_place_id_blocklist (place_id, reason, kept_location_id, created_by) values ($1, $2, $3, $4)
+     on conflict (place_id) do nothing returning to_jsonb(location_place_id_blocklist.*) as r`, [placeId, reason, keptId, userId]);
+  return r.rows[0]?.r || null;
+}
+
 function coord(v: unknown, lo: number, hi: number): number {
   if (typeof v !== 'number' || !Number.isFinite(v) || v < lo || v > hi) throw bad();
   return v;
@@ -236,16 +294,57 @@ export function placeOps(pool: Pool): Record<string, Op> {
       },
     },
 
-    // Add: a new place, with its fields locked as a person set them. Warns about a same-name place close by.
+    // Finds the place on Google near the given point, and says for each match whether it is
+    // already a place in BarkFind, blocked (merged or deleted before), or new.
+    place_lookup: {
+      perm: 'places_edit',
+      run: async (a, ctx) => {
+        only(a, ['name', 'address', 'latitude', 'longitude']);
+        const name = str(a.name, 200, { min: 2 }), address = str(a.address, 300, { optional: true });
+        const lat = coord(a.latitude, 49.8, 61.1), lng = coord(a.longitude, -8.7, 2.1);
+        const j = await google(pool, ctx.staff.userId, 'places:searchText', {
+          method: 'POST', fields: 'places.id,places.displayName,places.formattedAddress,places.location',
+          body: { textQuery: address ? `${name}, ${address}` : name, regionCode: 'GB', maxResultCount: 5,
+            locationBias: { circle: { center: { latitude: lat, longitude: lng }, radius: 1000 } } },
+        }, 'text_search', 0.04);
+        const found = ((j && j.places) || []).filter((x: any) => x && typeof x.id === 'string' && PLACE_ID_RE.test(x.id) && x.location)
+          .map((x: any) => ({ place_id: x.id, name: x.displayName?.text || '', address: x.formattedAddress || '', latitude: x.location.latitude, longitude: x.location.longitude,
+            metres: metres({ lat, lng }, { lat: x.location.latitude, lng: x.location.longitude }) }))
+          .filter((x: any) => x.metres <= 1000).sort((x: any, y: any) => x.metres - y.metres).slice(0, 3);
+        const matches = [];
+        for (const m of found) {
+          const st = await placeIdState(pool, m.place_id);
+          matches.push({ ...m, status: st.existing ? 'exists' : st.blocked ? 'blocked' : 'new',
+            existing: st.existing, blocked: st.blocked ? { reason: st.blocked.reason, kept_location_id: st.blocked.kept_location_id, at: st.blocked.created_at } : null });
+        }
+        return { data: { matches } };
+      },
+    },
+
+    // Add: a new place with its Google place ID, its fields locked as a person set them.
+    // Warns about a same-name place close by.
     place_add: {
       perm: 'places_edit',
       run: async (a, ctx) => {
-        only(a, [...FIELD_KEYS, 'latitude', 'longitude', 'confirm']);
+        only(a, [...FIELD_KEYS, 'latitude', 'longitude', 'place_id', 'confirm']);
         const f = readFields(a);
         if (!f.name || !f.category) throw bad();
         const lat = coord(a.latitude, 49.8, 61.1), lng = coord(a.longitude, -8.7, 2.1);
+        const placeId = str(a.place_id, 300, { min: 10 });
+        if (!PLACE_ID_RE.test(placeId)) throw bad();
         const force = bool(a.confirm, { optional: true });
+        // Already a place, or blocked: say so before spending a Google call.
+        const st = await placeIdState(pool, placeId);
+        if (st.existing) throw new HttpError(409, `That Google place is already in BarkFind as "${st.existing.name}". Opening it instead.`, 'exists:' + st.existing.id);
+        if (st.blocked) throw new HttpError(409, `That Google place was ${st.blocked.reason === 'merged' ? 'merged into another place' : 'deleted'} on ${new Date(st.blocked.created_at).toLocaleDateString('en-GB')}, so it is blocked and cannot be added again.`, 'blocked');
+        // The ID must be a real Google place close to where the person put it.
+        const g = await google(pool, ctx.staff.userId, 'places/' + encodeURIComponent(placeId), { method: 'GET', fields: 'id,location' }, 'place_details', 0.02);
+        if (!g || !g.location) throw new HttpError(409, 'Google does not know that place ID. Look it up again.');
+        if (metres({ lat, lng }, { lat: g.location.latitude, lng: g.location.longitude }) > 1000) throw new HttpError(409, 'That Google place is more than 1 km from where you put it. Check the location and look it up again.');
         return writeTx(pool, ctx.staff.userId, async (c, audit) => {
+          const again = await placeIdState(c, placeId);
+          if (again.existing) throw new HttpError(409, `That Google place is already in BarkFind as "${again.existing.name}". Opening it instead.`, 'exists:' + again.existing.id);
+          if (again.blocked) throw new HttpError(409, 'That Google place is blocked and cannot be added again.', 'blocked');
           if (!force) {
             const near = (await c.query(
               `select l.id, l.name, l.address, round(earth_distance(ll_to_earth($2, $3), ll_to_earth(l.latitude, l.longitude)))::int as metres
@@ -257,14 +356,17 @@ export function placeOps(pool: Pool): Record<string, Op> {
           const keys = Object.keys(f);
           const lock = [...new Set(keys.filter((k) => f[k] != null).map((k) => (k === 'dog_policy_note' ? 'dog_policy' : k)).filter((k) => (LOCKABLE as readonly string[]).includes(k)))];
           const p: unknown[] = keys.map((k) => val(k, f[k]));
-          const cols = [...keys, 'latitude', 'longitude', 'locked_fields', 'details_set_at', 'details_set_by', 'category_locked', 'category_set_at', 'category_set_by'];
+          const cols = [...keys, 'latitude', 'longitude', 'locked_fields', 'details_set_at', 'details_set_by', 'category_locked', 'category_set_at', 'category_set_by', 'place_id'];
           const vals = [...keys.map((k, i) => `$${i + 1}${cast(k)}`)];
-          p.push(lat, lng, lock, ctx.staff.userId);
+          p.push(lat, lng, lock, ctx.staff.userId, placeId);
           const n = keys.length;
-          vals.push(`$${n + 1}`, `$${n + 2}`, `$${n + 3}::text[]`, 'now()', `$${n + 4}`, 'true', 'now()', `$${n + 4}`);
-          const id = (await c.query(`insert into public.locations (${cols.join(', ')}) values (${vals.join(', ')}) returning id`, p)).rows[0].id;
+          vals.push(`$${n + 1}`, `$${n + 2}`, `$${n + 3}::text[]`, 'now()', `$${n + 4}`, 'true', 'now()', `$${n + 4}`, `$${n + 5}`);
+          // trg_skip_blocked_place_id returns no row for a blocked ID.
+          const ins = await c.query(`insert into public.locations (${cols.join(', ')}) values (${vals.join(', ')}) returning id`, p);
+          if (!ins.rows[0]) throw new HttpError(409, 'That Google place is blocked and cannot be added again.', 'blocked');
+          const id = ins.rows[0].id;
           const after = (await c.query(`select ${DETAIL_COLS} from public.locations l where l.id = $1`, [id])).rows[0];
-          await audit({ action: 'place_add', entity: 'locations', entityId: id, detail: `Added place ${label(after)} (${after.category})${force ? ', after a near-duplicate warning' : ''}`, before: null, after });
+          await audit({ action: 'place_add', entity: 'locations', entityId: id, detail: `Added place ${label(after)} (${after.category}, Google ${placeId.slice(0, 40)})${force ? ', after a near-duplicate warning' : ''}`, before: null, after });
           return { ok: true, message: 'Added. It shows in the app straight away.', id };
         });
       },
@@ -312,10 +414,12 @@ export function placeOps(pool: Pool): Record<string, Op> {
         const id = uuid(only(a, ['id']).id);
         return writeTx(pool, ctx.staff.userId, async (c, audit) => {
           const before = await lockPlace(c, id);
+          const blocked = await block(c, before.place_id, 'deleted', null, ctx.staff.userId);
           await c.query(`insert into public.hq_trash (entity, entity_id, row_data, related, deleted_by)
-                          select 'locations', l.id::text, to_jsonb(l), ${RELATED}, $2 from public.locations l where l.id = $1`, [id, ctx.staff.userId]);
+                          select 'locations', l.id::text, to_jsonb(l), ${RELATED} || jsonb_build_object('place_id_blocklist', $3::jsonb), $2 from public.locations l where l.id = $1`,
+            [id, ctx.staff.userId, JSON.stringify(blocked ? [blocked] : [])]);
           await c.query('delete from public.locations where id = $1', [id]);
-          await audit({ action: 'place_delete', entity: 'locations', entityId: id, detail: `Deleted place ${label(before)} to trash`, before, after: null });
+          await audit({ action: 'place_delete', entity: 'locations', entityId: id, detail: `Deleted place ${label(before)} to trash${blocked ? ', Google place ID blocked' : ''}`, before, after: { place_id_blocklist: blocked } });
           return { ok: true, message: 'Deleted. It is in the trash with its reviews, favourites and reports.' };
         });
       },
@@ -436,8 +540,10 @@ export function placeOps(pool: Pool): Record<string, Op> {
             await take('geograph_requeue', 'delete from public.geograph_requeue x where x.location_id = $1 returning to_jsonb(x.*) as r', [d]);
             // In-app notifications that open the old copy now open the kept place.
             await move('notification_links', "update public.notifications set action_url = 'location:' || $2 where action_url = 'location:' || $1 returning id", [d, keep]);
-            await toTrash(c, ctx.staff.userId, 'locations', d, (await c.query('select to_jsonb(l.*) as r from public.locations l where id = $1', [d])).rows[0].r,
-              { merged_into: keep, moved, removed });
+            const dropRow = (await c.query('select to_jsonb(l.*) as r from public.locations l where id = $1', [d])).rows[0].r;
+            const blocked = await block(c, dropRow.place_id || null, 'merged', keep, ctx.staff.userId);
+            if (blocked) add('place_ids_blocked', 1);
+            await toTrash(c, ctx.staff.userId, 'locations', d, dropRow, { merged_into: keep, moved, removed, place_id_blocklist: blocked ? [blocked] : [] });
             await c.query('delete from public.locations where id = $1', [d]);
           }
           await c.query('select public.update_barkfind_rating($1)', [keep]);
