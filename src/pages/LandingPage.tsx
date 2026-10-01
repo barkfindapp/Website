@@ -1256,6 +1256,29 @@ function Footer() {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function LandingPage() {
+  // Arriving at /#pricing, /#features or similar: the page renders on the client
+  // after the browser has already tried to jump to the anchor, so scroll to it
+  // once rendered, and again while images load and shift the layout.
+  // The jump is instant (the site's smooth scrolling gets cut short while the
+  // page is still settling) and stops as soon as the visitor scrolls themselves.
+  useEffect(() => {
+    const id = decodeURIComponent(window.location.hash.slice(1));
+    if (!id) return;
+    let userMoved = false;
+    const stop = () => (userMoved = true);
+    const go = () => {
+      if (!userMoved) document.getElementById(id)?.scrollIntoView({ behavior: "instant" as ScrollBehavior, block: "start" });
+    };
+    const timers = [0, 300, 1000, 2000].map((ms) => window.setTimeout(go, ms));
+    window.addEventListener("load", go, { once: true });
+    for (const e of ["wheel", "touchstart", "keydown"]) window.addEventListener(e, stop, { once: true, passive: true });
+    return () => {
+      timers.forEach(clearTimeout);
+      window.removeEventListener("load", go);
+      for (const e of ["wheel", "touchstart", "keydown"]) window.removeEventListener(e, stop);
+    };
+  }, []);
+
   useSeo({
     title: "BarkFind: Dog-friendly places, found in seconds.",
     description:
