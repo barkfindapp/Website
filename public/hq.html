@@ -1713,7 +1713,7 @@ footer .mono{color:rgba(255,255,255,.75)}
 // the password, your permissions, "not yourself" and "not the last owner" again.
 (function(){
   var $=function(id){return document.getElementById(id)}, H=window.HQ, esc=H.esc;
-  var LABEL={owner:"Owner",admin:"Admin",moderator:"Moderator",support:"Support",viewer:"Viewer"};
+  var LABEL={owner:"Owner",admin:"Admin",moderator:"Moderator",support:"Moderator",viewer:"Viewer"};
   function dt(ts){return ts?H.when(ts):"never"}
   function fail(el,e){el.innerHTML='<div class="empty">'+esc((e&&e.message)||"That did not load. Try again.")+'</div>'}
   function busy(b,p,card,after){b.disabled=true;return p.then(function(r){H.note(card,r&&r.ok!==false,(r&&r.message)||"Done.");if(after)after(r)}).catch(function(e){H.note(card,false,(e&&e.message)||"That did not work.")}).then(function(){b.disabled=false})}
