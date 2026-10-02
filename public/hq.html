@@ -606,6 +606,7 @@ footer .mono{color:rgba(255,255,255,.75)}
     <button class="chip" data-sec="signins" data-perm="staff_manage" aria-pressed="false">Sign-in activity</button>
     <button class="chip" data-sec="activity" data-perm="audit_view" aria-pressed="false">Activity</button>
     <button class="chip" data-sec="backlog" data-perm="audit_view" aria-pressed="false">Backlog</button>
+    <button class="chip" data-sec="trash" data-perm="trash_restore" aria-pressed="false">Trash</button>
   </nav>
   <div class="stack" id="adminPane"><div class="empty">Loading.</div></div>
  </div>
@@ -2620,7 +2621,34 @@ footer .mono{color:rgba(255,255,255,.75)}
   $("adminPane").addEventListener("change",function(ev){var m={auAction:"action",auPerson:"person",auEntity:"entity",auFrom:"from",auTo:"to"}[ev.target.id];if(m){au.f[m]=ev.target.value;au.page=0;load()}});
   $("adminPane").addEventListener("click",function(ev){var b=ev.target.closest("[data-au]");if(!b)return;var w=b.dataset.au;
     if(w==="open"){openEntry(b.dataset.id);return}if(w==="prev"){au.page--;load();return}if(w==="next"){au.page++;load()}});
-  window.HQAudit={activity:activity,backlog:backlog};
+  // ---------- Trash: what HQ deleted or merged away, with Restore (two taps) ----------
+  var tr={show:"waiting",page:0};
+  function trash(el){
+    el.innerHTML='<p class="note" style="margin:0">Places, merged copies, tickets, content, outreach contacts and announcements that HQ deleted. Restore puts the item back with everything stored with it. Items are kept for 90 days.</p>'+
+      '<div class="fbar">'+sel("trShow",[["waiting","Waiting"],["restored","Restored"],["all","All"]],tr.show,"Show")+'</div><div class="stack" id="trList"><div class="empty">Loading.</div></div>';
+    trLoad();
+  }
+  function trLoad(){
+    H.api("trash_list",{show:tr.show,page:tr.page}).then(function(r){var d=r.data,from=d.page*d.page_size;
+      $("trList").innerHTML='<div class="note">'+(d.total?(from+1)+" to "+Math.min(from+d.page_size,d.total)+" of "+n(d.total):(tr.show==="restored"?"Nothing has been restored.":"The trash is empty."))+'</div>'+
+        d.rows.map(function(x){var left=Math.max(0,90-(x.age_days||0));
+          return '<div class="card" data-tr-card="'+esc(x.id)+'"><div class="meta"><span class="tag plain">'+esc(x.kind)+'</span>'+(x.restored_at?'<span class="tag ok">Restored</span>':'')+
+            '<span>Deleted '+esc(H.when(x.deleted_at))+(x.deleted_by_name?' by '+esc(x.deleted_by_name):'')+'</span>'+(x.restored_at?'<span>Restored '+esc(H.when(x.restored_at))+(x.restored_by_name?' by '+esc(x.restored_by_name):'')+'</span>':'<span class="note">'+left+' day'+(left===1?"":"s")+' left</span>')+'</div>'+
+            '<div class="text" style="font-size:15px;font-weight:600;overflow-wrap:anywhere">'+esc(x.name||"(no name)")+'</div>'+
+            (x.entity==='locations'&&(x.category||x.address)?'<div class="note" style="overflow-wrap:anywhere">'+esc([x.category,x.address].filter(Boolean).join(" · "))+'</div>':'')+
+            (x.merged_into_name?'<div class="note">Merged into '+esc(x.merged_into_name)+'</div>':'')+
+            (x.stored_with&&x.stored_with.length?'<div class="note">'+esc((function(t){return t.charAt(0).toUpperCase()+t.slice(1)})([].concat(x.stored_with).join("; ")))+'</div>':'')+
+            (!x.restored_at&&x.restorable?'<div class="row"><button class="btn small" data-tr="restore" data-id="'+esc(x.id)+'" data-confirm="Confirm restore">Restore</button></div>':'')+
+            (!x.restorable?'<div class="note">Restore is not available for this kind of item.</div>':'')+'</div>'}).join("")+
+        (d.total>d.page_size?'<div class="row" style="justify-content:flex-end">'+(d.page>0?'<button class="btn small" data-tr="prev">Previous</button>':'')+(from+d.page_size<d.total?'<button class="btn small" data-tr="next">Next</button>':'')+'</div>':'');
+    }).catch(function(e){$("trList").innerHTML='<div class="empty">'+esc((e&&e.message)||"That did not load.")+'</div>'});
+  }
+  $("adminPane").addEventListener("change",function(ev){if(ev.target.id!=="trShow")return;tr.show=ev.target.value;tr.page=0;trLoad()});
+  $("adminPane").addEventListener("click",function(ev){var b=ev.target.closest("[data-tr]");if(!b)return;var w=b.dataset.tr;
+    if(w==="prev"){tr.page--;trLoad();return}if(w==="next"){tr.page++;trLoad();return}
+    if(w==="restore"){if(!H.armed(b))return;var card=b.closest("[data-tr-card]");b.disabled=true;
+      H.api("trash_restore",{id:b.dataset.id}).then(function(r){H.note(card,true,r.message||"Restored.");b.remove();setTimeout(trLoad,1800)}).catch(function(e){H.note(card,false,(e&&e.message)||"That did not work.");b.disabled=false;b.dataset.armed="";b.textContent=b.dataset.label||"Restore";b.classList.remove("confirm")})}});
+  window.HQAudit={activity:activity,backlog:backlog,trash:trash};
 })();
 </script>
 </body>
