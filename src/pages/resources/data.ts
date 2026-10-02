@@ -46,6 +46,10 @@ export type Guide = GuideSummary & {
   title: string;
   district: string | null;
   highlights: string[];
+  seoTitle: string;
+  description: string;
+  faq: { question: string; answer: string }[];
+  publishedAt: string | null;
   rule: { text: string; authority: string; checked: string | null } | null;
   photo: GuidePhoto | null;
   approvedAt: string | null;
