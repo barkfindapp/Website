@@ -6,6 +6,7 @@
 import type { Pool, PoolClient } from 'pg';
 import { HttpError, bad, only, uuid, str, oneOf, writeTx, toTrash, scrubEmails } from './hq-core.js';
 import type { Perm, Staff } from './hq-staff.js';
+import { signIn } from './hq-reset.js';
 
 export type Ctx = { staff: Staff; token: string; hqUrl: string };
 export type Op = { perm: Perm; run: (a: Record<string, unknown>, ctx: Ctx) => Promise<unknown> };
@@ -351,13 +352,14 @@ export function actOps(pool: Pool, deps: Deps): Record<string, Op> {
              from public.profiles p left join auth.users u on u.id = p.user_id left join public.subscriptions s on s.user_id = p.user_id
             where p.user_id = $1`, [id])).rows[0];
         if (!p) throw new HttpError(404, 'That customer no longer exists.');
-        const [dogs, favs, revs, tix, notifs, reports] = await Promise.all([
+        const [dogs, favs, revs, tix, notifs, reports, si] = await Promise.all([
           pool.query('select name, breed, dob, temperament from public.dog_profiles where user_id = $1 order by created_at', [id]),
           pool.query('select l.name, f.created_at from public.favorites f left join public.locations l on l.id = f.location_id where f.user_id = $1 order by f.created_at desc limit 24', [id]),
           pool.query('select r.paw_rating, r.status, r.created_at, l.name as place from public.reviews r left join public.locations l on l.id = r.location_id where r.user_id = $1 order by r.created_at desc limit 50', [id]),
           p.email ? pool.query('select subject, status, created_at from public.support_tickets where lower(email) = lower($1) order by created_at desc limit 50', [p.email]) : { rows: [] },
           pool.query('select title, created_at, is_read from public.notifications where user_id = $1 order by created_at desc limit 30', [id]),
           pool.query("select reason, status, created_at from public.user_reports where reported_user_id = $1 order by created_at desc limit 20", [id]),
+          signIn(pool, id),
         ]);
         return {
           data: {
@@ -365,6 +367,7 @@ export function actOps(pool: Pool, deps: Deps): Record<string, Op> {
             dogs: dogs.rows, saves: favs.rows, reviews: revs.rows, tickets: tix.rows, notifications: notifs.rows, reports: reports.rows,
             // Ban goes through admin-ban-user, which only accepts the owners, so only owners see it.
             can_ban: can(ctx, 'users_ban') && ctx.staff.level === 'owner',
+            sign_in: si?.label || null, can_reset: can(ctx, 'support_reply') && !!si?.email,
           },
         };
       },

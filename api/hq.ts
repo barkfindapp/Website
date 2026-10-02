@@ -20,6 +20,7 @@ import { rewardOps } from './_lib/hq-rewards.js';
 import { insightOps } from './_lib/hq-insights.js';
 import { auditOps } from './_lib/hq-audit.js';
 import { trashOps } from './_lib/hq-trash.js';
+import { resetOps } from './_lib/hq-reset.js';
 import { HttpError, bad, obj, only, uuid, str, oneOf, date, bool, scrubEmails, writeTx, toTrash } from './_lib/hq-core.js';
 
 const DB_URL = process.env.SUPABASE_DB_URL!;
@@ -401,6 +402,7 @@ const OPS: Record<string, Op | { perm: null; run: Op['run'] }> = {
   ...insightOps(pool),
   ...auditOps(pool),
   ...trashOps(pool),
+  ...resetOps(pool),
 };
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {

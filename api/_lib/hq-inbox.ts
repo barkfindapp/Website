@@ -8,6 +8,7 @@ import { Resend } from 'resend';
 import { HttpError, bad, only, uuid, str, oneOf, writeTx, scrubEmails } from './hq-core.js';
 import type { Op, Ctx } from './hq-act.js';
 import type { Perm } from './hq-staff.js';
+import { signIn } from './hq-reset.js';
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
 export const KINDS = ['support_ticket', 'listing_change', 'business_claim', 'place_report', 'user_report', 'privacy_request', 'treat_claim'] as const;
@@ -152,18 +153,20 @@ async function customer(pool: Pool, ctx: Ctx, userId: string | null, email: stri
     const past = email ? (await pool.query('select id, subject, status, created_at from public.support_tickets where lower(email) = lower($1) order by created_at desc limit 10', [email])).rows : [];
     return { known: false, email: contact ? email : null, conversations: past };
   }
-  const [p, dogs, revs, reps, conv] = await Promise.all([
+  const [p, dogs, revs, reps, conv, si] = await Promise.all([
     pool.query(`select p.full_name, p.created_at, p.is_banned, p.review_count, u.email, s.plan, s.status as sub_status, s.trial_end
                   from public.profiles p left join auth.users u on u.id = p.user_id left join public.subscriptions s on s.user_id = p.user_id where p.user_id = $1`, [uid]),
     pool.query('select name, breed from public.dog_profiles where user_id = $1 order by created_at limit 10', [uid]),
     pool.query('select r.paw_rating, r.status, r.created_at, l.name as place from public.reviews r left join public.locations l on l.id = r.location_id where r.user_id = $1 order by r.created_at desc limit 5', [uid]),
     pool.query('select reason, status, created_at from public.user_reports where reported_user_id = $1 order by created_at desc limit 5', [uid]),
     pool.query(`select id, subject, status, created_at from public.support_tickets where user_id = $1 or lower(email) = lower((select email from auth.users where id = $1)) order by created_at desc limit 10`, [uid]),
+    signIn(pool, uid),
   ]);
   const prof = p.rows[0] || {};
   return { known: true, user_id: uid, name: prof.full_name || '', email: contact ? prof.email || null : null, plan: prof.plan || null, sub_status: prof.sub_status || null,
     trial_end: prof.trial_end || null, joined: prof.created_at || null, banned: !!prof.is_banned, review_count: prof.review_count || 0,
-    dogs: dogs.rows, reviews: revs.rows, reports: reps.rows, conversations: conv.rows };
+    dogs: dogs.rows, reviews: revs.rows, reports: reps.rows, conversations: conv.rows,
+    sign_in: si?.label || null, can_reset: has(ctx, 'support_reply') && !!si?.email };
 }
 
 async function declineEmail(to: string, name: string, place: string, reason: string) {
