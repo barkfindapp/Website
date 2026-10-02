@@ -2635,9 +2635,9 @@ footer .mono{color:rgba(255,255,255,.75)}
           return '<div class="card" data-tr-card="'+esc(x.id)+'"><div class="meta"><span class="tag plain">'+esc(x.kind)+'</span>'+(x.restored_at?'<span class="tag ok">Restored</span>':'')+
             '<span>Deleted '+esc(H.when(x.deleted_at))+(x.deleted_by_name?' by '+esc(x.deleted_by_name):'')+'</span>'+(x.restored_at?'<span>Restored '+esc(H.when(x.restored_at))+(x.restored_by_name?' by '+esc(x.restored_by_name):'')+'</span>':'<span class="note">'+left+' day'+(left===1?"":"s")+' left</span>')+'</div>'+
             '<div class="text" style="font-size:15px;font-weight:600;overflow-wrap:anywhere">'+esc(x.name||"(no name)")+'</div>'+
-            ((x.category||x.address)?'<div class="note" style="overflow-wrap:anywhere">'+esc([x.category,x.address].filter(Boolean).join(" · "))+'</div>':'')+
+            (x.entity==='locations'&&(x.category||x.address)?'<div class="note" style="overflow-wrap:anywhere">'+esc([x.category,x.address].filter(Boolean).join(" · "))+'</div>':'')+
             (x.merged_into_name?'<div class="note">Merged into '+esc(x.merged_into_name)+'</div>':'')+
-            (x.stored_with&&x.stored_with.length?'<div class="note">Stored with it: '+esc([].concat(x.stored_with).join(", "))+'</div>':'')+
+            (x.stored_with&&x.stored_with.length?'<div class="note">'+esc((function(t){return t.charAt(0).toUpperCase()+t.slice(1)})([].concat(x.stored_with).join("; ")))+'</div>':'')+
             (!x.restored_at&&x.restorable?'<div class="row"><button class="btn small" data-tr="restore" data-id="'+esc(x.id)+'" data-confirm="Confirm restore">Restore</button></div>':'')+
             (!x.restorable?'<div class="note">Restore is not available for this kind of item.</div>':'')+'</div>'}).join("")+
         (d.total>d.page_size?'<div class="row" style="justify-content:flex-end">'+(d.page>0?'<button class="btn small" data-tr="prev">Previous</button>':'')+(from+d.page_size<d.total?'<button class="btn small" data-tr="next">Next</button>':'')+'</div>':'');
