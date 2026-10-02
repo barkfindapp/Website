@@ -21,6 +21,10 @@ const CreatorPage = lazy(() => import("./pages/CreatorPage"));
 const ResourcesRoutes = lazy(() => import("./pages/resources/ResourcesRoutes"));
 const RESOURCE_SECTIONS = ["/discover", "/dog-friendly", "/news", "/events"];
 
+// Lazy so supabase-js ships in its own chunk, loaded only on /reset-password and
+// never in the main bundle a homepage visitor downloads.
+const ResetPassword = lazy(() => import("./pages/ResetPassword"));
+
 const ROUTES: Record<string, () => JSX.Element> = {
   "/mockup": MockupCapture,
   "/privacy": PrivacyPolicy,
@@ -49,6 +53,14 @@ export default function App() {
     return (
       <Suspense fallback={null}>
         <ResourcesRoutes path={clean} />
+      </Suspense>
+    );
+  }
+  // Password recovery landing: client-only, reads the token Supabase puts in the URL.
+  if (clean === "/reset-password") {
+    return (
+      <Suspense fallback={null}>
+        <ResetPassword />
       </Suspense>
     );
   }
