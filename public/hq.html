@@ -278,6 +278,11 @@ footer .mono{color:rgba(255,255,255,.75)}
 .tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px}
 .tile{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px 14px;box-shadow:var(--shadow)}
 .tile .lbl{font:800 11px/1.2 var(--sans);letter-spacing:.08em;text-transform:uppercase;color:var(--mute)}
+.amen-sec{font:800 11px/1.2 var(--sans);letter-spacing:.08em;text-transform:uppercase;color:var(--mute);margin:10px 0 6px}
+.amen-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:6px}
+label.amen{display:flex;flex-direction:row;gap:8px;align-items:center;font:600 14px/1.25 var(--sans);color:var(--fg);padding:8px 10px;border:1px solid var(--line-2);border-radius:10px;cursor:pointer;min-height:42px;background:#fff}
+label.amen input{width:18px;height:18px;flex:none;margin:0;accent-color:var(--brand)}
+label.amen:has(input:checked){border-color:var(--brand-line);background:var(--brand-soft)}
 .tile .sub{font:600 12.5px/1.3 var(--sans);color:var(--fg2);margin-top:4px}
 .tile .val{font:400 28px/1.1 var(--serif);color:var(--fg);margin-top:4px}
 .kvs{display:grid;grid-template-columns:auto 1fr;gap:6px 12px;font-size:14px}.kvs dt{color:var(--fg2)}.kvs dd{margin:0;font-weight:700;overflow-wrap:anywhere}
@@ -2276,7 +2281,7 @@ footer .mono{color:rgba(255,255,255,.75)}
   // ---------- one place ----------
   function openPlace(id){
     var bg=$("sheetBg");bg.classList.add("wide");$("sheetTitle").textContent="Place";$("sheetBody").innerHTML='<div class="empty">Loading.</div>';bg.hidden=false;document.body.style.overflow="hidden";
-    H.api("place_detail",{id:id}).then(function(r){pl.open=r.data;placeView(r.data)}).catch(function(e){$("sheetBody").innerHTML='<div class="empty">'+esc(e.message||"That did not load.")+'</div>'});
+    Promise.all([H.api("place_detail",{id:id}),loadAmen().catch(function(){return null})]).then(function(rs){var r=rs[0];pl.open=r.data;placeView(r.data)}).catch(function(e){$("sheetBody").innerHTML='<div class="empty">'+esc(e.message||"That did not load.")+'</div>'});
   }
   function lockLine(p){
     var out=(p.locked_fields||[]).map(function(f){return [f,LOCKNAME[f]||f]});if(p.category_locked)out.unshift(["category","Category"]);
@@ -2312,27 +2317,50 @@ footer .mono{color:rgba(255,255,255,.75)}
     $("sheetBody").innerHTML=h;
   }
   function fields(p){
-    var am=(p.amenities||[]).join(", "), oh=Array.isArray(p.opening_hours)?p.opening_hours.join("\n"):"";
+    var oh=Array.isArray(p.opening_hours)?p.opening_hours.join("\n"):"";
     return '<div class="grid2"><label>Name<input type="text" data-pf="name" maxlength="200" value="'+esc(p.name||"")+'"></label>'+
       '<label>Category<select data-pf="category">'+CATS.map(function(c){return '<option value="'+c+'"'+(c===p.category?" selected":"")+'>'+pretty(c)+'</option>'}).join("")+'</select></label>'+
       '<label>Address<input type="text" data-pf="address" maxlength="300" value="'+esc(p.address||"")+'"></label>'+
       '<label>Website<input type="text" data-pf="website" maxlength="500" value="'+esc(p.website||"")+'" placeholder="https://"></label>'+
       '<label>Photo link (https)<input type="text" data-pf="image_url" maxlength="500" value="'+esc(p.image_url||"")+'"></label>'+
       '<label>Dog policy<select data-pf="dog_policy">'+Object.keys(DOG).map(function(k){return '<option value="'+k+'"'+(k===(p.dog_policy||"")?" selected":"")+'>'+DOG[k]+'</option>'}).join("")+'</select></label>'+
-      '<label>Dog policy note<input type="text" data-pf="dog_policy_note" maxlength="300" value="'+esc(p.dog_policy_note||"")+'"></label>'+
-      '<label>Amenities (comma separated)<input type="text" data-pf="amenities" value="'+esc(am)+'"></label></div>'+
+      '<label>Dog policy note<input type="text" data-pf="dog_policy_note" maxlength="300" value="'+esc(p.dog_policy_note||"")+'"></label></div>'+
+      '<div data-pf-amen>'+amenPicker(p.category||"pub",p.amenities||[])+'</div>'+
       '<label class="note">Opening hours, one line per day</label><textarea data-pf="opening_hours" style="min-height:120px">'+esc(oh)+'</textarea>'+
       '<label class="note">Description</label><textarea data-pf="description" maxlength="2000">'+esc(p.description||"")+'</textarea>';
   }
+  // ---------- amenities: the app's own codes and labels, for the place's category ----------
+  // The list comes from places_amenities (copied from the app repo); codes already on a place
+  // that belong to another category stay ticked under "Also set" so a save never drops them.
+  function loadAmen(){if(!pl.amenP)pl.amenP=H.api("places_amenities").then(function(r){pl.amen=r.data;return r.data}).catch(function(e){pl.amenP=null;throw e});return pl.amenP}
+  function amenInfo(code){var g=pl.amen&&pl.amen.groups||{};for(var k in g)for(var i=0;i<g[k].length;i++)for(var j=0;j<g[k][i].items.length;j++)if(g[k][i].items[j].code===code)return g[k][i].items[j];return null}
+  function amenBox(it,on){return '<label class="amen"'+(it.tooltip?' title="'+esc(it.tooltip)+'"':'')+'><input type="checkbox" data-amen="'+esc(it.code)+'"'+(on?" checked":"")+'> '+esc(it.label)+'</label>'}
+  function amenPicker(cat,selected){
+    if(!pl.amen)return '<div class="note">Loading amenities.</div>';
+    var sel={};(selected||[]).forEach(function(c){sel[c]=1});
+    var secs=(pl.amen.groups[pl.amen.category_group[cat]]||[]),shown={};
+    var h='<div class="note" style="margin-top:6px">Amenities for '+esc(pretty(cat).toLowerCase())+'s, as the app shows them</div>'+secs.map(function(s){return '<div class="amen-sec">'+esc(s.title)+'</div><div class="amen-grid">'+s.items.map(function(it){shown[it.code]=1;return amenBox(it,sel[it.code])}).join("")+'</div>'}).join("");
+    var other=Object.keys(sel).filter(function(c){return !shown[c]&&amenInfo(c)}), unknown=Object.keys(sel).filter(function(c){return !amenInfo(c)});
+    if(other.length)h+='<div class="amen-sec">Also set (not usually for '+esc(pretty(cat).toLowerCase())+'s)</div><div class="amen-grid">'+other.map(function(c){return amenBox(amenInfo(c),true)}).join("")+'</div>';
+    if(unknown.length)h+='<div class="note" style="margin-top:6px">Not in the app&#39;s list: '+esc(unknown.join(", "))+'. Kept as they are unless you change the amenities.</div>';
+    return h;
+  }
+  function onCategory(ev){var t=ev.target;if(!t.matches||!t.matches('select[data-pf="category"]'))return;var root=t.closest(".card"),box=root&&root.querySelector("[data-pf-amen]");if(!box)return;
+    var keep=[].map.call(box.querySelectorAll("input[data-amen]:checked"),function(i){return i.dataset.amen});
+    var unk=(pl.open&&root.closest("#sheetBody")?(pl.open.amenities||[]):[]).filter(function(c){return !amenInfo(c)});box.innerHTML=amenPicker(t.value,keep.concat(unk))}
+  $("sheetBody").addEventListener("change",onCategory);$("plPane").addEventListener("change",onCategory);
   function readFields(root){
-    var o={};root.querySelectorAll("[data-pf]").forEach(function(i){var k=i.dataset.pf,v=i.value;
-      if(k==="amenities")o[k]=v.split(",").map(function(s){return s.trim()}).filter(Boolean);
-      else if(k==="opening_hours")o[k]=v.split("\n").map(function(s){return s.trim()}).filter(Boolean);
+    var o={};var ab=root.querySelector("[data-pf-amen]");
+    if(ab&&pl.amen){o.amenities=[].map.call(ab.querySelectorAll("input[data-amen]:checked"),function(i){return i.dataset.amen})}
+    root.querySelectorAll("[data-pf]").forEach(function(i){var k=i.dataset.pf,v=i.value;
+      if(k==="opening_hours")o[k]=v.split("\n").map(function(s){return s.trim()}).filter(Boolean);
       else o[k]=v.trim()});
     return o;
   }
   // Only what changed, so unchanged fields are not locked.
-  function changes(p,o){var c={};Object.keys(o).forEach(function(k){var a=o[k],b=p[k];if(k==="amenities"||k==="opening_hours"){if(JSON.stringify(a)!==JSON.stringify(b||[]))c[k]=a}else if((a||"")!==(b||""))c[k]=a});return c}
+  function changes(p,o){var c={};Object.keys(o).forEach(function(k){var a=o[k],b=p[k];
+    if(k==="amenities"){if(JSON.stringify(a.slice().sort())!==JSON.stringify((b||[]).slice().sort()))c[k]=a}
+    else if(k==="opening_hours"){if(JSON.stringify(a)!==JSON.stringify(b||[]))c[k]=a}else if((a||"")!==(b||""))c[k]=a});return c}
   function checkFields(o){
     if("name" in o&&!o.name)return "Give it a name.";
     if(o.website&&!/^https?:\/\/\S+$/i.test(o.website))return "The website must start with https:// or http://";
@@ -2384,6 +2412,7 @@ footer .mono{color:rgba(255,255,255,.75)}
 
   // ---------- add ----------
   function addView(el){
+    if(!pl.amen){el.innerHTML='<div class="empty">Loading.</div>';loadAmen().then(function(){addView(el)}).catch(function(e){el.innerHTML='<div class="empty">'+esc((e&&e.message)||"That did not load.")+'</div>'});return}
     el.innerHTML='<div class="card" data-pl-card="add"><div class="subhead"><h3>Add a place</h3></div><p class="note" style="margin:0">It shows in the app straight away. Paste a Google Maps link to fill in where it is (or type the latitude and longitude), then find it on Google so it is stored with its Google place ID.</p>'+
       fields({category:"pub"})+'<div class="grid2"><label>Google Maps link<input type="text" id="plMaps" placeholder="https://www.google.com/maps/..."></label><label>Latitude<input type="text" id="plLat" inputmode="decimal"></label><label>Longitude<input type="text" id="plLng" inputmode="decimal"></label></div>'+
       '<div class="row"><button class="btn small" data-pl="lookup">Find on Google</button></div><div class="stack" id="plMatches" style="gap:8px"></div>'+

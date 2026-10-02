@@ -24,6 +24,7 @@ import type { Pool, PoolClient } from 'pg';
 import { HttpError, bad, only, uuid, str, oneOf, bool, writeTx, toTrash } from './hq-core.js';
 import { CATEGORIES } from './hq-flags.js';
 import type { Op, Ctx } from './hq-act.js';
+import { AMENITY_CODES, AMENITY_GROUPS, CATEGORY_GROUP, AMENITY_SOURCE } from './amenities.js';
 
 const PAGE = 50;
 const DUP_METRES = 150;
@@ -160,14 +161,22 @@ function readFields(a: Record<string, unknown>) {
   if ('dog_policy' in a) f.dog_policy = oneOf(a.dog_policy, DOG_POLICIES, { optional: true }) || null;
   if ('dog_policy_note' in a) f.dog_policy_note = str(a.dog_policy_note, 300, { optional: true }) || null;
   if ('opening_hours' in a) { const h = lines(a.opening_hours); f.opening_hours = h.length ? h : null; }
+  // Amenities are the app's fixed codes (api/_lib/amenities.ts, copied from the app); anything else is refused.
   if ('amenities' in a) {
-    if (!Array.isArray(a.amenities) || a.amenities.length > 40) throw bad();
-    f.amenities = [...new Set(a.amenities.map((x) => str(x, 60, { min: 1 })))];
+    if (!Array.isArray(a.amenities) || a.amenities.length > AMENITY_CODES.length) throw bad();
+    const codes = [...new Set(a.amenities.map((x) => str(x, 60, { min: 1 })))];
+    const unknown = codes.filter((c) => !AMENITY_CODES.includes(c));
+    if (unknown.length) throw new HttpError(400, `Not an app amenity: ${unknown.slice(0, 3).join(', ').slice(0, 120)}.`);
+    f.amenities = codes.sort((x, y) => AMENITY_CODES.indexOf(x) - AMENITY_CODES.indexOf(y));
   }
   return f;
 }
 const FIELD_KEYS = ['name', 'category', 'address', 'website', 'image_url', 'description', 'dog_policy', 'dog_policy_note', 'opening_hours', 'amenities'];
-const same = (x: unknown, y: unknown) => JSON.stringify(x ?? null) === JSON.stringify(y ?? null);
+const same = (x: unknown, y: unknown) => {
+  // Amenities are a set: the same codes in another order are not a change.
+  if (Array.isArray(x) && Array.isArray(y)) return JSON.stringify([...x].sort()) === JSON.stringify([...y].sort());
+  return JSON.stringify(x ?? null) === JSON.stringify(y ?? null);
+};
 const cast = (k: string) => (k === 'opening_hours' ? '::jsonb' : k === 'amenities' ? '::text[]' : '');
 const val = (k: string, v: unknown) => (k === 'opening_hours' && v != null ? JSON.stringify(v) : v);
 
@@ -221,6 +230,12 @@ const DUP_PAIRS = `
 
 export function placeOps(pool: Pool): Record<string, Op> {
   return {
+    // The app's amenities, by category group, for the tick-lists in Edit and Add a place.
+    places_amenities: {
+      perm: 'places_edit',
+      run: async (a) => { only(a, []); return { data: { groups: AMENITY_GROUPS, category_group: CATEGORY_GROUP, source: AMENITY_SOURCE } }; },
+    },
+
     places_list: {
       perm: 'places_edit',
       run: async (a) => {
