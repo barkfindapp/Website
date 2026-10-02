@@ -555,8 +555,8 @@ function MethodPage() {
       <Section title="What goes into a guide">
         <p>
           Each guide is drafted from BarkFind's own place data and nothing else: the venue's own dog policy where it
-          publishes one, what BarkFind members report after visiting, opening hours and facilities. We do not add places or
-          details that are not in that data.
+          publishes one, reviews from BarkFind members where there are any, opening hours and facilities. We do not add
+          places or details that are not in that data.
         </p>
         <p>
           A town only gets a guide once we hold enough checked places there, such as cafes, pubs, restaurants, parks and
@@ -571,9 +571,9 @@ function MethodPage() {
       </Section>
       <Section title="Checked by a person">
         <p>
-          Guides are drafted with the help of AI from the data above. A person at BarkFind reads and approves every guide
-          before it is published, and nothing goes live automatically. If we withdraw a guide, it comes off the site at the
-          next update.
+          Guides are drafted with the help of AI from the data above. Josh, who founded BarkFind, reads and approves every
+          guide before it is published, and nothing goes live automatically. If we withdraw a guide, it comes off the site
+          at the next update.
         </p>
       </Section>
       <Section title="Photos">
@@ -592,7 +592,7 @@ function MethodPage() {
         <p>
           Email{" "}
           <a href="mailto:info@barkfind.com" className={SEE_ALL}>info@barkfind.com</a> with the town and the place. We
-          check every report and correct the guide.
+          check every report and correct the guide if it's wrong.
         </p>
       </Section>
       <p className="mt-8">
