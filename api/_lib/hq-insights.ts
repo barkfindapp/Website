@@ -43,10 +43,16 @@ async function buildInsights(pool: Pool) {
     pool.query(`select to_char(d.day, 'YYYY-MM-DD') as day, (select count(distinct s.user_id)::int from public.session_analytics s where s.started_at >= d.day and s.started_at < d.day + interval '1 day') as n
       from generate_series(date_trunc('day', now()) - interval '29 days', date_trunc('day', now()), interval '1 day') as d(day) order by d.day`),
     pool.query(`select lower(trim(term)) as term, count(*)::int as n from public.search_logs where term is not null and length(trim(term)) > 1 group by 1 order by 2 desc, 1 limit 20`),
-    pool.query(`with t as (select lower(trim(term)) as term, count(*)::int as n from public.search_logs where term is not null and length(trim(term)) > 1 group by 1)
-      select t.term, t.n from t where not exists (select 1 from public.locations l where not l.flagged
-        and (l.name ilike '%' || t.term || '%' or l.category ilike '%' || t.term || '%' or l.address ilike '%' || t.term || '%'))
-      order by t.n desc, t.term limit 20`),
+    // Searches in the last 30 days that no live place answers. A place answers a search when the
+    // search is in its name, category or address, or its name (4+ characters) appears in the
+    // search as whole words, so "revo kitchen weston" is answered by "Revo Kitchen".
+    pool.query(`with t as (select lower(trim(term)) as term, count(*)::int as n, max(searched_at) as last_at
+                             from public.search_logs
+                            where term is not null and length(trim(term)) > 1 and searched_at >= now() - interval '30 days' group by 1)
+      select t.term, t.n, t.last_at from t where not exists (select 1 from public.locations l where not l.flagged
+        and (l.name ilike '%' || t.term || '%' or l.category ilike '%' || t.term || '%' or l.address ilike '%' || t.term || '%'
+             or (length(trim(l.name)) >= 4 and (' ' || t.term || ' ') like ('% ' || lower(trim(l.name)) || ' %'))))
+      order by t.last_at desc, t.term limit 20`),
     pool.query(`select coalesce(device_info->>'platform', device_info->>'os', device_info->>'model', 'unknown') as device, count(*)::int as n
       from public.session_analytics group by 1 order by 2 desc limit 10`),
   ]);
