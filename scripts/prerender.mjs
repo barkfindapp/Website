@@ -33,6 +33,7 @@ const ROUTES = [
   "/delete-account",
   "/confirmed",
   "/creators", // shared by link: needs its own title and noindex in the HTML
+  "/reset-password", // Supabase recovery landing: prerendered so it is 200 + noindex, rendered client-side from the URL token
   "/404", // written to dist/404.html: Vercel serves it with a 404 status for unknown URLs
 ];
 
