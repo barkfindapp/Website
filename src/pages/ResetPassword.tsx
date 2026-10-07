@@ -36,8 +36,6 @@ const MIN_LENGTH = 8;
 // or already used; "done" -> password changed.
 type Phase = "checking" | "ready" | "invalid" | "done";
 
-const openHref = () => (LAUNCHED ? APP_STORE_URL : "/#download");
-
 export default function ResetPassword() {
   useSeo({
     title: "Reset your password | BarkFind",
@@ -78,7 +76,8 @@ export default function ResetPassword() {
         .verifyOtp({ type: "recovery", token_hash: tokenHash })
         .then(({ error: vErr }) => {
           if (vErr) invalid(); else ready();
-        });
+        })
+        .catch(() => invalid());
       return;
     }
 
@@ -172,15 +171,23 @@ export default function ResetPassword() {
   if (phase === "done") {
     return (
       <PageShell title="Password changed">
-        <p className="text-[#444] leading-relaxed">
-          Your password has been changed. Open BarkFind and sign in with your new password.
-        </p>
-        <a
-          href={openHref()}
-          className="inline-flex items-center mt-5 px-6 py-3 rounded-full bg-[#B74217] text-white font-bold hover:opacity-90 transition-opacity shadow-sm shadow-[#B74217]/30"
-        >
-          Open BarkFind
-        </a>
+        {LAUNCHED ? (
+          <>
+            <p className="text-[#444] leading-relaxed">
+              Your password has been changed. Open BarkFind and sign in with your new password.
+            </p>
+            <a
+              href={APP_STORE_URL}
+              className="inline-flex items-center mt-5 px-6 py-3 rounded-full bg-[#B74217] text-white font-bold hover:opacity-90 transition-opacity shadow-sm shadow-[#B74217]/30"
+            >
+              Get BarkFind on the App Store
+            </a>
+          </>
+        ) : (
+          <p className="text-[#444] leading-relaxed">
+            Your password has been changed. Go back to BarkFind on your phone and sign in with your new password.
+          </p>
+        )}
       </PageShell>
     );
   }
