@@ -36,8 +36,6 @@ const MIN_LENGTH = 8;
 // or already used; "done" -> password changed.
 type Phase = "checking" | "ready" | "invalid" | "done";
 
-const openHref = () => (LAUNCHED ? APP_STORE_URL : "/#download");
-
 export default function ResetPassword() {
   useSeo({
     title: "Reset your password | BarkFind",
@@ -67,7 +65,35 @@ export default function ResetPassword() {
       return;
     }
 
-    // Supabase fires PASSWORD_RECOVERY once it has read the token from the hash.
+    // token_hash flow: the Supabase email template and HQ both link here with a
+    // token hash. verifyOtp needs no code verifier, so it works from any browser.
+    // The outcome is decided only by verifyOtp, with no fallback timer, so a slow
+    // verify never loses a race and shows "expired" for a link that is actually good.
+    const tokenHash = query.get("token_hash");
+    const type = query.get("type");
+    if (tokenHash && (!type || type === "recovery")) {
+      supabase.auth
+        .verifyOtp({ type: "recovery", token_hash: tokenHash })
+        .then(({ error: vErr }) => {
+          if (vErr) invalid(); else ready();
+        })
+        .catch(() => invalid());
+      return;
+    }
+
+    // PKCE ?code= link: the code verifier lives in the app that asked for the
+    // reset, not in this browser, so the code cannot be exchanged here. Show the
+    // expired state rather than waiting out the timer. Once the email template
+    // links with a token_hash, app links take the branch above instead.
+    if (query.get("code")) {
+      console.warn("reset: PKCE code link, template not updated");
+      invalid();
+      return;
+    }
+
+    // Implicit (#access_token) flow, for any emails already sent. detectSessionInUrl
+    // reads the hash on client init and fires PASSWORD_RECOVERY; the timer below is
+    // the fallback if no session appears.
     const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === "PASSWORD_RECOVERY" || (session && (event === "SIGNED_IN" || event === "INITIAL_SESSION"))) {
         ready();
@@ -75,15 +101,6 @@ export default function ResetPassword() {
     });
 
     (async () => {
-      // token_hash flow: verify it ourselves.
-      const tokenHash = query.get("token_hash");
-      const type = query.get("type");
-      if (tokenHash && (!type || type === "recovery")) {
-        const { error: vErr } = await supabase.auth.verifyOtp({ type: "recovery", token_hash: tokenHash });
-        if (vErr) invalid(); else ready();
-        return;
-      }
-      // Implicit (#access_token) flow is handled by detectSessionInUrl above.
       const { data } = await supabase.auth.getSession();
       if (data.session) ready();
     })();
@@ -154,15 +171,23 @@ export default function ResetPassword() {
   if (phase === "done") {
     return (
       <PageShell title="Password changed">
-        <p className="text-[#444] leading-relaxed">
-          Your password has been changed. Open BarkFind and sign in with your new password.
-        </p>
-        <a
-          href={openHref()}
-          className="inline-flex items-center mt-5 px-6 py-3 rounded-full bg-[#B74217] text-white font-bold hover:opacity-90 transition-opacity shadow-sm shadow-[#B74217]/30"
-        >
-          Open BarkFind
-        </a>
+        {LAUNCHED ? (
+          <>
+            <p className="text-[#444] leading-relaxed">
+              Your password has been changed. Open BarkFind and sign in with your new password.
+            </p>
+            <a
+              href={APP_STORE_URL}
+              className="inline-flex items-center mt-5 px-6 py-3 rounded-full bg-[#B74217] text-white font-bold hover:opacity-90 transition-opacity shadow-sm shadow-[#B74217]/30"
+            >
+              Get BarkFind on the App Store
+            </a>
+          </>
+        ) : (
+          <p className="text-[#444] leading-relaxed">
+            Your password has been changed. Go back to BarkFind on your phone and sign in with your new password.
+          </p>
+        )}
       </PageShell>
     );
   }
