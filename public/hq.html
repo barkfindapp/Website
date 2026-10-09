@@ -1441,9 +1441,7 @@ label.amen:has(input:checked){border-color:var(--brand-line);background:var(--br
         (d.user_reports.length?d.user_reports.map(function(u){return '<div class="card" data-uid="'+esc(u.id)+'"><div class="meta"><span>'+esc(H.when(u.created_at))+'</span>'+(u.place?'<span>'+esc(u.place)+'</span>':'')+'<span>reported by '+hidden(u.reporter_email)+'</span></div><div class="title">'+esc(u.reported_name||"A customer")+' '+(u.reported_email?'&lt;'+esc(u.reported_email)+'&gt;':'')+'</div><div class="prior">Reason: '+esc(u.reason||"not given")+'</div>'+(u.review_text?'<div class="text">'+esc(u.review_text)+'</div>':'')+
           '<div class="row"><button class="btn small" data-do="ur_actioned" data-confirm="Confirm actioned">Mark actioned</button><button class="btn small" data-do="ur_dismissed" data-confirm="Confirm dismiss">Dismiss</button>'+(u.reported_user_id&&H.can("users_view")?'<button class="btn small" data-do="open_user" data-user="'+esc(u.reported_user_id)+'">Open customer</button>':'')+'</div></div>'}).join(""):'<div class="empty">No user reports.</div>')+
         '<div class="subhead"><h3>Place reports</h3><span>'+(d.location_reports.length?d.location_reports.length+" open":"none open")+'</span></div>'+
-        (d.location_reports.length?d.location_reports.map(function(l){return '<div class="card" data-lrid="'+esc(l.id)+'"><div class="meta"><span>'+esc(H.when(l.created_at))+'</span><span>'+esc(l.address||"")+'</span></div><div class="title">'+esc(l.place||"Unknown place")+': '+esc(l.reason||"")+'</div>'+(l.details?'<div class="text">'+esc(l.details)+'</div>':'')+
-          '<label class="note">Reason for flagging the place</label><div class="chips-sm">'+FLAG_REASONS.map(function(x){return '<button type="button" class="chip" data-reason="'+esc(x)+'">'+esc(x)+'</button>'}).join("")+'</div><input type="text" class="pill-in" data-flag-reason value="'+esc(l.reason||"User report")+'">'+
-          '<div class="row"><button class="btn danger small" data-do="flag_place" data-confirm="Confirm flag">Flag place</button><button class="btn small" data-do="lr_dismissed" data-confirm="Confirm dismiss">Dismiss</button></div></div>'}).join(""):'<div class="empty">No place reports.</div>');
+        (d.location_reports.length?d.location_reports.map(function(l){return '<button class="card" style="width:100%;text-align:left;cursor:pointer" data-do="open_report" data-id="'+esc(l.id)+'"><div class="meta"><span>'+esc(H.when(l.created_at))+'</span><span>'+esc(l.address||"")+'</span></div><div class="title">'+esc(l.place||"Unknown place")+': '+esc(l.reason||"")+'</div>'+(l.details?'<div class="text">'+esc(l.details)+'</div>':'')+'</button>'}).join(""):'<div class="empty">No place reports.</div>');
     }).catch(function(e){fail(el,e)});
   }
 
@@ -1646,8 +1644,7 @@ label.amen:has(input:checked){border-color:var(--brand-line);background:var(--br
       body='<div class="card"><div class="meta"><span class="tag">'+esc(row.status)+'</span></div><div class="title">'+esc((d.place||{}).name||"A place")+'</div><dl class="kvs"><dt>Claimant</dt><dd>'+esc(row.claimant_name||"–")+'</dd><dt>Email</dt><dd>'+(row.claimant_email?esc(row.claimant_email):'<span class="note">hidden</span>')+'</dd></dl>'+(row.message?'<div class="text">'+esc(row.message)+'</div>':'')+(row.evidence_url?'<div class="note">Evidence: <a href="'+esc(row.evidence_url)+'" target="_blank" rel="noopener noreferrer">'+esc(row.evidence_url)+'</a></div>':'')+
         (row.status==="pending"&&H.can("claims")?'<div class="row"><button class="btn small" data-ia="assess">AI assessment</button><button class="btn ok small" data-ia="verify" data-confirm="Confirm verify">Verify</button><button class="btn danger small" data-ia="reject" data-confirm="Confirm reject">Reject</button></div><div data-assess></div>':'')+'</div>';
     }else if(k==="place_report"){
-      body='<div class="card"><div class="meta"><span class="tag">'+esc(row.status)+'</span></div><div class="title">'+esc((d.place||{}).name||"A place")+': '+esc(row.reason||"")+'</div>'+(row.details?'<div class="text">'+esc(row.details)+'</div>':'')+
-        (row.status==="open"&&H.can("reports")?'<label class="note">Reason for flagging the place</label><input type="text" class="pill-in" data-ib-flag value="'+esc(row.reason||"User report")+'"><div class="row"><button class="btn danger small" data-ia="flag" data-confirm="Confirm flag">Flag place</button><button class="btn small" data-ia="dismiss" data-confirm="Confirm dismiss">Dismiss</button></div>':'')+'</div>';
+      body=reportPanel(d);
     }else if(k==="user_report"){
       body='<div class="card"><div class="meta"><span class="tag">'+esc(row.status)+'</span></div><div class="title">Reason: '+esc(row.reason||"not given")+'</div>'+
         (row.status==="pending"&&H.can("reports")?'<div class="row"><button class="btn small" data-ia="ur_actioned" data-confirm="Confirm actioned">Mark actioned</button><button class="btn small" data-ia="ur_dismissed" data-confirm="Confirm dismiss">Dismiss</button></div>':'')+'</div>';
@@ -1665,7 +1662,74 @@ label.amen:has(input:checked){border-color:var(--brand-line);background:var(--br
       '<div class="note">Reports about them</div>'+(c.reports.length?c.reports.map(function(x){return '<div class="prior">'+esc(x.reason||"")+' ('+esc(x.status)+')</div>'}).join(""):'<div class="note">None.</div>')
       :'<div class="note">No BarkFind account found'+(c.email?" for "+esc(c.email):"")+'.</div>')+
       '<div class="note">Past conversations</div>'+((c.conversations||[]).length?c.conversations.map(function(x){return '<button class="btn small" data-ia="goto" data-id="'+esc(x.id)+'" style="justify-content:flex-start">'+esc(H.when(x.created_at))+': '+esc(x.subject||"")+' ('+esc(x.status)+')</button>'}).join(""):'<div class="note">None.</div>')+'</div>';
-    $("sheetBody").innerHTML='<div class="ib-cols"><div class="stack">'+triage+body+'</div><div class="stack">'+cust+'</div></div>';
+    $("sheetBody").innerHTML='<div class="ib-cols"><div class="stack">'+(k==="place_report"?body+triage:triage+body)+'</div><div class="stack">'+cust+'</div></div>';
+  }
+  // Place report: the full panel (place, report, reporter, other open reports) that
+  // both the Reports list and the Inbox open. Actions are wired in the ib handlers below.
+  function reportPanel(d){
+    var row=d.row||{}, plc=d.place||{}, rep=d.reporter, others=d.other_open||[], canRep=H.can("reports"), canApply=d.can&&d.can.apply;
+    var place='<div class="card">'+
+      (plc.category?'<div class="meta"><span class="tag plain">'+esc(plc.category)+'</span></div>':'')+
+      '<div class="title">'+esc(plc.name||"A place")+'</div>'+
+      (plc.address?'<div class="note">'+esc(plc.address)+'</div>':'')+
+      (plc.dog_policy_note?'<div class="note">Dog policy: '+esc(plc.dog_policy_note)+'</div>':'')+
+      (plc.image_url?'<img src="'+esc(plc.image_url)+'" alt="" style="max-width:100%;border-radius:10px;margin-top:8px">':'')+
+      (canApply&&plc.id?'<div class="row"><button class="btn small" data-ia="openplace">Open place</button></div>':'')+'</div>';
+    var reporter=rep?'<div class="prior">Reporter: '+(rep.user_id&&H.can("users_view")?'<a href="#" data-ia="reporter" data-user="'+esc(rep.user_id)+'">'+esc(rep.name)+'</a>':esc(rep.name))+' · '+rep.reports_30d+' place report'+(rep.reports_30d===1?"":"s")+' in 30 days</div>':'';
+    var report='<div class="card"><div class="meta"><span class="tag">'+esc(row.status)+'</span><span>'+esc(H.when(row.created_at))+'</span></div><div class="title">'+esc(row.reason||"")+'</div>'+(row.details?'<div class="text">'+esc(row.details)+'</div>':'<div class="note">No note left</div>')+reporter+'</div>';
+    var other=others.length?'<div class="card"><div class="subhead"><h3 style="font-size:16px">Other open reports on this place</h3></div>'+others.map(function(o){return '<div class="prior"><div class="note">'+esc(H.when(o.created_at))+' · '+esc(o.reporter_name||"A customer")+'</div><b>'+esc(o.reason||"")+'</b>'+(o.details?'<div class="text">'+esc(o.details)+'</div>':'')+'</div>'}).join("")+'</div>':'';
+    if(row.status!=="open"||!canRep)return place+report+other;
+    var aFix=others.length?'<label class="row" style="gap:8px;margin-top:4px"><input type="checkbox" data-apply="fixed"> Apply to the other open reports on this place too</label>':'';
+    var aDis=others.length?'<label class="row" style="gap:8px;margin-top:4px"><input type="checkbox" data-apply="dismiss"> Apply to the other open reports on this place too</label>':'';
+    var aFlag=others.length?'<label class="row" style="gap:8px;margin-top:4px"><input type="checkbox" data-apply="flag"> Apply to the other open reports on this place too</label>':'';
+    var fixMsg="Thanks for reporting "+(plc.name||"this place")+". We've updated the listing.";
+    var disMsg="Thanks for reporting "+(plc.name||"this place")+". We checked, and the listing is right as it is.";
+    var actions='<div class="card"><div class="subhead"><h3 style="font-size:16px">Resolve</h3></div>'+
+      '<label class="row" style="gap:8px"><input type="checkbox" data-lk="fixed" checked> Let them know</label>'+
+      '<textarea data-msg="fixed" maxlength="240" style="min-height:66px">'+esc(fixMsg)+'</textarea><div class="note" data-count="fixed">'+fixMsg.length+'/240</div>'+aFix+
+      '<div class="row"><button class="btn primary small" data-ia="fixed">Mark as fixed</button></div>'+
+      '<div class="note" style="border-top:1px solid var(--line);margin-top:8px;padding-top:8px">Or, if the listing is right as it is</div>'+
+      '<label class="row" style="gap:8px"><input type="checkbox" data-lk="dismiss"> Let them know</label>'+
+      '<textarea data-msg="dismiss" maxlength="240" hidden style="min-height:66px">'+esc(disMsg)+'</textarea><div class="note" data-count="dismiss" hidden>'+disMsg.length+'/240</div>'+aDis+
+      '<div class="row"><button class="btn small" data-ia="dismiss">Dismiss</button></div></div>'+
+      '<div class="card"><div class="subhead"><h3 style="font-size:16px">Hide place</h3></div><p class="note" style="margin:0">Hides it from the app. It goes to Flagged places, where it can be restored.</p><label class="note">Reason</label><input type="text" class="pill-in" data-ib-flag value="'+esc(row.reason||"User report")+'">'+aFlag+'<div class="row"><button class="btn danger small" data-ia="flag" data-confirm="Confirm hide">Hide place</button></div></div>';
+    return place+report+other+actions;
+  }
+  function pushResultMsg(rr){
+    if(!rr||typeof rr!=="object")return typeof rr==="string"?rr:"No reply from the push service.";
+    if(rr.skipped)return String(rr.skipped);
+    if(rr.ok===true){
+      if(rr.push==="not configured")return "Saved in their in-app notifications. Push isn't set up.";
+      if(rr.no_recipients)return "They have notifications turned off. It's in their in-app notifications.";
+      if(rr.recipients>0)return "Sent.";
+      return "Saved in their in-app notifications.";
+    }
+    if(rr.error)return String(rr.error);
+    return JSON.stringify(rr);
+  }
+  function resolveReport(status,b,card){
+    var o=ib.open, d=ib.data||{}, others=d.other_open||[], statusVal=status==="fixed"?"actioned":"dismissed";
+    var lk=$("sheetBody").querySelector('[data-lk="'+status+'"]'), notify=lk&&lk.checked;
+    var aEl=$("sheetBody").querySelector('[data-apply="'+status+'"]'), applyOthers=aEl&&aEl.checked;
+    var mEl=$("sheetBody").querySelector('[data-msg="'+status+'"]'), msg=mEl?mEl.value.trim():"";
+    if(notify&&!msg){H.note(card,false,"Write the message, or untick Let them know.");return}
+    var ids=[o.id].concat(applyOthers?others.map(function(x){return x.id}):[]);
+    b.disabled=true;
+    var chain=Promise.resolve();
+    ids.forEach(function(rid){chain=chain.then(function(){return H.act("location_report",{id:rid,status:statusVal})})});
+    function after(){setTimeout(function(){ibRefresh();ibLoad();H.loadQueue()},900);b.disabled=false}
+    chain.then(function(){
+      var done=status==="fixed"?"Marked as fixed.":"Dismissed.";
+      if(!notify){H.note(card,true,done);after();return}
+      var byRep={};
+      if(d.reporter&&d.reporter.user_id)byRep[d.reporter.user_id]=o.id;
+      if(applyOthers)others.forEach(function(x){if(x.user_id&&!byRep[x.user_id])byRep[x.user_id]=x.id});
+      var targets=Object.keys(byRep);
+      if(!targets.length){H.note(card,true,done+" No reporter to message.");after();return}
+      var notes=[], pc=Promise.resolve();
+      targets.forEach(function(uid){pc=pc.then(function(){return H.api("report_reply",{report_id:byRep[uid],message:msg}).then(function(r){notes.push(pushResultMsg(r&&r.data?r.data:r))}).catch(function(e){notes.push((e&&e.message)||"Push failed.")})})});
+      pc.then(function(){H.note(card,true,done+" "+notes.join(" "));after()});
+    }).catch(function(e){H.note(card,false,(e&&e.message)||"That did not work.");b.disabled=false});
   }
   // Refresh the open conversation in place: anything typed in the reply or decline boxes is kept,
   // and the "viewing" heartbeat carries on.
@@ -1695,19 +1759,33 @@ label.amen:has(input:checked){border-color:var(--brand-line);background:var(--br
     if(w==="decline"){var rs=$("sheetBody").querySelector("[data-ib-decline]").value.trim();if(!rs){H.note(card,false,"Give a reason first. It is sent to them.");return}ibAct(H.api("listing_change_decline",{id:o.id,reason:rs}),b,card);return}
     if(w==="assess"){var box=card.querySelector("[data-assess]");b.disabled=true;box.innerHTML='<div class="note">Assessing the claim.</div>';H.api("claim_assess",{id:o.id}).then(function(r){box.innerHTML='<div class="assess">'+esc(r.text)+'</div>'}).catch(function(e){box.innerHTML="";H.note(card,false,e.message)}).then(function(){b.disabled=false});return}
     if(w==="verify"||w==="reject"){ibAct(H.api("claim_set_status",{id:o.id,status:w==="verify"?"verified":"rejected"}),b,card);return}
-    if(w==="flag"){ibAct(H.api("report_flag_place",{report_id:o.id,reason:$("sheetBody").querySelector("[data-ib-flag]").value.trim()||"User report"}),b,card);return}
-    if(w==="dismiss"){ibAct(H.act("location_report",{id:o.id,status:"dismissed"}),b,card);return}
+    if(w==="openplace"){if(window.HQPlaces&&HQPlaces.open&&d.place&&d.place.id)HQPlaces.open(d.place.id);return}
+    if(w==="reporter"){if(window.HQUsers&&HQUsers.open&&b.dataset.user)HQUsers.open(b.dataset.user);return}
+    if(w==="fixed"||w==="dismiss"){resolveReport(w,b,card);return}
+    if(w==="flag"){
+      var hreason=$("sheetBody").querySelector("[data-ib-flag]").value.trim()||"User report";
+      var hAEl=$("sheetBody").querySelector('[data-apply="flag"]'), hApply=hAEl&&hAEl.checked, hOthers=(d.other_open||[]);
+      deferOp("Hiding the place",function(){
+        var chain=H.api("report_flag_place",{report_id:o.id,reason:hreason});
+        if(hApply)hOthers.forEach(function(x){chain=chain.then(function(){return H.act("location_report",{id:x.id,status:"actioned"})})});
+        chain.then(function(){H.note(card,true,"Place hidden.");setTimeout(function(){ibRefresh();ibLoad();H.loadQueue()},900)}).catch(function(e){H.note(card,false,(e&&e.message)||"That did not work.")});
+      },function(){b.dataset.armed="";b.textContent=b.dataset.label||"Hide place";b.classList.remove("confirm")});
+      return;
+    }
     if(w==="ur_actioned"||w==="ur_dismissed"){ibAct(H.act("user_report",{id:o.id,status:w==="ur_actioned"?"actioned":"dismissed"}),b,card);return}
     if(w==="processed"){ibAct(H.api("privacy_processed",{id:o.id}),b,card);return}
   });
   $("sheetBody").addEventListener("change",function(ev){
-    var t=ev.target;if(!ib.open||!t.dataset.ib)return;var o=ib.open, card=t.closest(".card")||$("sheetBody");
+    var t=ev.target;
+    if(t.dataset.lk){var box=$("sheetBody").querySelector('[data-msg="'+t.dataset.lk+'"]'), cnt=$("sheetBody").querySelector('[data-count="'+t.dataset.lk+'"]');if(box)box.hidden=!t.checked;if(cnt)cnt.hidden=!t.checked;return}
+    if(!ib.open||!t.dataset.ib)return;var o=ib.open, card=t.closest(".card")||$("sheetBody");
     if(t.dataset.ib==="assign")ibAct(H.api("inbox_assign",{kind:o.kind,id:o.id,user_id:t.value||null}),t,card);
     else if(t.dataset.ib==="severity")ibAct(H.api("inbox_severity",{kind:o.kind,id:o.id,severity:t.value}),t,card);
     else if(t.dataset.ib==="snooze"&&t.value){var until=t.value==="wake"?null:snoozeTime(t.value);ibAct(H.api("inbox_snooze",{kind:o.kind,id:o.id,until:until?until.toISOString():null}),t,card)}
     else if(t.dataset.ib==="tags")ibAct(H.api("inbox_tags",{kind:o.kind,id:o.id,tags:t.value.split(",").map(function(x){return x.trim()}).filter(Boolean)}),t,card);
     else if(t.dataset.ib==="macro"&&t.value){var m=(ib.data.macros||[]).filter(function(x){return x.id===t.value})[0], ta=$("sheetBody").querySelector("textarea[data-ib-reply]");if(m)ta.value=(ta.value?ta.value+"\n\n":"")+m.body;t.value="";ta.focus()}
   });
+  $("sheetBody").addEventListener("input",function(ev){var t=ev.target;if(!t.dataset.msg)return;var c=$("sheetBody").querySelector('[data-count="'+t.dataset.msg+'"]');if(c)c.textContent=t.value.length+"/240"});
 
   // ---------- New listing change (from an email or a call) ----------
   function newChange(){
@@ -1754,6 +1832,7 @@ label.amen:has(input:checked){border-color:var(--brand-line);background:var(--br
     var b=ev.target.closest("button[data-do]");if(!b)return;
     var card=b.closest(".card")||b.closest(".row"), what=b.dataset.do;
     if(what==="open_user"){HQUsers.open(b.dataset.user);return}
+    if(what==="open_report"){ibOpen("place_report",b.dataset.id);return}
     if(b.dataset.confirm&&!H.armed(b))return;
     var refresh=function(){H.loadQueue();H.refreshSnap();setTimeout(load,900)};
     // Reviews and escalations
@@ -2486,7 +2565,8 @@ label.amen:has(input:checked){border-color:var(--brand-line);background:var(--br
     });
   }
 
-  window.HQPlaces={show:function(){nav();if(!pl.loaded){pl.loaded=true;render()}else if(pl.sec==="list")load()}};
+  window.HQPlaces={show:function(){nav();if(!pl.loaded){pl.loaded=true;render()}else if(pl.sec==="list")load()},
+    open:function(id){var t=document.querySelector('.tabs button[data-go="places"]');if(t&&!t.hidden)t.click();openPlace(id)}};
 })();
 </script>
 <script>

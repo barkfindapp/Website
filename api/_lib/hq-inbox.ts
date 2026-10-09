@@ -250,7 +250,20 @@ export function inboxOps(pool: Pool): Record<string, Op> {
           const loc = (await pool.query(`select id, name, address, opening_hours, dog_policy, dog_policy_note, website, image_url, flagged, locked_fields, place_id from public.locations where id = $1`, [row.location_id])).rows[0] || null;
           extra.location = loc;
         }
-        if (row.location_id && kind !== 'listing_change') extra.place = (await pool.query('select id, name, address, place_id from public.locations where id = $1', [row.location_id])).rows[0] || null;
+        if (row.location_id && kind !== 'listing_change' && kind !== 'place_report') extra.place = (await pool.query('select id, name, address, place_id from public.locations where id = $1', [row.location_id])).rows[0] || null;
+        if (kind === 'place_report') {
+          // The place with the fields the report panel shows; the reporter with how
+          // many place reports they have sent in 30 days; and the other open reports here.
+          extra.place = row.location_id ? (await pool.query('select id, name, category, address, dog_policy, dog_policy_note, image_url, place_id from public.locations where id = $1', [row.location_id])).rows[0] || null : null;
+          if (row.user_id) {
+            const nm = (await pool.query('select full_name from public.profiles where user_id = $1', [row.user_id])).rows[0];
+            const cnt = (await pool.query("select count(*)::int as n from public.location_reports where user_id = $1 and created_at > now() - interval '30 days'", [row.user_id])).rows[0];
+            extra.reporter = { user_id: row.user_id, name: (nm && nm.full_name) || 'A customer', reports_30d: (cnt && cnt.n) || 0 };
+          } else extra.reporter = null;
+          extra.other_open = row.location_id
+            ? (await pool.query("select lr.id, lr.reason, lr.details, lr.created_at, lr.user_id, coalesce(p.full_name, 'A customer') as reporter_name from public.location_reports lr left join public.profiles p on p.user_id = lr.user_id where lr.location_id = $1 and lr.status = 'open' and lr.id <> $2 order by lr.created_at desc limit 20", [row.location_id, id])).rows
+            : [];
+        }
         const email = row.email || row.claimant_email || row.requester_email || null;
         const userId = row.user_id || row.requested_by || (kind === 'user_report' ? row.reported_user_id : null) || null;
         const cust = await customer(pool, ctx, userId, email);
