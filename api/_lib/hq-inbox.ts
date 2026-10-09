@@ -58,7 +58,7 @@ const UNION = `
   union all
   select 'place_report', r.id, r.created_at, coalesce(l.name, 'A place') || ': ' || r.reason, null, null, r.user_id, r.location_id,
          case when r.status <> 'open' then 'closed' when m.waiting_since is not null then 'waiting' else 'open' end,
-         coalesce(m.severity, 'normal'), m.assigned_to, m.snoozed_until, coalesce(m.tags, '{}'), null::timestamptz, null, r.created_at
+         coalesce(m.severity, 'normal'), m.assigned_to, m.snoozed_until, coalesce(m.tags, '{}'), null::timestamptz, r.details, r.created_at
     from public.location_reports r left join public.locations l on l.id = r.location_id
     left join public.hq_inbox_meta m on m.kind = 'place_report' and m.ref_id = r.id
   union all
