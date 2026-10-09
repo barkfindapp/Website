@@ -480,7 +480,7 @@ label.amen:has(input:checked){border-color:var(--brand-line);background:var(--br
         <h3>Customer service <small>Support</small></h3>
         <div class="hero"><span class="v" id="s-open">–</span><span class="u">items waiting for a person</span></div>
         <dl class="kv" id="s-kv"></dl>
-        <p class="note" id="s-note">Tickets are answered from barkfind.com/admin, which replies through send-support-reply. App Store reviews appear here once the App Store Connect API key is added.</p>
+        <p class="note" id="s-note">Tickets are answered in the Inbox (Act, Inbox), which replies through send-support-reply. App Store reviews appear here once the App Store Connect API key is added.</p>
       </article>
 
       <article class="panel" id="p-health">
@@ -749,17 +749,17 @@ label.amen:has(input:checked){border-color:var(--brand-line);background:var(--br
     var s=state.snap, items=[];
     if(!s){return items}
     var q=s.queues||{}, h=s.health||{}, c=s.costs||{}, co=s.content||{}, g=s.growth||{};
-    if(q.csae_escalations>0)items.push(["crit",q.csae_escalations+" review(s) flagged for child-safety or harm","Deal with these before anything else. The review is held and not public.","https://www.barkfind.com/admin","Open moderation"]);
+    if(q.csae_escalations>0)items.push(["crit",q.csae_escalations+" review(s) flagged for child-safety or harm","Deal with these before anything else. The review is held and not public.","#act/safety","Open moderation"]);
     // Count from cron_failed_24h; the error text is exactly what Postgres returned (cron_failures_24h).
     var failed=h.cron_failed_24h||{}, fails=h.cron_failures_24h||[];Object.keys(failed).forEach(function(job){
       items.push(["crit","Scheduled job failing: "+job, failed[job]+" failure(s) in the last 24 hours.","https://supabase.com/dashboard/project/"+PROJECT+"/integrations/cron/jobs","Open cron",fails.filter(function(f){return f.job===job}).slice(0,1)]);
     });
-    if(q.support_open>0){var ah=ageH(q.support_oldest_open);items.push([ah>24?"crit":"warn",q.support_open+" support ticket(s) open","Oldest waiting "+ageTxt(ah)+".","https://www.barkfind.com/admin","Reply"])}
-    if(q.privacy_open>0){var ph=ageH(q.privacy_oldest_open);items.push([ph>48?"crit":"warn",q.privacy_open+" privacy request(s) open","Oldest waiting "+ageTxt(ph)+". UK GDPR allows one month; the house rule is 48 hours.","https://www.barkfind.com/admin","Process"])}
-    if(q.reviews_pending>0){var rh=ageH(q.reviews_pending_oldest);items.push([rh>24?"warn":"info",q.reviews_pending+" review(s) waiting for approval","Oldest "+ageTxt(rh)+". Approving in a batch sends one push per review.","https://www.barkfind.com/admin","Moderate"])}
-    if(q.user_reports_pending>0)items.push(["warn",q.user_reports_pending+" user report(s) pending","Someone reported another user or a review.","https://www.barkfind.com/admin","Review"]);
-    if(q.location_reports_open>0)items.push(["warn",q.location_reports_open+" place report(s) open","A user says a listing is wrong.","https://www.barkfind.com/admin","Review"]);
-    if(q.business_claims_pending>0)items.push(["warn",q.business_claims_pending+" business claim(s) pending","A venue wants to manage its listing.","https://www.barkfind.com/admin","Verify"]);
+    if(q.support_open>0){var ah=ageH(q.support_oldest_open);items.push([ah>24?"crit":"warn",q.support_open+" support ticket(s) open","Oldest waiting "+ageTxt(ah)+".","#act/inbox","Reply"])}
+    if(q.privacy_open>0){var ph=ageH(q.privacy_oldest_open);items.push([ph>48?"crit":"warn",q.privacy_open+" privacy request(s) open","Oldest waiting "+ageTxt(ph)+". UK GDPR allows one month; the house rule is 48 hours.","#act/safety","Process"])}
+    if(q.reviews_pending>0){var rh=ageH(q.reviews_pending_oldest);items.push([rh>24?"warn":"info",q.reviews_pending+" review(s) waiting for approval","Oldest "+ageTxt(rh)+". Approving in a batch sends one push per review.","#act/reviews","Moderate"])}
+    if(q.user_reports_pending>0)items.push(["warn",q.user_reports_pending+" user report(s) pending","Someone reported another user or a review.","#act/reports","Review"]);
+    if(q.location_reports_open>0)items.push(["warn",q.location_reports_open+" place report(s) open","A user says a listing is wrong.","#act/reports","Review"]);
+    if(q.business_claims_pending>0)items.push(["warn",q.business_claims_pending+" business claim(s) pending","A venue wants to manage its listing.","#act/claims","Verify"]);
     if(q.listing_submissions_pending>0)items.push(["info",q.listing_submissions_pending+" suggested place(s) waiting","Users have suggested new listings.","https://www.barkfind.com/admin","Review"]);
     if(q.treat_claims_pending>0)items.push(["warn",q.treat_claims_pending+" treat claim(s) stuck pending","A pending claim locks the user's points until it is confirmed or failed. The 15-minute sweep should clear these.","https://supabase.com/dashboard/project/"+PROJECT+"/editor","Inspect"]);
     if(h.revenuecat_sync_age_minutes>90)items.push(["warn","RevenueCat data is "+h.revenuecat_sync_age_minutes+" minutes old","The hourly revenuecat-sync job may be failing.","https://supabase.com/dashboard/project/"+PROJECT+"/functions","Check function"]);
@@ -770,7 +770,7 @@ label.amen:has(input:checked){border-color:var(--brand-line);background:var(--br
     else if(as.reviews_unanswered_30d>0)items.push(["info",as.reviews_unanswered_30d+" App Store review(s) without a reply","From the last 30 days.","https://appstoreconnect.apple.com/apps/6782144377/distribution/activity/ios/ratingsResponses","Open"]);
     if(as.errors&&Object.keys(as.errors).length)items.push(["warn","App Store Connect sync reported an error",JSON.stringify(as.errors).slice(0,220),"https://supabase.com/dashboard/project/"+PROJECT+"/functions","Check asc-sync"]);
     if(!as.configured)items.push(["info","App Store reviews are not connected yet","Create an App Store Connect API key and add it to Supabase as ASC_KEY_ID, ASC_ISSUER_ID and ASC_PRIVATE_KEY. The asc-sync function and its schedule are already in place. Steps in the HQ doc, section 7.","https://appstoreconnect.apple.com/access/integrations/api","Create key"]);
-    if(co.content_drafts>0)items.push(["info",co.content_drafts+" content draft(s) waiting for review","From generate-content. Nothing publishes until you approve it.","https://www.barkfind.com/admin","Review drafts"]);
+    if(co.content_drafts>0)items.push(["info",co.content_drafts+" content draft(s) waiting for review","From generate-content. Nothing publishes until you approve it.","#content/queue","Review drafts"]);
     var up=s.uptime||{};Object.keys(up).forEach(function(k){if(up[k]&&up[k].ok===false)items.push(["crit","Uptime check failing: "+k,"Last answer "+(up[k].status||"none")+". 24-hour availability "+(up[k].availability_24h==null?"–":up[k].availability_24h+"%")+".","https://supabase.com/dashboard/project/"+PROJECT,"Investigate"])});
     var rn=s.renewals||{};
     (rn.upcoming||[]).forEach(function(r){if(r.days<0)items.push(["crit","Overdue: "+r.item,"Was due "+day(r.due_date)+".",r.url||"#today","Open"]);else if(r.days<=14)items.push([r.days<=7?"warn":"info",(r.days===0?"Due today: ":"Due in "+r.days+" day"+(r.days===1?"":"s")+": ")+r.item,day(r.due_date)+". "+(r.notes||""),r.url||"#today","Open"])});
@@ -793,7 +793,7 @@ label.amen:has(input:checked){border-color:var(--brand-line);background:var(--br
       pill.className="pill "+(crit?"crit":warn?"warn":"ok");
       txt.textContent=crit?crit+" urgent, "+warn+" to do":warn?warn+" to do":"All clear";
       var ul=$("attn");
-      ul.innerHTML=items.length?items.map(function(i){return '<li class="'+i[0]+'"><span class="stripe"></span><div class="body"><div class="t">'+esc(i[1])+'</div><div class="d">'+esc(i[2])+'</div>'+cronErrs(i[5])+'</div><a class="go" href="'+esc(i[3])+'" target="_blank" rel="noopener">'+esc(i[4])+' →</a></li>'}).join(""):'<li class="ok"><span class="stripe"></span><div class="body"><div class="t">Nothing is waiting on you</div><div class="d">Queues are empty and every scheduled job ran cleanly in the last 24 hours.</div></div></li>';
+      ul.innerHTML=items.length?items.map(function(i){return '<li class="'+i[0]+'"><span class="stripe"></span><div class="body"><div class="t">'+esc(i[1])+'</div><div class="d">'+esc(i[2])+'</div>'+cronErrs(i[5])+'</div><a class="go" href="'+esc(i[3])+'"'+(i[3].charAt(0)==="#"?"":' target="_blank" rel="noopener"')+'>'+esc(i[4])+' →</a></li>'}).join(""):'<li class="ok"><span class="stripe"></span><div class="body"><div class="t">Nothing is waiting on you</div><div class="d">Queues are empty and every scheduled job ran cleanly in the last 24 hours.</div></div></li>';
     }
     if(state.errors.snap){
       $("attn").innerHTML='<li class="warn"><span class="stripe"></span><div class="body"><div class="t">Live data is not loading</div><div class="d">'+esc(state.errors.snap)+'</div></div></li>';
@@ -1069,8 +1069,19 @@ label.amen:has(input:checked){border-color:var(--brand-line);background:var(--br
     if(t==="insights"&&window.HQInsights)HQInsights.show();
     if(t==="admin"&&window.HQAdmin)HQAdmin.show();
   }
+  // Open a tab, and optionally a section within it, from a hash like #act/inbox,
+  // so the Today buttons and a shared link both land in the right place.
+  function route(h){
+    h=(h||"").replace(/^#/,"");var p=h.split("/"),t=p[0],sec=p[1]||"";
+    if(["today","act","users","places","content","comms","money","insights","outreach","admin","consoles"].indexOf(t)<0)return false;
+    if(sec){if(t==="act"&&window.HQAct&&HQAct.open)HQAct.open(sec);else if(t==="content"&&window.HQContent&&HQContent.open)HQContent.open(sec)}
+    go(t);
+    if(sec){try{history.replaceState(null,"","#"+t+"/"+sec)}catch(e){}}
+    return true;
+  }
+  window.addEventListener("hashchange",function(){route(location.hash)});
   document.querySelector(".tabs").addEventListener("click",function(ev){var b=ev.target.closest("button[data-go]");if(b)go(b.dataset.go)});
-  document.addEventListener("click",function(ev){var a=ev.target.closest('a[href^="#"]');if(!a)return;var t=a.getAttribute("href").slice(1);if(["today","act","users","places","content","comms","money","insights","outreach","admin","consoles"].indexOf(t)>=0){ev.preventDefault();go(t)}});
+  document.addEventListener("click",function(ev){var a=ev.target.closest('a[href^="#"]');if(!a)return;var h=a.getAttribute("href").slice(1);if(["today","act","users","places","content","comms","money","insights","outreach","admin","consoles"].indexOf(h.split("/")[0])>=0){ev.preventDefault();route("#"+h)}});
   var startTab=(location.hash||"").slice(1);
 
   $("refresh").addEventListener("click",load);
@@ -1164,7 +1175,7 @@ label.amen:has(input:checked){border-color:var(--brand-line);background:var(--br
     checking=true;gate("checking","Checking access.");
     api("history").then(function(r){state.history=r.data||[];return api("me")}).then(function(m){
         HQ.perms=(m.data&&m.data.perms)||[];HQ.me=m.data||{};ready=true;applyPerms();gate("app");
-        if(["act","users","places","content","comms","money","insights","outreach","admin","consoles"].indexOf(startTab)>=0)go(startTab);load()})
+        route("#"+startTab);load()})
       .catch(function(e){if(e.code!=="denied"&&e.code!=="auth"&&e.code!=="mfa")gate("signin",e.message)})
       .then(function(){checking=false});
   }
@@ -1388,6 +1399,7 @@ label.amen:has(input:checked){border-color:var(--brand-line);background:var(--br
   window.HQAct={
     init:function(){var ok=SECTIONS.filter(function(s){return s.ok()});cur=ok.length?ok[0].k:null;nav()},
     onQueue:function(){nav()},
+    open:function(sec){if(SECTIONS.some(function(s){return s.k===sec&&s.ok()})){cur=sec;nav()}},
     show:function(){if(cur)load()}
   };
 
@@ -2177,6 +2189,7 @@ label.amen:has(input:checked){border-color:var(--brand-line);background:var(--br
       if(!ce.loaded){ce.loaded=true;$("cePane").innerHTML='<div class="empty">Loading.</div>';loadList().then(render).catch(function(e){ce.loaded=false;fail($("cePane"),e)});pollRuns();return}
       render();pollRuns();
     },
+    open:function(sec){if(["queue","new","generate","runs"].indexOf(sec)<0)return;ce.sec=sec;var nv=$("ceNav");if(nv)nv.querySelectorAll("[data-sec]").forEach(function(x){x.setAttribute("aria-pressed",x.dataset.sec===sec?"true":"false")})},
     init:function(){if(H.can("content"))loadList().catch(function(){})}
   };
 })();
