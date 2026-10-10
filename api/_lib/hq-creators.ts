@@ -11,6 +11,7 @@ import type { Op } from './hq-act.js';
 
 const CREATOR_ADMIN_URL = 'https://kwwnwniyijeuorpbyvmn.supabase.co/functions/v1/creator-admin';
 const TIERS = ['small', 'mid', 'bespoke'] as const;
+const PLATFORMS = ['instagram', 'tiktok', 'facebook', 'youtube', 'other'] as const;
 const STEP_KEYS = ['user', 'offer_code', 'premium', 'agreement', 'email'] as const;
 const MAX_B64 = 6 * 1024 * 1024; // headroom over the 4.2 MB cap (Vercel's request limit is ~4.5 MB)
 
@@ -90,7 +91,7 @@ export function creatorOps(pool: Pool): Record<string, Op> {
     creator_update: {
       perm: 'creators',
       run: async (a, ctx) => {
-        only(a, ['id', 'tier', 'account_email', 'contact_email', 'offer_code', 'bespoke_terms', 'code_cap', 'notes']);
+        only(a, ['id', 'tier', 'account_email', 'contact_email', 'offer_code', 'bespoke_terms', 'code_cap', 'notes', 'followers', 'followers_platform']);
         const id = uuid(a.id);
         const f: Record<string, unknown> = {};
         if ('tier' in a) f.tier = oneOf(a.tier, TIERS);
@@ -100,6 +101,9 @@ export function creatorOps(pool: Pool): Record<string, Op> {
         if ('bespoke_terms' in a) f.bespoke_terms = str(a.bespoke_terms, 4000, { optional: true }) || null;
         if ('code_cap' in a) f.code_cap = intOrNull(a.code_cap, 1000000);
         if ('notes' in a) f.notes = str(a.notes, 4000, { optional: true }) || null;
+        // Re-measured following. followers_on is never typed: it is set below when the count changes.
+        if ('followers' in a) f.followers = intOrNull(a.followers, 50000000);
+        if ('followers_platform' in a) f.followers_platform = a.followers_platform === '' || a.followers_platform == null ? null : oneOf(a.followers_platform, PLATFORMS);
         const keys = Object.keys(f);
         if (!keys.length) throw new HttpError(409, 'Nothing has changed.');
         return writeTx(pool, ctx.staff.userId, async (c, audit) => {
@@ -109,6 +113,8 @@ export function creatorOps(pool: Pool): Record<string, Op> {
           if (before.asc_offer_code_id && ('offer_code' in f || 'tier' in f || 'code_cap' in f)) {
             throw new HttpError(409, 'The code exists in App Store Connect. End the partnership and set them up again to change it.');
           }
+          // A new count gets today's UK date (cleared with it); an unchanged count keeps its date.
+          if ('followers' in f && f.followers !== before.followers) { f.followers_on = f.followers == null ? null : new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/London' }).format(new Date()); keys.push('followers_on'); }
           const sets = keys.map((k, i) => `${k} = $${i + 2}`);
           await c.query(`update public.creators set ${sets.join(', ')}, updated_at = now() where id = $1`, [id, ...keys.map((k) => f[k])]);
           const after = (await c.query(`select ${COLS} from public.creators where id = $1`, [id])).rows[0];

@@ -170,7 +170,7 @@ svg.spark{width:100%;height:46px;display:block}
 .card .text{white-space:pre-wrap;font-size:14.5px;line-height:1.6;max-width:72ch;overflow-wrap:anywhere}
 .card .prior{font-size:13.5px;color:var(--fg2);border-left:3px solid var(--brand-line);padding-left:12px;white-space:pre-wrap}
 .row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
-textarea,select,.card input[type=text],.card input[type=date],.card input[type=email],.grid2 input[type=date],.grid2 input[type=text],.grid2 input[type=email]{font:500 14.5px/1.4 var(--sans);padding:11px 14px;border-radius:12px;border:1px solid var(--line-2);background:#fff;color:var(--ink);width:100%}
+textarea,select,.card input[type=text],.card input[type=date],.card input[type=email],.grid2 input[type=date],.grid2 input[type=text],.grid2 input[type=email],.grid2 input[type=number]{font:500 14.5px/1.4 var(--sans);padding:11px 14px;border-radius:12px;border:1px solid var(--line-2);background:#fff;color:var(--ink);width:100%}
 textarea{min-height:110px;resize:vertical;line-height:1.55}
 .msg{font-size:13.5px;padding:9px 12px;border-radius:12px;font-weight:600}
 .msg.good{background:var(--ok-soft);color:var(--ok)} .msg.bad{background:var(--crit-soft);color:var(--crit)}
@@ -1928,6 +1928,9 @@ label.amen:has(input:checked){border-color:var(--brand-line);background:var(--br
   var CR_STEPS=[["user","Account"],["offer_code","Code"],["premium","Premium"],["agreement","Agreement"],["page","Page"],["email","Email"]];
   var CR_FORCE=["user","offer_code","premium","agreement","email"];
   function crTierOf(f){return f>=30000?"bespoke":f>=10000?"mid":"small"}
+  var CR_PLATFORMS=[["instagram","Instagram"],["tiktok","TikTok"],["facebook","Facebook"],["youtube","YouTube"],["other","Other"]];
+  // Shown beside the Tier select; the tier itself is still chosen by hand.
+  function crSuggest(f){return f!=null&&f!==""&&isFinite(f)&&Number(f)>=0?"Suggested from followers: "+crTierOf(Number(f)):""}
   function crCode(slug){return String(slug||"").toUpperCase().replace(/[^A-Z0-9]/g,"")+"20"}
   function crHandleUrl(p,h){h=String(h||"").replace(/^@/,"");if(!h)return "";
     if(p==="instagram")return "https://www.instagram.com/"+encodeURIComponent(h)+"/";
@@ -1956,11 +1959,14 @@ label.amen:has(input:checked){border-color:var(--brand-line);background:var(--br
   function crEdit(cr,bespoke){
     var tiers=["small","mid","bespoke"];
     return '<details class="card" style="box-shadow:none;border:1px solid var(--line)"><summary class="note">Edit</summary>'+
-      '<div class="grid2"><label>Tier<select data-ce="tier"><option value=""'+(cr.tier?"":" selected")+'>Not set</option>'+tiers.map(function(t){return '<option value="'+t+'"'+(t===cr.tier?" selected":"")+'>'+t+'</option>'}).join("")+'</select></label>'+
+      '<div class="grid2"><label>Tier<select data-ce="tier"><option value=""'+(cr.tier?"":" selected")+'>Not set</option>'+tiers.map(function(t){return '<option value="'+t+'"'+(t===cr.tier?" selected":"")+'>'+t+'</option>'}).join("")+'</select><span class="note" data-ce-suggest>'+crSuggest(cr.followers)+'</span></label>'+
       '<label>Offer code<input type="text" data-ce="offer_code" value="'+esc(cr.offer_code||"")+'" placeholder="'+esc(crCode(cr.slug))+'"></label>'+
       '<label>Account email<input type="email" data-ce="account_email" value="'+esc(cr.account_email||"")+'"></label>'+
       '<label>Contact email<input type="email" data-ce="contact_email" value="'+esc(cr.contact_email||"")+'"></label>'+
-      '<label>Code cap<input type="number" data-ce="code_cap" min="0" value="'+(cr.code_cap!=null?cr.code_cap:"")+'"></label></div>'+
+      '<label>Code cap<input type="number" data-ce="code_cap" min="0" value="'+(cr.code_cap!=null?cr.code_cap:"")+'"></label>'+
+      '<label>Followers<input type="number" data-ce="followers" min="0" max="50000000" step="1" value="'+(cr.followers!=null?cr.followers:"")+'"></label>'+
+      '<label>Platform<select data-ce="followers_platform"><option value=""'+(cr.followers_platform?"":" selected")+'>Not set</option>'+CR_PLATFORMS.map(function(p){return '<option value="'+p[0]+'"'+(p[0]===cr.followers_platform?" selected":"")+'>'+p[1]+'</option>'}).join("")+'</select></label></div>'+
+      '<div class="note">Use their largest following. Today\'s date is recorded when you change it.</div>'+
       '<label class="note">Bespoke terms'+(bespoke?" (required for bespoke)":"")+'</label><textarea data-ce="bespoke_terms">'+esc(cr.bespoke_terms||"")+'</textarea>'+
       '<label class="note">Notes</label><textarea data-ce="notes">'+esc(cr.notes||"")+'</textarea>'+
       '<div class="row"><button class="btn small" data-do="cr_save">Save changes</button></div></details>';
@@ -2043,6 +2049,8 @@ label.amen:has(input:checked){border-color:var(--brand-line);background:var(--br
     var tier=g("tier");if(tier!==null&&tier!==""&&tier!==(cr.tier||"")){o.tier=tier;n++}
     ["account_email","contact_email","offer_code","bespoke_terms","notes"].forEach(function(k){var v=g(k);if(v===null)return;if(k==="offer_code")v=v.toUpperCase();if(v!==(cr[k]||"")){o[k]=v;n++}});
     var cap=g("code_cap");if(cap!==null){var capv=cap===""?null:Number(cap);if(capv!==(cr.code_cap!=null?cr.code_cap:null)){o.code_cap=capv;n++}}
+    var fol=g("followers");if(fol!==null){fol=fol.replace(/[,\s]/g,"");if(fol!==""&&!/^\d+$/.test(fol)){H.note(card,false,"Followers is a whole number.");return}var folv=fol===""?null:Number(fol);if(folv!==null&&folv>50000000){H.note(card,false,"Followers can be up to 50,000,000.");return}if(folv!==(cr.followers!=null?cr.followers:null)){o.followers=folv;n++}}
+    var fpl=g("followers_platform");if(fpl!==null&&fpl!==(cr.followers_platform||"")){o.followers_platform=fpl;n++}
     if(!n){H.note(card,false,"Nothing has changed.");return}
     var tierNow=o.tier||cr.tier;
     if(tierNow==="bespoke"){var bt=("bespoke_terms" in o)?o.bespoke_terms:cr.bespoke_terms,cc=("code_cap" in o)?o.code_cap:cr.code_cap;if(!bt||cc==null){H.note(card,false,"Bespoke needs terms and a cap.");return}}
@@ -2118,7 +2126,9 @@ label.amen:has(input:checked){border-color:var(--brand-line);background:var(--br
     if(!card)return;
     if(t.dataset.sublk){var w=t.dataset.sublk,box=card.querySelector('[data-submsg="'+w+'"]'),cnt=card.querySelector('[data-subcount="'+w+'"]');if(box)box.hidden=!t.checked;if(cnt)cnt.hidden=!t.checked;return}
   });
-  $("actPane").addEventListener("input",function(ev){if(flInput(ev)||ibInput(ev))return;var t=ev.target;if(t.dataset.submsg){var card=t.closest(".card"),c=card&&card.querySelector('[data-subcount="'+t.dataset.submsg+'"]');if(c)c.textContent=t.value.length+"/240"}});
+  $("actPane").addEventListener("input",function(ev){if(flInput(ev)||ibInput(ev))return;var t=ev.target;if(t.dataset.submsg){var card=t.closest(".card"),c=card&&card.querySelector('[data-subcount="'+t.dataset.submsg+'"]');if(c)c.textContent=t.value.length+"/240";return}
+    // Creator Edit: keep the suggested tier in step with the Followers box as it is typed.
+    if(t.dataset.ce==="followers"){var cc=t.closest("[data-cr]"),sg=cc&&cc.querySelector("[data-ce-suggest]");if(sg)sg.textContent=crSuggest(t.value.replace(/[,\s]/g,""))}});
 
   // ---------- Users ----------
   var seg="", qTimer=null, loaded=false;
