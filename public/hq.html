@@ -1345,6 +1345,9 @@ label.amen:has(input:checked){border-color:var(--brand-line);background:var(--br
   function arr(v){if(Array.isArray(v))return v;try{var x=JSON.parse(v);return Array.isArray(x)?x:[]}catch(e){return []}}
   function obj(v){if(v&&typeof v==="object")return v;try{return JSON.parse(v)||{}}catch(e){return {}}}
   function pretty(k){return String(k).replace(/[-_]/g," ").replace(/^\w/,function(c){return c.toUpperCase()})}
+  // A user-supplied URL (suggestions, claims, review photos) may only become a clickable
+  // href when it is http(s). A javascript: or data: URL must stay plain text.
+  function httpOnly(u){return /^https?:\/\//i.test(String(u||""))}
   function chips(list){list=arr(list);return list.length?'<div class="chips-sm">'+list.map(function(x){return '<span>'+esc(pretty(x))+'</span>'}).join("")+'</div>':'<div class="note">None.</div>'}
   function periodChips(cur){return ["today","7d","30d","all"].map(function(p){return '<button class="chip" data-period="'+p+'" aria-pressed="'+(p===cur)+'">'+({today:"Today","7d":"7 days","30d":"30 days",all:"All"})[p]+'</button>'}).join("")}
   function hidden(v){return v==null?'<span class="note">hidden</span>':esc(v)}
@@ -1423,7 +1426,7 @@ label.amen:has(input:checked){border-color:var(--brand-line);background:var(--br
       '<div class="title">'+esc(r.place||"Unknown place")+'</div><div class="text">'+esc(r.review_text||"(no written review)")+'</div>'+
       (keys.length?'<details><summary class="note">Detailed ratings</summary><dl class="kvs">'+keys.map(function(k){return '<dt>'+esc(pretty(k))+'</dt><dd>'+esc(sl[k])+'</dd>'}).join("")+'</dl></details>':'')+
       '<div class="note">Amenities ticked</div>'+chips(r.amenities)+
-      (imgs.length?'<div class="photos">'+imgs.map(function(u){return '<a href="'+esc(u)+'" target="_blank" rel="noopener noreferrer"><img src="'+esc(u)+'" alt="Review photo" loading="lazy"></a>'}).join("")+'</div>':'')+
+      (imgs.filter(httpOnly).length?'<div class="photos">'+imgs.filter(httpOnly).map(function(u){return '<a href="'+esc(u)+'" target="_blank" rel="noopener noreferrer"><img src="'+esc(u)+'" alt="Review photo" loading="lazy"></a>'}).join("")+'</div>':'')+
       (r.ai_reason||flags.length?'<div class="prior">AI note: '+esc(r.ai_reason||"")+(flags.length?" ("+esc(flags.map(pretty).join(", "))+")":"")+'</div>':'')+
       '<div class="row"><button class="btn ok small" data-do="approve_review" data-confirm="Confirm approve">Approve</button><button class="btn danger small" data-do="reject_review" data-confirm="Confirm reject">Reject</button></div></div>';
   }
@@ -1454,7 +1457,7 @@ label.amen:has(input:checked){border-color:var(--brand-line);background:var(--br
         return '<div class="card" data-cid="'+esc(c.id)+'"><div class="meta"><span class="tag '+(pending?"warn":c.status==="verified"?"ok":"")+'">'+esc(c.status)+'</span><span>submitted '+esc(dateOnly(c.created_at))+'</span></div><div class="title">'+esc(c.place||"Unknown place")+'</div><div class="note">'+esc(c.address||"")+'</div>'+
           '<dl class="kvs"><dt>Claimant</dt><dd>'+esc(c.claimant_name||c.account_name||"–")+'</dd><dt>Email</dt><dd>'+hidden(c.claimant_email)+(c.email_differs?' <span class="note">(different from the account email)</span>':'')+'</dd>'+(c.claimant_phone!==undefined?'<dt>Phone</dt><dd>'+hidden(c.claimant_phone)+'</dd>':'')+'<dt>Account</dt><dd>'+esc(c.account_name||"–")+' '+(c.account_email?esc(c.account_email):'')+'</dd></dl>'+
           (c.message?'<div class="text">'+esc(c.message)+'</div>':'<div class="note">No message provided.</div>')+
-          (c.evidence_url?'<div class="note">Evidence: <a href="'+esc(c.evidence_url)+'" target="_blank" rel="noopener noreferrer">'+esc(c.evidence_url)+'</a></div>':'<div class="note">No evidence provided.</div>')+
+          (c.evidence_url?'<div class="note">Evidence: '+(httpOnly(c.evidence_url)?'<a href="'+esc(c.evidence_url)+'" target="_blank" rel="noopener noreferrer">'+esc(c.evidence_url)+'</a>':esc(c.evidence_url))+'</div>':'<div class="note">No evidence provided.</div>')+
           (pending?'<div class="row"><button class="btn small" data-do="assess">AI assessment</button><button class="btn ok small" data-do="verify" data-confirm="Confirm verify">Verify</button><button class="btn danger small" data-do="reject" data-confirm="Confirm reject">Reject</button></div><div data-assess></div>':'')+'</div>'}).join(""):'<div class="empty">No business claims.</div>';
     }).catch(function(e){fail(el,e)});
   }
@@ -1643,7 +1646,7 @@ label.amen:has(input:checked){border-color:var(--brand-line);background:var(--br
         '<div class="stack" style="gap:8px">'+Object.keys(ch).map(function(f){var now=f==="closed"?!!loc.flagged:loc[f];return '<label class="card" style="padding:10px 12px;gap:6px"><span class="row" style="gap:8px"><input type="checkbox" data-field="'+esc(f)+'" checked'+(row.status!=="pending"||!can.apply?" disabled":"")+'> <b>'+esc(f.replace(/_/g," "))+'</b>'+((loc.locked_fields||[]).indexOf(f)>=0?' <span class="tag ok">locked</span>':'')+'</span><span class="grid2"><span><span class="note">Now</span><div class="prior" style="white-space:pre-wrap">'+esc(val(now))+'</div>'+(cur[f]!==undefined&&JSON.stringify(cur[f])!==JSON.stringify(now)?'<div class="note">When asked: '+esc(val(cur[f]))+'</div>':'')+'</span><span><span class="note">Requested</span><div class="text" style="white-space:pre-wrap">'+esc(val(ch[f]))+'</div></span></span></label>'}).join("")+'</div>'+
         (row.status==="pending"&&can.apply?'<div class="row"><button class="btn ok small" data-ia="apply" data-confirm="Confirm apply">Apply ticked changes</button></div><label class="note">Reason for declining (sent to them)</label><textarea data-ib-decline style="min-height:70px"></textarea><div class="row"><button class="btn danger small" data-ia="decline" data-confirm="Confirm decline">Decline</button></div>':(row.decline_reason?'<div class="prior">Declined: '+esc(row.decline_reason)+'</div>':''))+'</div>';
     }else if(k==="business_claim"){
-      body='<div class="card"><div class="meta"><span class="tag">'+esc(row.status)+'</span></div><div class="title">'+esc((d.place||{}).name||"A place")+'</div><dl class="kvs"><dt>Claimant</dt><dd>'+esc(row.claimant_name||"–")+'</dd><dt>Email</dt><dd>'+(row.claimant_email?esc(row.claimant_email):'<span class="note">hidden</span>')+'</dd></dl>'+(row.message?'<div class="text">'+esc(row.message)+'</div>':'')+(row.evidence_url?'<div class="note">Evidence: <a href="'+esc(row.evidence_url)+'" target="_blank" rel="noopener noreferrer">'+esc(row.evidence_url)+'</a></div>':'')+
+      body='<div class="card"><div class="meta"><span class="tag">'+esc(row.status)+'</span></div><div class="title">'+esc((d.place||{}).name||"A place")+'</div><dl class="kvs"><dt>Claimant</dt><dd>'+esc(row.claimant_name||"–")+'</dd><dt>Email</dt><dd>'+(row.claimant_email?esc(row.claimant_email):'<span class="note">hidden</span>')+'</dd></dl>'+(row.message?'<div class="text">'+esc(row.message)+'</div>':'')+(row.evidence_url?'<div class="note">Evidence: '+(httpOnly(row.evidence_url)?'<a href="'+esc(row.evidence_url)+'" target="_blank" rel="noopener noreferrer">'+esc(row.evidence_url)+'</a>':esc(row.evidence_url))+'</div>':'')+
         (row.status==="pending"&&H.can("claims")?'<div class="row"><button class="btn small" data-ia="assess">AI assessment</button><button class="btn ok small" data-ia="verify" data-confirm="Confirm verify">Verify</button><button class="btn danger small" data-ia="reject" data-confirm="Confirm reject">Reject</button></div><div data-assess></div>':'')+'</div>';
     }else if(k==="place_report"){
       body=reportPanel(d);
@@ -1836,7 +1839,9 @@ label.amen:has(input:checked){border-color:var(--brand-line);background:var(--br
   }
   function subCatOpts(sel){return CATS.map(function(c){return '<option value="'+c+'"'+(c===sel?" selected":"")+'>'+pretty(c)+'</option>'}).join("")}
   function subCard(s){
-    var ob=s.on_barkfind, mapU=subMapUrl(s), def=CATS.indexOf(s.category)>=0?s.category:CATS[0];
+    var ob=s.on_barkfind, mapU=subMapUrl(s);
+    var tagCat=(s.category==="woodland"||s.category==="secure-field");
+    var def=tagCat?"park":(CATS.indexOf(s.category)>=0?s.category:CATS[0]);
     var who=s.submitter_user_id&&H.can("users_view")?'<button type="button" class="btn small" data-do="open_user" data-user="'+esc(s.submitter_user_id)+'">'+esc(s.submitter_name||"the customer")+'</button>':esc(s.submitter_name||"A customer");
     var addMsg="Thanks for suggesting "+(s.name||"this place")+". It's now on BarkFind.";
     var disMsg="Thanks for suggesting "+(s.name||"this place")+". We've looked, and it isn't one we can add right now.";
@@ -1844,10 +1849,11 @@ label.amen:has(input:checked){border-color:var(--brand-line);background:var(--br
       '<div class="meta"><span class="tag plain">'+(s.place_id?"From place search":"Typed in by hand")+'</span><span>'+esc(H.when(s.created_at))+'</span>'+(ob?'<span class="tag '+(ob.flagged?"warn":"ok")+' plain">'+(ob.flagged?"On BarkFind but hidden":"Already on BarkFind")+'</span>':'')+'</div>'+
       '<div class="title">'+esc(s.name||"(no name)")+'</div>'+
       '<div class="note">'+esc(pretty(s.category||"")||"No category")+(s.address?' · '+esc(s.address):'')+'</div>'+
-      (s.website?'<div class="note"><a href="'+esc(s.website)+'" target="_blank" rel="noopener noreferrer">'+esc(s.website)+'</a></div>':'')+
+      (s.website?'<div class="note">'+(httpOnly(s.website)?'<a href="'+esc(s.website)+'" target="_blank" rel="noopener noreferrer">'+esc(s.website)+'</a>':esc(s.website))+'</div>':'')+
       '<div class="text">'+(s.description?esc(s.description):'<span class="note">No description</span>')+'</div>'+
       '<div class="prior">Suggested by '+who+(s.submitter_email?' &lt;'+esc(s.submitter_email)+'&gt;':'')+'</div>'+
       ((mapU||ob)?'<div class="row">'+(mapU?'<a class="btn small" href="'+esc(mapU)+'" target="_blank" rel="noopener noreferrer">View on map</a>':'')+(ob?'<button class="btn small" data-do="sub_openplace" data-id="'+esc(ob.id)+'">Open place</button>':'')+'</div>':'')+
+      (tagCat?'<div class="note">Suggested as '+esc(pretty(s.category))+'. After adding, open the place and set Also show as.</div>':'')+
       '<div class="subhead" style="margin-top:6px"><h3 style="font-size:16px">'+(ob?"Mark as added":"Add to BarkFind")+'</h3></div>'+
       (ob?'':'<label class="note">Category</label><select data-subcat>'+subCatOpts(def)+'</select>')+
       '<label class="row" style="gap:8px"><input type="checkbox" data-sublk="add" checked> Let them know</label>'+
@@ -1866,27 +1872,38 @@ label.amen:has(input:checked){border-color:var(--brand-line);background:var(--br
     }).catch(function(e){fail(el,e)});
   }
   function subAfter(){H.loadQueue();H.refreshSnap();setTimeout(load,900)}
-  function subResolve(subId,status,which,card,b,doneMsg){
-    var done=doneMsg||(status==="added"?"Marked as added.":"Dismissed.");
+  // Set the status (and optionally reply), then run onDone. Returns false if the message is missing.
+  function subCommit(subId,status,which,card,b,done,onDone){
     var lk=card.querySelector('[data-sublk="'+which+'"]'), notify=lk&&lk.checked;
     var mEl=card.querySelector('[data-submsg="'+which+'"]'), msg=mEl?mEl.value.trim():"";
-    if(notify&&!msg){H.note(card,false,"Write the message, or untick Let them know.");return}
+    if(notify&&!msg){H.note(card,false,"Write the message, or untick Let them know.");return false}
     b.disabled=true;
     H.api("submission_set_status",{id:subId,status:status}).then(function(){
-      if(!notify){H.note(card,true,done);subAfter();return}
-      return H.api("submission_reply",{submission_id:subId,message:msg}).then(function(r){H.note(card,true,done+" "+pushResultMsg(r&&r.data?r.data:r));subAfter()}).catch(function(e){H.note(card,true,done+" "+((e&&e.message)||"Push failed."));subAfter()});
+      if(!notify){H.note(card,true,done);onDone();return}
+      return H.api("submission_reply",{submission_id:subId,message:msg}).then(function(r){H.note(card,true,done+" "+pushResultMsg(r&&r.data?r.data:r));onDone()}).catch(function(e){H.note(card,true,done+" "+((e&&e.message)||"Push failed."));onDone()});
     }).catch(function(e){H.note(card,false,(e&&e.message)||"That did not work.");b.disabled=false});
+    return true;
+  }
+  function subResolve(subId,status,which,card,b,doneMsg){subCommit(subId,status,which,card,b,doneMsg||(status==="added"?"Marked as added.":"Dismissed."),subAfter)}
+  // After a woodland/secure-field add, keep the card and offer Open place so the tag can be set there.
+  function subOpened(card,placeId){
+    card.querySelectorAll("button[data-do]").forEach(function(x){if(x.dataset.do&&x.dataset.do.indexOf("sub_")===0)x.disabled=true});
+    if(placeId){var r=document.createElement("div");r.className="row";var ob=document.createElement("button");ob.className="btn small";ob.dataset.do="sub_openplace";ob.dataset.id=placeId;ob.textContent="Open place";r.appendChild(ob);card.appendChild(r)}
+    H.loadQueue();H.refreshSnap();
   }
   function subAdd(subId,card,b,force){
     var s=subData[subId];if(!s){H.note(card,false,"Reload the list.");return}
     var catEl=card.querySelector('[data-subcat]'), cat=catEl?catEl.value:(s.category||"");
+    var tagCat=(s.category==="woodland"||s.category==="secure-field");
     var lk=card.querySelector('[data-sublk="add"]'), notify=lk&&lk.checked, mEl=card.querySelector('[data-submsg="add"]'), msg=mEl?mEl.value.trim():"";
     if(notify&&!msg){H.note(card,false,"Write the message, or untick Let them know.");return}
     if(s.place_id){
       var o={name:s.name,category:cat,place_id:s.place_id,latitude:s.latitude,longitude:s.longitude};
       if(s.address)o.address=s.address;if(force)o.confirm=true;
       b.disabled=true;var old=card.querySelector('[data-do="sub_addforce"]');if(old)old.remove();
-      H.api("place_add",o).then(function(){subResolve(subId,"added","add",card,b,"Added to BarkFind.")})
+      H.api("place_add",o).then(function(r){var newId=r&&r.id;
+        if(tagCat)subCommit(subId,"added","add",card,b,"Added to BarkFind.",function(){subOpened(card,newId)});
+        else subResolve(subId,"added","add",card,b,"Added to BarkFind.");})
         .catch(function(e){var why=(e&&e.reason)||"";
           if(why.indexOf("exists:")===0){subResolve(subId,"added","add",card,b,"Already on BarkFind, marked as added.");return}
           if(why==="near_duplicate"){b.disabled=false;var f=document.createElement("button");f.className="btn small";f.dataset.do="sub_addforce";f.textContent="Add anyway";b.parentNode.appendChild(f);H.note(card,false,e.message);return}
@@ -2434,7 +2451,7 @@ label.amen:has(input:checked){border-color:var(--brand-line);background:var(--br
   function sel(id,opts,v,label){return '<select id="'+id+'" aria-label="'+label+'">'+opts.map(function(o){return '<option value="'+o[0]+'"'+(o[0]===v?" selected":"")+'>'+o[1]+'</option>'}).join("")+'</select>'}
 
   $("plNav").addEventListener("click",function(ev){var b=ev.target.closest("[data-sec]");if(!b)return;go(b.dataset.sec)});
-  function go(s){pl.sec=s;$("plNav").querySelectorAll("[data-sec]").forEach(function(x){x.setAttribute("aria-pressed",x.dataset.sec===s?"true":"false")});render()}
+  function go(s){pl.addPending=null;pl.sec=s;$("plNav").querySelectorAll("[data-sec]").forEach(function(x){x.setAttribute("aria-pressed",x.dataset.sec===s?"true":"false")});render()}
   function nav(){$("plNav").querySelector('[data-sec="dups"]').hidden=!H.can("places_delete");$("plNav").querySelector('[data-sec="add"]').hidden=!H.can("places_edit")}
   function render(){var el=$("plPane");if(pl.sec==="dups")dupsView(el);else if(pl.sec==="add")addView(el);else listView(el)}
 
@@ -2665,9 +2682,9 @@ label.amen:has(input:checked){border-color:var(--brand-line);background:var(--br
     if(!nm){if(tries>0)setTimeout(function(){addPrefill(prefill,tries-1)},120);return}
     nm.value=prefill.name||"";var ad=pane.querySelector('[data-pf="address"]');if(ad)ad.value=prefill.address||"";
     var ct=pane.querySelector('[data-pf="category"]');if(ct&&prefill.category)ct.value=prefill.category;}
-  window.HQPlaces={show:function(){nav();if(!pl.loaded){pl.loaded=true;render()}else if(pl.sec==="list")load()},
+  window.HQPlaces={show:function(){pl.addPending=null;nav();if(!pl.loaded){pl.loaded=true;render()}else if(pl.sec==="list")load()},
     open:function(id){var t=document.querySelector('.tabs button[data-go="places"]');if(t&&!t.hidden)t.click();openPlace(id)},
-    addFor:function(prefill,onAdded){pl.addPending=onAdded||null;var t=document.querySelector('.tabs button[data-go="places"]');if(t&&!t.hidden)t.click();go("add");if(prefill)addPrefill(prefill,12)}};
+    addFor:function(prefill,onAdded){var t=document.querySelector('.tabs button[data-go="places"]');if(t&&!t.hidden)t.click();go("add");pl.addPending=onAdded||null;if(prefill)addPrefill(prefill,12)}};
 })();
 </script>
 <script>
