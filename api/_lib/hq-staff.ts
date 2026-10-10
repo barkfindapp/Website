@@ -12,7 +12,7 @@ const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY!;
 export const PERMISSIONS = [
   'today', 'ask_ralphy', 'money', 'insights', 'reviews', 'reports', 'safety', 'privacy', 'claims',
   'support_read', 'support_reply', 'support_assign', 'users_view', 'users_contact', 'users_ban', 'places_edit', 'places_moderate', 'places_delete', 'content',
-  'announce', 'outreach', 'renewals', 'audit_view', 'trash_restore', 'staff_manage', 'staff_admins',
+  'announce', 'outreach', 'renewals', 'creators', 'audit_view', 'trash_restore', 'staff_manage', 'staff_admins',
 ] as const;
 export type Perm = typeof PERMISSIONS[number];
 // 'support' stays a value the database allows, but it is no longer offered: since 1 October
@@ -25,7 +25,9 @@ export const asLevel = (l: string): Level => (l === 'support' ? 'moderator' : l)
 const ALL = [...PERMISSIONS] as Perm[];
 const LEVEL_PERMS: Record<Level, Perm[]> = {
   owner: ALL,
-  admin: ALL.filter((p) => p !== 'staff_admins'),
+  // 'creators' is owner-only by default: excluded from admin and every lower level,
+  // but still grantable to an individual through effectivePerms.
+  admin: ALL.filter((p) => p !== 'staff_admins' && p !== 'creators'),
   moderator: ['today', 'insights', 'reviews', 'reports', 'claims', 'users_view', 'places_edit', 'places_moderate',
     'support_read', 'support_reply', 'support_assign', 'users_contact'],
   support: [],   // never used: asLevel() reads support as moderator

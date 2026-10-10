@@ -15,6 +15,7 @@ import { inboxOps } from './_lib/hq-inbox.js';
 import { contentOps } from './_lib/hq-content.js';
 import { announceOps } from './_lib/hq-announce.js';
 import { placeOps } from './_lib/hq-places.js';
+import { creatorOps } from './_lib/hq-creators.js';
 import { usdToGbp, type Fx } from './_lib/hq-fx.js';
 import { rewardOps } from './_lib/hq-rewards.js';
 import { insightOps } from './_lib/hq-insights.js';
@@ -36,6 +37,11 @@ const FALLBACK_MODEL = 'claude-haiku-4-5-20251001';
 const MAX_TOKENS = 800;
 
 const pool = new Pool({ connectionString: DB_URL, ssl: { rejectUnauthorized: false }, max: 3 });
+
+// creator-admin's setup step takes up to ~30 seconds, so the function needs longer than the
+// platform default before it returns. Applies to the whole /api/hq function; it is a ceiling,
+// not a wait.
+export const maxDuration = 60;
 
 // ---------- hq_action: whitelist, argument shapes and the row each one touches ----------
 // Names must match the whitelist inside public.hq_action(). table and idKey say which
@@ -398,6 +404,7 @@ const OPS: Record<string, Op | { perm: null; run: Op['run'] }> = {
   ...contentOps(pool),
   ...announceOps(pool),
   ...placeOps(pool),
+  ...creatorOps(pool),
   ...rewardOps(pool),
   ...insightOps(pool),
   ...auditOps(pool),
