@@ -1968,6 +1968,10 @@ label.amen:has(input:checked){border-color:var(--brand-line);background:var(--br
   function crCard(cr){
     var contact=H.can("users_contact"), st=cr.status, bespoke=cr.tier==="bespoke";
     var canSetup=st==="applied"||st==="approved", canEdit=canSetup||st==="active";
+    // An active creator still needs setting up when any key step is not ok (migrated rows
+    // have never been run). setupMode covers "Approve and set up" and "Run setup".
+    var needsSetup=st==="active"&&["user","offer_code","premium","email"].some(function(k){var v=(cr.setup||{})[k];return !(v&&typeof v==="object"&&v.ok===true)});
+    var setupMode=canSetup||needsSetup;
     var bespokeReady=!bespoke||!!(cr.bespoke_terms&&cr.code_cap!=null&&cr.bespoke_agreement_path);
     var statusCls={applied:"warn",approved:"info",active:"ok",declined:"",ended:""}[st]||"";
     var h='<div class="card" data-cr="'+esc(cr.id)+'">'+
@@ -1983,12 +1987,13 @@ label.amen:has(input:checked){border-color:var(--brand-line);background:var(--br
     var agr=[];
     if(cr.agreement_path)agr.push('<button class="btn small" data-do="cr_viewagr" data-which="signed">View agreement</button>');
     if(cr.bespoke_agreement_path)agr.push('<button class="btn small" data-do="cr_viewagr" data-which="bespoke">View bespoke agreement</button>');
-    if(canSetup)agr.push('<button class="btn small" data-do="cr_previewagr">Preview agreement</button>');
+    if(setupMode)agr.push('<button class="btn small" data-do="cr_previewagr">Preview agreement</button>');
     if(agr.length)h+='<div class="row">'+agr.join("")+'</div>';
     if(canEdit)h+=crEdit(cr,bespoke);
-    if(bespoke&&canSetup)h+='<div class="note" style="margin-top:6px">Signed bespoke agreement, PDF 3 MB or less'+(cr.bespoke_agreement_path?" (uploaded)":"")+'</div><div class="row"><input type="file" accept="application/pdf" data-cr-file><button class="btn small" data-do="cr_upload">Upload signed agreement</button></div>';
+    if(bespoke&&setupMode)h+='<div class="note" style="margin-top:6px">Signed bespoke agreement, PDF 3 MB or less'+(cr.bespoke_agreement_path?" (uploaded)":"")+'</div><div class="row"><input type="file" accept="application/pdf" data-cr-file><button class="btn small" data-do="cr_upload">Upload signed agreement</button></div>';
+    if(needsSetup)h+='<div class="note" style="color:var(--warn)">Set-up not finished. Run it once the app is live.</div>';
     var acts=[];
-    if(canSetup)acts.push('<button class="btn primary small" data-do="cr_approve"'+(bespoke&&!bespokeReady?' disabled title="Add bespoke terms, a cap and the signed agreement first"':"")+'>Approve and set up</button>');
+    if(setupMode)acts.push('<button class="btn primary small" data-do="cr_approve"'+(bespoke&&!bespokeReady?' disabled title="Add bespoke terms, a cap and the signed agreement first"':"")+'>'+(canSetup?"Approve and set up":"Run setup")+'</button>');
     if(st==="applied"||st==="approved")acts.push('<button class="btn small" data-do="cr_decline" data-confirm="Confirm decline">Decline</button>');
     if(acts.length)h+='<div class="row" style="margin-top:6px">'+acts.join("")+'</div>';
     if(st==="active")h+='<label class="note">Reason for ending</label><input type="text" class="pill-in" data-cr-endreason><div class="row"><button class="btn danger small" data-do="cr_end" data-confirm="Confirm end">End partnership</button></div>';
