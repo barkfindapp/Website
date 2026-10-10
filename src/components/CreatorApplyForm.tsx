@@ -124,22 +124,22 @@ export default function CreatorApplyForm() {
         </label>
         <input id="ca-contact" type="email" className={input} value={f.contactEmail} onChange={set("contactEmail")} autoCapitalize="none" />
       </div>
-      <div>
-        <label htmlFor="ca-sign" className={label}>Sign by typing your full name</label>
-        <input id="ca-sign" className={input} value={f.signature} onChange={set("signature")} maxLength={80} autoComplete="name" />
-        <p className={hint}>This is your signature on the terms above.</p>
-      </div>
       <label className="flex items-start gap-3 text-sm text-[#1a1a1a]">
         <input type="checkbox" className="mt-0.5 h-4 w-4 accent-[#B74217]" checked={f.agreed} onChange={set("agreed")} />
         <span>I've read and agree to the terms above</span>
       </label>
+      <div>
+        <label htmlFor="ca-sign" className={label}>Type your full name to sign</label>
+        <input id="ca-sign" className={input} value={f.signature} onChange={set("signature")} maxLength={80} autoComplete="name" />
+        <p className={hint}>This is your signature on the terms above. I'll email you a signed copy of the agreement when your code is ready.</p>
+      </div>
       <div>
         <button
           type="submit"
           disabled={status === "sending"}
           className="px-7 py-3.5 rounded-full bg-[#B74217] text-white font-bold text-sm hover:opacity-90 transition-opacity disabled:opacity-60"
         >
-          {status === "sending" ? "Sending" : "Send application"}
+          {status === "sending" ? "Sending" : "Sign and send application"}
         </button>
         {error && (
           <p role="alert" className="mt-3 text-sm font-semibold text-[#B74217]">
