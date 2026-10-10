@@ -5,6 +5,7 @@ import { useSeo } from "../lib/seo";
 import { isAndroid } from "../lib/platform";
 import { LAUNCHED } from "../data/launch";
 import { CREATORS, type Creator } from "../data/creators";
+import { fetchCreator } from "../lib/creatorsDb";
 import { track } from "../lib/analytics";
 
 // The primary tracker for this page is the creator's Apple offer code, counted
@@ -166,8 +167,23 @@ function CreatorContent({ creator }: { creator: Creator }) {
   );
 }
 
+// The creator comes from the database (creators_public, active creators only).
+// If that request fails, creators.ts is the fallback, so a database outage never
+// blanks a live page. No row back means not found, as before.
 export default function CreatorPage({ slug }: { slug: string }) {
-  const creator = CREATORS.find((c) => c.slug === slug && c.active);
+  const [state, setState] = useState<{ creator: Creator | null } | null>(null);
+  useEffect(() => {
+    let live = true;
+    setState(null);
+    fetchCreator(slug)
+      .then((creator) => live && setState({ creator }))
+      .catch(() => live && setState({ creator: CREATORS.find((c) => c.slug === slug && c.active) || null }));
+    return () => {
+      live = false;
+    };
+  }, [slug]);
+  // Nothing until we know, so a live page never flashes the not-found card.
+  if (!state) return null; // same as the lazy-load fallback in App.tsx
   // Resolve not-found in a sub-component so hooks run unconditionally.
-  return creator ? <CreatorContent creator={creator} /> : <NotFound />;
+  return state.creator ? <CreatorContent creator={state.creator} /> : <NotFound />;
 }

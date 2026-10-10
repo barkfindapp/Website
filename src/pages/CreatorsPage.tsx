@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import PageShell, { Section, Bullets } from "../components/PageShell";
 import StoryBand from "../components/StoryBand";
 import { useSeo } from "../lib/seo";
+import CreatorApplyForm from "../components/CreatorApplyForm";
+import { CREATOR_TERMS_VERSION } from "../data/creatorTerms";
 
 // The public-facing creator programme page. Not linked from anywhere and not
 // indexed: it is sent by link on purpose. When the programme opens up, the only
@@ -725,7 +727,10 @@ export default function CreatorsPage() {
             </li>
             <li>If a dispute ever comes up, English law applies.</li>
           </ol>
-          <p className="text-[#585858] mt-6">Version 2, 27 September 2026.</p>
+          <p className="text-[#585858] mt-6">{CREATOR_TERMS_VERSION}.</p>
+
+          <h2 className="font-serif text-2xl md:text-3xl text-[#1a1a1a] mt-14 mb-4">Join the programme</h2>
+          <CreatorApplyForm />
         </div>
       </section>
     </PageShell>
