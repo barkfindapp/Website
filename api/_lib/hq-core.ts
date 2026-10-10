@@ -69,7 +69,7 @@ export type Audit = {
 
 // Runs fn inside one transaction, after the per-user rate limit. fn records its
 // audit rows with audit(); if anything throws, everything rolls back.
-export async function writeTx<T>(pool: Pool, userId: string, fn: (c: PoolClient, audit: (a: Audit) => Promise<void>) => Promise<T>): Promise<T> {
+export async function writeTx<T>(pool: Pool, userId: string, fn: (c: PoolClient, audit: (a: Audit) => Promise<string>) => Promise<T>): Promise<T> {
   const c = await pool.connect();
   try {
     await c.query('begin');
@@ -78,12 +78,13 @@ export async function writeTx<T>(pool: Pool, userId: string, fn: (c: PoolClient,
       [userId],
     );
     if (rl.rows[0].n >= WRITE_LIMIT) throw new HttpError(429, 'Slow down, try again in a minute.');
-    const audit = async (a: Audit) => {
-      await c.query(
-        "insert into public.admin_audit (actor, actor_user_id, action, entity, entity_id, detail, before, after) values ('hq', $1, $2, $3, $4, $5, $6::jsonb, $7::jsonb)",
+    const audit = async (a: Audit): Promise<string> => {
+      const ar = await c.query(
+        "insert into public.admin_audit (actor, actor_user_id, action, entity, entity_id, detail, before, after) values ('hq', $1, $2, $3, $4, $5, $6::jsonb, $7::jsonb) returning id",
         [userId, a.action, a.entity, a.entityId ?? null, a.detail.slice(0, 300),
           a.before === undefined ? null : JSON.stringify(a.before), a.after === undefined ? null : JSON.stringify(a.after)],
       );
+      return ar.rows[0].id as string;
     };
     const out = await fn(c, audit);
     await c.query('commit');

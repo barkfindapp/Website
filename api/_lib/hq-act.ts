@@ -156,6 +156,47 @@ export function actOps(pool: Pool, deps: Deps): Record<string, Op> {
         });
       },
     },
+    // "Let them know": after the status change is committed, ask the Supabase edge
+    // function to send the reporter the reply (it writes the in-app notification and
+    // sends the device push itself). The push trigger secret stays server-side and is
+    // never returned to the browser or logged.
+    report_reply: {
+      perm: 'reports',
+      run: async (a, ctx) => {
+        only(a, ['report_id', 'message']);
+        const reportId = uuid(a.report_id);
+        const message = str(a.message, 240, { min: 1 });
+        // Record the reply attempt, keeping the audit row id so the function's
+        // answer can be written back onto the same row.
+        const auditId = await writeTx(pool, ctx.staff.userId, async (c, audit) => {
+          const rep = await rowJson(c, 'location_reports', reportId);
+          if (!rep) throw new HttpError(404, 'That report no longer exists.');
+          return audit({ action: 'report_reply', entity: 'location_reports', entityId: reportId, detail: 'Replied to the reporter', before: { message } });
+        });
+        const sec = (await pool.query("select value from public.app_secrets where name = 'push_trigger'")).rows[0];
+        const trigger = sec && typeof sec.value === 'string' ? sec.value : null;
+        let httpStatus = 0;
+        let reply: Record<string, unknown>;
+        if (!trigger) {
+          reply = { error: 'The push trigger is not set up.' };
+        } else {
+          try {
+            const res = await fetch('https://kwwnwniyijeuorpbyvmn.supabase.co/functions/v1/send-report-reply-push', {
+              method: 'POST',
+              headers: { 'content-type': 'application/json', 'x-push-trigger': trigger },
+              body: JSON.stringify({ report_id: reportId, message }),
+            });
+            httpStatus = res.status;
+            reply = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+          } catch {
+            reply = { error: 'The push service did not respond.' };
+          }
+        }
+        const result = { http_status: httpStatus, ...reply };
+        await pool.query('update public.admin_audit set after = $2::jsonb where id = $1', [auditId, JSON.stringify(result)]);
+        return { ok: true, data: result };
+      },
+    },
 
     // ---------- Claims ----------
     claims_list: {
