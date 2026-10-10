@@ -24,4 +24,11 @@ export const CREATORS: Creator[] = [
     offerCode: "CHLO20",
     active: true,
   },
+  {
+    slug: "becs",
+    displayName: "Becs",
+    handle: "@spaniels.life",
+    offerCode: "BECS20",
+    active: true,
+  },
 ];
