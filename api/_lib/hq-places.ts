@@ -188,6 +188,10 @@ function readOverrides(v: unknown): Record<string, boolean> {
 }
 // Order-independent compare of two override objects.
 const ovKey = (o: any) => JSON.stringify(CAT_TAGS.filter((k) => o && k in o).map((k) => [k, o[k]]));
+
+// Place suggestions (listing_submissions). Statuses are exactly these three; the push
+// function relies on them, and there is no database constraint, so the server sticks to them.
+const SUB_STATUS = ['added', 'dismissed'] as const;
 const same = (x: unknown, y: unknown) => {
   // Amenities are a set: the same codes in another order are not a change.
   if (Array.isArray(x) && Array.isArray(y)) return JSON.stringify([...x].sort()) === JSON.stringify([...y].sort());
@@ -458,6 +462,84 @@ export function placeOps(pool: Pool): Record<string, Op> {
           await audit({ action: 'place_add', entity: 'locations', entityId: id, detail: `Added place ${label(after)} (${after.category}, Google ${placeId.slice(0, 40)})${force ? ', after a near-duplicate warning' : ''}`, before: null, after });
           return { ok: true, message: 'Added. It shows in the app straight away.', id };
         });
+      },
+    },
+
+    // ---------- Place suggestions (listing_submissions) ----------
+    // Pending suggestions, newest first, with who sent them and whether the suggested
+    // Google place is already on BarkFind (hidden ones included). Emails need users_contact.
+    submissions_list: {
+      perm: 'places_edit',
+      run: async (a, ctx) => {
+        only(a, []);
+        const r = await pool.query(
+          `select s.id, s.name, s.category, s.address, s.website, s.description, s.created_at,
+                  s.place_id, s.latitude, s.longitude, s.submitter_user_id, s.submitter_email,
+                  coalesce(p.full_name, '') as submitter_name,
+                  (select jsonb_build_object('id', l.id, 'flagged', l.flagged)
+                     from public.locations l where s.place_id is not null and l.place_id = s.place_id limit 1) as on_barkfind
+             from public.listing_submissions s
+             left join public.profiles p on p.user_id = s.submitter_user_id
+            where s.status = 'pending'
+            order by s.created_at desc limit 200`);
+        const contact = ctx.staff.perms.has('users_contact');
+        const rows = contact ? r.rows : r.rows.map((x: any) => ({ ...x, submitter_email: null }));
+        return { data: { rows } };
+      },
+    },
+    // Mark a suggestion added or dismissed, audited with before and after.
+    submission_set_status: {
+      perm: 'places_edit',
+      run: async (a, ctx) => {
+        only(a, ['id', 'status']);
+        const id = uuid(a.id), status = oneOf(a.status, SUB_STATUS) as string;
+        return writeTx(pool, ctx.staff.userId, async (c, audit) => {
+          const before = (await c.query('select to_jsonb(s) as r from public.listing_submissions s where s.id = $1 for update', [id])).rows[0]?.r;
+          if (!before) throw new HttpError(404, 'That suggestion no longer exists.');
+          await c.query('update public.listing_submissions set status = $2 where id = $1', [id, status]);
+          const after = (await c.query('select to_jsonb(s) as r from public.listing_submissions s where s.id = $1', [id])).rows[0].r;
+          await audit({ action: 'submission_set_status', entity: 'listing_submissions', entityId: id,
+            detail: `Suggestion "${String(before.name || '').slice(0, 80)}" set to ${status}`, before, after });
+          return { ok: true, message: status === 'added' ? 'Marked as added.' : 'Dismissed.' };
+        });
+      },
+    },
+    // Reply to the suggester. Same function, header and secret as report_reply; the status is
+    // set and committed first, so the function sees 'added' or 'dismissed'. Body carries
+    // submission_id instead of report_id. The secret stays server-side, never browser or log.
+    submission_reply: {
+      perm: 'places_edit',
+      run: async (a, ctx) => {
+        only(a, ['submission_id', 'message']);
+        const submissionId = uuid(a.submission_id);
+        const message = str(a.message, 240, { min: 1 });
+        const auditId = await writeTx(pool, ctx.staff.userId, async (c, audit) => {
+          const sub = (await c.query('select id from public.listing_submissions where id = $1', [submissionId])).rows[0];
+          if (!sub) throw new HttpError(404, 'That suggestion no longer exists.');
+          return audit({ action: 'submission_reply', entity: 'listing_submissions', entityId: submissionId, detail: 'Replied to the suggester', before: { message } });
+        });
+        const sec = (await pool.query("select value from public.app_secrets where name = 'push_trigger'")).rows[0];
+        const trigger = sec && typeof sec.value === 'string' ? sec.value : null;
+        let httpStatus = 0;
+        let reply: Record<string, unknown>;
+        if (!trigger) {
+          reply = { error: 'The push trigger is not set up.' };
+        } else {
+          try {
+            const res = await fetch('https://kwwnwniyijeuorpbyvmn.supabase.co/functions/v1/send-report-reply-push', {
+              method: 'POST',
+              headers: { 'content-type': 'application/json', 'x-push-trigger': trigger },
+              body: JSON.stringify({ submission_id: submissionId, message }),
+            });
+            httpStatus = res.status;
+            reply = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+          } catch {
+            reply = { error: 'The push service did not respond.' };
+          }
+        }
+        const result = { http_status: httpStatus, ...reply };
+        await pool.query('update public.admin_audit set after = $2::jsonb where id = $1', [auditId, JSON.stringify(result)]);
+        return { ok: true, data: result };
       },
     },
 
