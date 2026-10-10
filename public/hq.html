@@ -1986,10 +1986,10 @@ label.amen:has(input:checked){border-color:var(--brand-line);background:var(--br
     if(canSetup)agr.push('<button class="btn small" data-do="cr_previewagr">Preview agreement</button>');
     if(agr.length)h+='<div class="row">'+agr.join("")+'</div>';
     if(canEdit)h+=crEdit(cr,bespoke);
-    if(bespoke&&canSetup)h+='<div class="note" style="margin-top:6px">Signed bespoke agreement, PDF 5 MB or less'+(cr.bespoke_agreement_path?" (uploaded)":"")+'</div><div class="row"><input type="file" accept="application/pdf" data-cr-file><button class="btn small" data-do="cr_upload">Upload signed agreement</button></div>';
+    if(bespoke&&canSetup)h+='<div class="note" style="margin-top:6px">Signed bespoke agreement, PDF 3 MB or less'+(cr.bespoke_agreement_path?" (uploaded)":"")+'</div><div class="row"><input type="file" accept="application/pdf" data-cr-file><button class="btn small" data-do="cr_upload">Upload signed agreement</button></div>';
     var acts=[];
     if(canSetup)acts.push('<button class="btn primary small" data-do="cr_approve"'+(bespoke&&!bespokeReady?' disabled title="Add bespoke terms, a cap and the signed agreement first"':"")+'>Approve and set up</button>');
-    if(st==="applied")acts.push('<button class="btn small" data-do="cr_decline" data-confirm="Confirm decline">Decline</button>');
+    if(st==="applied"||st==="approved")acts.push('<button class="btn small" data-do="cr_decline" data-confirm="Confirm decline">Decline</button>');
     if(acts.length)h+='<div class="row" style="margin-top:6px">'+acts.join("")+'</div>';
     if(st==="active")h+='<label class="note">Reason for ending</label><input type="text" class="pill-in" data-cr-endreason><div class="row"><button class="btn danger small" data-do="cr_end" data-confirm="Confirm end">End partnership</button></div>';
     return h+'</div>';
@@ -2009,9 +2009,12 @@ label.amen:has(input:checked){border-color:var(--brand-line);background:var(--br
       '<div class="row"><button class="btn primary small" data-do="cr_add">Add creator</button></div>';
   }
   function crCheckHtml(d){
-    if(!d||(d.ok===false&&!d.app_store_connect))return '<div class="note">'+esc((d&&d.error)||"The check did not run.")+'</div>';
+    if(!d)return '<div class="note">The check did not run.</div>';
     function line(label,o){var ok=o&&o.ok===true;return '<span class="tag '+(ok?"ok":"crit")+' plain">'+(ok?"✓":"✗")+" "+label+'</span>'}
-    return '<div class="row" style="flex-wrap:wrap;gap:4px;margin-top:4px">'+line("App Store Connect",d.app_store_connect)+line("RevenueCat",d.revenuecat)+line("Resend",d.resend)+line("Agreement branding",d.agreement_branding)+'</div>';
+    var items=[["app_store_connect","App Store Connect"],["revenuecat","RevenueCat"],["resend","Resend"],["agreement_branding","Agreement branding"]];
+    var row='<div class="row" style="flex-wrap:wrap;gap:4px;margin-top:4px">'+items.map(function(it){return line(it[1],d[it[0]])}).join("")+'</div>';
+    var errs=(d.error?'<div class="note">'+esc(d.error)+'</div>':"")+items.map(function(it){var o=d[it[0]];return (o&&o.ok!==true&&o.error)?'<div class="note">'+esc(it[1])+": "+esc(o.error)+'</div>':""}).join("");
+    return row+errs;
   }
   function creators(el){
     H.api("creators_list",{filter:crFilter}).then(function(r){
@@ -2053,7 +2056,7 @@ label.amen:has(input:checked){border-color:var(--brand-line);background:var(--br
     var fi=card.querySelector("[data-cr-file]");if(!fi||!fi.files||!fi.files[0]){H.note(card,false,"Choose a PDF first.");return}
     var file=fi.files[0];
     if(file.type&&file.type!=="application/pdf"){H.note(card,false,"It must be a PDF.");return}
-    if(file.size>5*1024*1024){H.note(card,false,"The limit is 5 MB.");return}
+    if(file.size>3*1024*1024){H.note(card,false,"The limit is 3 MB.");return}
     b.disabled=true;H.note(card,true,"Uploading.");
     var fr=new FileReader();
     fr.onload=function(){var s=String(fr.result||""),i=s.indexOf("base64,"),b64=i>=0?s.slice(i+7):"";if(!b64){H.note(card,false,"Could not read the file.");b.disabled=false;return}

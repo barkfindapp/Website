@@ -12,7 +12,7 @@ import type { Op } from './hq-act.js';
 const CREATOR_ADMIN_URL = 'https://kwwnwniyijeuorpbyvmn.supabase.co/functions/v1/creator-admin';
 const TIERS = ['small', 'mid', 'bespoke'] as const;
 const STEP_KEYS = ['user', 'offer_code', 'premium', 'agreement', 'email'] as const;
-const MAX_B64 = 8 * 1024 * 1024; // ~5 MB of PDF once base64 encoded, with headroom
+const MAX_B64 = 6 * 1024 * 1024; // headroom over the 4.2 MB cap (Vercel's request limit is ~4.5 MB)
 
 // The columns the HQ cards and edits read. account_email and contact_email are hidden
 // without users_contact (in creators_list).
@@ -34,7 +34,9 @@ function intOrNull(v: unknown, max: number): number | null {
   return n;
 }
 const slugify = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40) || 'creator';
-const defaultCode = (slug: string) => slug.toUpperCase().replace(/[^A-Z0-9]/g, '') + '20';
+// Offer codes are App Store offer codes: uppercase letters and digits only, 3 to 30 long.
+const OFFER_CODE_RE = /^[A-Z0-9]{3,30}$/;
+const defaultCode = (slug: string) => slug.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 28) + '20';
 
 // Call the creator-admin edge function with the server-side trigger secret. Returns the HTTP
 // status and the parsed body. The secret never leaves the server.
@@ -94,16 +96,19 @@ export function creatorOps(pool: Pool): Record<string, Op> {
         if ('tier' in a) f.tier = oneOf(a.tier, TIERS);
         if ('account_email' in a) f.account_email = email(a.account_email, { optional: true }) || null;
         if ('contact_email' in a) f.contact_email = email(a.contact_email, { optional: true }) || null;
-        if ('offer_code' in a) f.offer_code = str(a.offer_code, 40, { optional: true }).toUpperCase() || null;
+        if ('offer_code' in a) { const code = str(a.offer_code, 40, { optional: true }).toUpperCase(); if (code && !OFFER_CODE_RE.test(code)) throw new HttpError(400, 'An offer code is 3 to 30 letters or numbers, with no spaces.'); f.offer_code = code || null; }
         if ('bespoke_terms' in a) f.bespoke_terms = str(a.bespoke_terms, 4000, { optional: true }) || null;
         if ('code_cap' in a) f.code_cap = intOrNull(a.code_cap, 1000000);
         if ('notes' in a) f.notes = str(a.notes, 4000, { optional: true }) || null;
         const keys = Object.keys(f);
         if (!keys.length) throw new HttpError(409, 'Nothing has changed.');
         return writeTx(pool, ctx.staff.userId, async (c, audit) => {
-          const before = (await c.query(`select ${COLS} from public.creators where id = $1 for update`, [id])).rows[0];
+          const before = (await c.query(`select ${COLS}, asc_offer_code_id from public.creators where id = $1 for update`, [id])).rows[0];
           if (!before) throw new HttpError(404, 'That creator no longer exists.');
-          if (before.tier === 'bespoke' && 'tier' in f && f.tier !== 'bespoke') { /* allowed */ }
+          // Once the code is live in App Store Connect its code, tier and cap are fixed.
+          if (before.asc_offer_code_id && ('offer_code' in f || 'tier' in f || 'code_cap' in f)) {
+            throw new HttpError(409, 'The code exists in App Store Connect. End the partnership and set them up again to change it.');
+          }
           const sets = keys.map((k, i) => `${k} = $${i + 2}`);
           await c.query(`update public.creators set ${sets.join(', ')}, updated_at = now() where id = $1`, [id, ...keys.map((k) => f[k])]);
           const after = (await c.query(`select ${COLS} from public.creators where id = $1`, [id])).rows[0];
@@ -132,14 +137,15 @@ export function creatorOps(pool: Pool): Record<string, Op> {
         const bespoke_terms = str(a.bespoke_terms, 4000, { optional: true }) || null;
         const code_cap = intOrNull(a.code_cap, 1000000);
         const notes = str(a.notes, 4000, { optional: true }) || null;
-        const codeIn = str(a.offer_code, 40, { optional: true });
+        const codeIn = str(a.offer_code, 40, { optional: true }).toUpperCase();
+        if (codeIn && !OFFER_CODE_RE.test(codeIn)) throw new HttpError(400, 'An offer code is 3 to 30 letters or numbers, with no spaces.');
         return writeTx(pool, ctx.staff.userId, async (c, audit) => {
           const tv = (await c.query("select value from public.app_config where key = 'creator_terms_version'")).rows[0];
           const terms_version = tv && tv.value != null ? String(tv.value) : null;
           const base = slugify(display_name);
           let slug = base, n = 1;
           while ((await c.query('select 1 from public.creators where slug = $1', [slug])).rows[0]) { n += 1; slug = base + '-' + n; }
-          const offer_code = (codeIn ? codeIn.toUpperCase() : defaultCode(slug));
+          const offer_code = codeIn || defaultCode(slug);
           const ins = await c.query(
             `insert into public.creators (slug, display_name, primary_handle, handles, followers, followers_platform, followers_on,
                account_email, contact_email, tier, bespoke_terms, code_cap, offer_code, notes, status, source, terms_version)
@@ -182,6 +188,7 @@ export function creatorOps(pool: Pool): Record<string, Op> {
         return writeTx(pool, ctx.staff.userId, async (c, audit) => {
           const before = (await c.query('select id, display_name, status from public.creators where id = $1 for update', [id])).rows[0];
           if (!before) throw new HttpError(404, 'That creator no longer exists.');
+          if (before.status !== 'applied' && before.status !== 'approved') throw new HttpError(409, 'Use End partnership for an active creator.');
           await c.query("update public.creators set status = 'declined', updated_at = now() where id = $1", [id]);
           await audit({ action: 'creator_decline', entity: 'creators', entityId: id, detail: `Declined ${before.display_name}`, before: { status: before.status }, after: { status: 'declined' } });
           return { ok: true, message: 'Declined.' };
@@ -210,8 +217,15 @@ export function creatorOps(pool: Pool): Record<string, Op> {
       run: async (a, ctx) => {
         only(a, []);
         const result = await callAdmin(pool, { action: 'check' });
+        // The full result (with any IDs or config) stays on the audit row only.
         await writeTx(pool, ctx.staff.userId, async (c, audit) => audit({ action: 'creator_check', entity: 'creators', detail: 'Checked creator integrations', after: result }));
-        return { ok: true, data: result };
+        const data: Record<string, unknown> = {};
+        for (const k of ['app_store_connect', 'revenuecat', 'resend', 'agreement_branding']) {
+          const v = result[k] && typeof result[k] === 'object' ? result[k] as Record<string, unknown> : null;
+          data[k] = v && v.ok === true ? { ok: true } : { ok: false, ...(v && v.error ? { error: String(v.error) } : {}) };
+        }
+        if (result.ok === false && result.error) data.error = String(result.error);
+        return { ok: true, data };
       },
     },
     // A private 5-minute link to a stored agreement PDF (signed or bespoke).
@@ -240,7 +254,7 @@ export function creatorOps(pool: Pool): Record<string, Op> {
         only(a, ['id', 'filename', 'content_base64']);
         const id = uuid(a.id), filename = str(a.filename, 200, { min: 1 });
         const content_base64 = str(a.content_base64, MAX_B64, { min: 1 });
-        if (content_base64.length > 7 * 1024 * 1024) throw new HttpError(413, 'That file is too large. The limit is 5 MB.');
+        if (content_base64.length > Math.floor(4.2 * 1024 * 1024)) throw new HttpError(413, 'That file is too large. The limit is 3 MB.');
         const auditId = await writeTx(pool, ctx.staff.userId, async (c, audit) => {
           const row = (await c.query('select id, display_name from public.creators where id = $1', [id])).rows[0];
           if (!row) throw new HttpError(404, 'That creator no longer exists.');
