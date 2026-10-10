@@ -1,6 +1,9 @@
-// Creator config for the /with/:slug pages. Adding a creator is a data entry
-// here, not a new page. An unknown or inactive slug renders the not-found card
-// in CreatorPage. Set active: false to switch a lapsed deal off with one flag.
+// Fallback only. The database (public.creators, read through creators_public)
+// is now the source of truth for the /with/:slug pages, and new creators are
+// added in HQ, not here. CreatorPage uses this list only when the database
+// request fails, so a live page never goes blank. Keep it roughly in step with
+// the active creators, but a creator missing here just shows not-found during
+// an outage.
 export type Creator = {
   slug: string; // URL segment, lowercase, no spaces
   displayName: string; // as they want to be credited
