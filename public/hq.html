@@ -761,6 +761,7 @@ label.amen:has(input:checked){border-color:var(--brand-line);background:var(--br
     if(q.location_reports_open>0)items.push(["warn",q.location_reports_open+" place report(s) open","A user says a listing is wrong.","#act/reports","Review"]);
     if(q.business_claims_pending>0)items.push(["warn",q.business_claims_pending+" business claim(s) pending","A venue wants to manage its listing.","#act/claims","Verify"]);
     if(q.listing_submissions_pending>0)items.push(["info",q.listing_submissions_pending+" suggested place(s) waiting","Users have suggested new listings.","#act/suggestions","Review"]);
+    if(state.creatorApps>0)items.push(["info",state.creatorApps+" creator application"+(state.creatorApps===1?"":"s")+" waiting","Creators have applied to the programme.","#act/creators","Review"]);
     if(q.treat_claims_pending>0)items.push(["warn",q.treat_claims_pending+" treat claim(s) stuck pending","A pending claim locks the user's points until it is confirmed or failed. The 15-minute sweep should clear these.","https://supabase.com/dashboard/project/"+PROJECT+"/editor","Inspect"]);
     if(h.revenuecat_sync_age_minutes>90)items.push(["warn","RevenueCat data is "+h.revenuecat_sync_age_minutes+" minutes old","The hourly revenuecat-sync job may be failing.","https://supabase.com/dashboard/project/"+PROJECT+"/functions","Check function"]);
     if(Number(c.google_month_usd_inc_vat)>50)items.push(["warn","Google spend is "+gbp(c.google_month_usd_inc_vat)+" inc VAT this month","Budget alert is £100. Check google_spend_this_month before quoting a figure.","https://console.cloud.google.com/billing","Open billing"]);
@@ -902,7 +903,10 @@ label.amen:has(input:checked){border-color:var(--brand-line);background:var(--br
     var c=api("email_metrics").then(function(r){state.email=r.data;state.errors.email=null;var old=$("p-email").querySelector(".err");if(old)old.remove()})
       .catch(function(e){state.email=null;state.errors.email=errCopy(e,"Resend")});
     var d=loadQueue();
-    Promise.all([a,b,c,d]).then(function(){state.loadedAt=Date.now();render();$("refresh").disabled=false});
+    // Creator applications are not in the snapshot or queue, so fetch the count here for the
+    // Today card and the Act chip. Only owners (the creators permission) see it.
+    var e=HQ.can("creators")?api("creators_counts").then(function(r){state.creatorApps=r.data.applied;state.creatorCounts=r.data}).catch(function(){state.creatorApps=0}):Promise.resolve();
+    Promise.all([a,b,c,d,e]).then(function(){state.loadedAt=Date.now();render();if(window.HQAct)HQAct.onQueue(state.queue);$("refresh").disabled=false});
   }
 
   // ---------- queue (Act and Outreach tabs) ----------
@@ -1040,7 +1044,8 @@ label.amen:has(input:checked){border-color:var(--brand-line);background:var(--br
 
   // ---------- shared with the Act and Users scripts ----------
   window.HQ={api:api,act:act,esc:esc,when:when,day:day,armed:armed,note:note,errCopy:errCopy,state:state,loadQueue:loadQueue,
-    perms:[],can:function(p){return HQ.perms.indexOf(p)>=0},refreshSnap:function(){return api("snapshot").then(function(r){state.snap=r.data;render()}).catch(function(){})}};
+    perms:[],can:function(p){return HQ.perms.indexOf(p)>=0},refreshSnap:function(){return api("snapshot").then(function(r){state.snap=r.data;render()}).catch(function(){})},
+    refreshCreators:function(){return (HQ.can("creators")?api("creators_counts"):Promise.resolve({data:{applied:0}})).then(function(r){state.creatorApps=r.data.applied;state.creatorCounts=r.data;render();if(window.HQAct)HQAct.onQueue(state.queue)}).catch(function(){})}};
   // Tabs and panels follow the signed-in person's permissions. The server enforces them regardless.
   function applyPerms(){
     var c=HQ.can, show=function(id,on){var e=$(id);if(e)e.hidden=!on};
@@ -1385,14 +1390,16 @@ label.amen:has(input:checked){border-color:var(--brand-line);background:var(--br
     {k:"flags",label:"Flagged places",ok:function(){return H.can("places_moderate")||H.can("places_delete")}},
     {k:"reports",label:"Reports",ok:function(){return H.can("reports")}},
     {k:"claims",label:"Claims",ok:function(){return H.can("claims")}},
-    {k:"suggestions",label:"Suggestions",ok:function(){return H.can("places_edit")}}
+    {k:"suggestions",label:"Suggestions",ok:function(){return H.can("places_edit")}},
+    {k:"creators",label:"Creators",ok:function(){return H.can("creators")}}
   ];
   var cur=null, st={reviewPeriod:"all",ticketStatus:"",ticketPeriod:"all",reportPeriod:"all"};
   function counts(){
     var q=H.state.queue||{}, sq=(H.state.snap&&H.state.snap.queues)||{};
     return {safety:(H.can("safety")?(sq.csae_escalations||0):0)+(H.can("privacy")?(sq.privacy_open||0):0),
       reviews:(q.reviews||[]).length,inbox:(q.tickets||[]).length,reports:(q.user_reports||[]).length+(q.location_reports||[]).length,claims:(q.business_claims||[]).length,
-      suggestions:(sq.listing_submissions_pending||0)};
+      suggestions:(sq.listing_submissions_pending||0),
+      creators:(H.state.creatorApps||0)};
   }
   function nav(){
     var c=counts();
@@ -1400,7 +1407,7 @@ label.amen:has(input:checked){border-color:var(--brand-line);background:var(--br
       var n=c[s.k]||0;return '<button class="chip'+(s.k==="safety"&&n?" crit":"")+'" data-sec="'+s.k+'" aria-pressed="'+(s.k===cur)+'">'+s.label+(n?'<span class="count">'+n+'</span>':'')+'</button>'}).join("");
   }
   $("actNav").addEventListener("click",function(ev){var b=ev.target.closest("button[data-sec]");if(!b)return;cur=b.dataset.sec;nav();load()});
-  function load(){var el=$("actPane");el.innerHTML='<div class="empty">Loading.</div>';({safety:safety,inbox:inboxSection,reviews:reviews,flags:flagsSection,reports:reports,claims:claims,suggestions:suggestions})[cur](el)}
+  function load(){var el=$("actPane");el.innerHTML='<div class="empty">Loading.</div>';({safety:safety,inbox:inboxSection,reviews:reviews,flags:flagsSection,reports:reports,claims:claims,suggestions:suggestions,creators:creators})[cur](el)}
   window.HQAct={
     init:function(){var ok=SECTIONS.filter(function(s){return s.ok()});cur=ok.length?ok[0].k:null;nav()},
     onQueue:function(){nav()},
@@ -1916,8 +1923,147 @@ label.amen:has(input:checked){border-color:var(--brand-line);background:var(--br
       });
     }
   }
+  // ---------- Creators: the creator programme (public.creators) ----------
+  var crFilter="applied", crData={};
+  var CR_STEPS=[["user","Account"],["offer_code","Code"],["premium","Premium"],["agreement","Agreement"],["page","Page"],["email","Email"]];
+  var CR_FORCE=["user","offer_code","premium","agreement","email"];
+  function crTierOf(f){return f>=30000?"bespoke":f>=10000?"mid":"small"}
+  function crCode(slug){return String(slug||"").toUpperCase().replace(/[^A-Z0-9]/g,"")+"20"}
+  function crHandleUrl(p,h){h=String(h||"").replace(/^@/,"");if(!h)return "";
+    if(p==="instagram")return "https://www.instagram.com/"+encodeURIComponent(h)+"/";
+    if(p==="tiktok")return "https://www.tiktok.com/@"+encodeURIComponent(h);
+    if(p==="facebook")return "https://www.facebook.com/"+encodeURIComponent(h);
+    return "";}
+  function crHandles(cr){var hs=cr.handles||{},out=[];
+    ["instagram","tiktok","facebook"].forEach(function(p){if(hs[p])out.push([p,hs[p]])});
+    if(cr.primary_handle&&!out.some(function(x){return x[1]===cr.primary_handle}))out.unshift(["",cr.primary_handle]);
+    if(!out.length)return '<span class="note">No handle</span>';
+    return out.map(function(x){var u=crHandleUrl(x[0],x[1]),lbl=(x[0]?pretty(x[0])+": ":"")+esc(x[1]);return u&&httpOnly(u)?'<a href="'+esc(u)+'" target="_blank" rel="noopener noreferrer">'+lbl+'</a>':lbl}).join(" · ");}
+  function crSig(cr){
+    if(cr.signature_name&&cr.signed_at)return '<div class="note">Signed by '+esc(cr.signature_name)+' on '+esc(H.when(cr.signed_at))+', '+esc(cr.terms_version||"")+'</div>';
+    return '<div class="note" style="color:var(--warn)">No signature on file'+(cr.source==="hq"?", send them to barkfind.com/creators to sign":"")+'</div>';
+  }
+  function crSteps(cr){
+    var s=cr.setup||{};
+    var row=CR_STEPS.map(function(st){var v=s[st[0]],ok=v&&typeof v==="object"?v.ok===true:null,mark=ok===true?"✓":ok===false?"✗":"–",cls=ok===true?"ok":ok===false?"crit":"";return '<span class="tag '+cls+' plain">'+mark+" "+st[1]+'</span>'}).join("");
+    var errs=CR_STEPS.map(function(st){var v=s[st[0]];
+      if(v&&typeof v==="object"&&v.ok===false)return '<div class="note">'+esc(st[1])+": "+esc(v.error||v.detail||"failed")+(CR_FORCE.indexOf(st[0])>=0?' <button class="btn small" data-do="cr_retry" data-step="'+st[0]+'">Retry</button>':"")+'</div>';
+      if(v&&typeof v==="object"&&v.ok===true&&v.detail)return '<div class="note">'+esc(st[1])+": "+esc(v.detail)+'</div>';
+      if(typeof v==="string")return '<div class="note">'+esc(st[1])+": "+esc(v)+'</div>';
+      return "";}).join("");
+    return '<div class="row" style="flex-wrap:wrap;gap:4px;margin-top:4px">'+row+'</div>'+errs;
+  }
+  function crEdit(cr,bespoke){
+    var tiers=["small","mid","bespoke"];
+    return '<details class="card" style="box-shadow:none;border:1px solid var(--line)"><summary class="note">Edit</summary>'+
+      '<div class="grid2"><label>Tier<select data-ce="tier"><option value=""'+(cr.tier?"":" selected")+'>Not set</option>'+tiers.map(function(t){return '<option value="'+t+'"'+(t===cr.tier?" selected":"")+'>'+t+'</option>'}).join("")+'</select></label>'+
+      '<label>Offer code<input type="text" data-ce="offer_code" value="'+esc(cr.offer_code||"")+'" placeholder="'+esc(crCode(cr.slug))+'"></label>'+
+      '<label>Account email<input type="email" data-ce="account_email" value="'+esc(cr.account_email||"")+'"></label>'+
+      '<label>Contact email<input type="email" data-ce="contact_email" value="'+esc(cr.contact_email||"")+'"></label>'+
+      '<label>Code cap<input type="number" data-ce="code_cap" min="0" value="'+(cr.code_cap!=null?cr.code_cap:"")+'"></label></div>'+
+      '<label class="note">Bespoke terms'+(bespoke?" (required for bespoke)":"")+'</label><textarea data-ce="bespoke_terms">'+esc(cr.bespoke_terms||"")+'</textarea>'+
+      '<label class="note">Notes</label><textarea data-ce="notes">'+esc(cr.notes||"")+'</textarea>'+
+      '<div class="row"><button class="btn small" data-do="cr_save">Save changes</button></div></details>';
+  }
+  function crCard(cr){
+    var contact=H.can("users_contact"), st=cr.status, bespoke=cr.tier==="bespoke";
+    var canSetup=st==="applied"||st==="approved", canEdit=canSetup||st==="active";
+    var bespokeReady=!bespoke||!!(cr.bespoke_terms&&cr.code_cap!=null&&cr.bespoke_agreement_path);
+    var statusCls={applied:"warn",approved:"info",active:"ok",declined:"",ended:""}[st]||"";
+    var h='<div class="card" data-cr="'+esc(cr.id)+'">'+
+      '<div class="meta"><span class="tag '+statusCls+'">'+esc(st)+'</span>'+(cr.tier?'<span class="tag plain">'+esc(cr.tier)+'</span>':'')+'<span class="tag plain">'+esc(cr.source)+'</span><span>'+esc(H.when(cr.created_at))+'</span></div>'+
+      '<div class="title">'+esc(cr.display_name||"(no name)")+'</div>'+
+      '<div class="note">'+crHandles(cr)+'</div>'+
+      (cr.followers!=null?'<div class="note">'+Number(cr.followers).toLocaleString("en-GB")+' followers'+(cr.followers_platform?' on '+esc(cr.followers_platform):'')+(cr.followers_on?', given '+esc(H.when(cr.followers_on)):'')+'</div>':'')+
+      (contact&&(cr.account_email||cr.contact_email)?'<dl class="kvs">'+(cr.account_email?'<dt>Account email</dt><dd>'+esc(cr.account_email)+'</dd>':'')+(cr.contact_email?'<dt>Contact email</dt><dd>'+esc(cr.contact_email)+'</dd>':'')+'</dl>':'')+
+      crSig(cr)+
+      '<dl class="kvs"><dt>Code</dt><dd>'+esc(cr.offer_code||"none")+(cr.code_cap!=null?' (cap '+cr.code_cap+')':'')+'</dd>'+(st==="active"?'<dt>Page</dt><dd><a href="https://www.barkfind.com/with/'+esc(cr.slug)+'" target="_blank" rel="noopener noreferrer">barkfind.com/with/'+esc(cr.slug)+'</a></dd>':'')+(st==="ended"&&cr.ended_reason?'<dt>Ended</dt><dd>'+esc(cr.ended_reason)+'</dd>':'')+'</dl>'+
+      crSteps(cr)+
+      (st==="applied"&&cr.followers!=null?'<div class="note">Suggested tier: '+crTierOf(cr.followers)+(crTierOf(cr.followers)==="bespoke"?". Agree terms with them first":"")+'</div>':'');
+    var agr=[];
+    if(cr.agreement_path)agr.push('<button class="btn small" data-do="cr_viewagr" data-which="signed">View agreement</button>');
+    if(cr.bespoke_agreement_path)agr.push('<button class="btn small" data-do="cr_viewagr" data-which="bespoke">View bespoke agreement</button>');
+    if(canSetup)agr.push('<button class="btn small" data-do="cr_previewagr">Preview agreement</button>');
+    if(agr.length)h+='<div class="row">'+agr.join("")+'</div>';
+    if(canEdit)h+=crEdit(cr,bespoke);
+    if(bespoke&&canSetup)h+='<div class="note" style="margin-top:6px">Signed bespoke agreement, PDF 5 MB or less'+(cr.bespoke_agreement_path?" (uploaded)":"")+'</div><div class="row"><input type="file" accept="application/pdf" data-cr-file><button class="btn small" data-do="cr_upload">Upload signed agreement</button></div>';
+    var acts=[];
+    if(canSetup)acts.push('<button class="btn primary small" data-do="cr_approve"'+(bespoke&&!bespokeReady?' disabled title="Add bespoke terms, a cap and the signed agreement first"':"")+'>Approve and set up</button>');
+    if(st==="applied")acts.push('<button class="btn small" data-do="cr_decline" data-confirm="Confirm decline">Decline</button>');
+    if(acts.length)h+='<div class="row" style="margin-top:6px">'+acts.join("")+'</div>';
+    if(st==="active")h+='<label class="note">Reason for ending</label><input type="text" class="pill-in" data-cr-endreason><div class="row"><button class="btn danger small" data-do="cr_end" data-confirm="Confirm end">End partnership</button></div>';
+    return h+'</div>';
+  }
+  function crAddForm(){
+    return '<div class="grid2"><label>Name you want to credit<input type="text" data-ca="display_name"></label>'+
+      '<label>Main handle<input type="text" data-ca="primary_handle" placeholder="@name"></label>'+
+      '<label>Instagram<input type="text" data-ca="instagram" placeholder="@name"></label>'+
+      '<label>TikTok<input type="text" data-ca="tiktok" placeholder="@name"></label>'+
+      '<label>Facebook<input type="text" data-ca="facebook"></label>'+
+      '<label>Largest following<input type="number" data-ca="followers" min="0"></label>'+
+      '<label>On platform<input type="text" data-ca="followers_platform" placeholder="instagram"></label>'+
+      '<label>Account email<input type="email" data-ca="account_email"></label>'+
+      '<label>Contact email<input type="email" data-ca="contact_email"></label>'+
+      '<label>Tier<select data-ca="tier"><option value="">Suggest from following</option><option value="small">small</option><option value="mid">mid</option><option value="bespoke">bespoke</option></select></label>'+
+      '<label>Offer code<input type="text" data-ca="offer_code" placeholder="defaults to code"></label></div>'+
+      '<div class="row"><button class="btn primary small" data-do="cr_add">Add creator</button></div>';
+  }
+  function crCheckHtml(d){
+    if(!d||(d.ok===false&&!d.app_store_connect))return '<div class="note">'+esc((d&&d.error)||"The check did not run.")+'</div>';
+    function line(label,o){var ok=o&&o.ok===true;return '<span class="tag '+(ok?"ok":"crit")+' plain">'+(ok?"✓":"✗")+" "+label+'</span>'}
+    return '<div class="row" style="flex-wrap:wrap;gap:4px;margin-top:4px">'+line("App Store Connect",d.app_store_connect)+line("RevenueCat",d.revenuecat)+line("Resend",d.resend)+line("Agreement branding",d.agreement_branding)+'</div>';
+  }
+  function creators(el){
+    H.api("creators_list",{filter:crFilter}).then(function(r){
+      var rows=r.data.rows||[],c=r.data.counts||{};crData={};rows.forEach(function(x){crData[x.id]=x});
+      var chips=[["applied","Applications",c.applied],["active","Active",c.active],["ended_declined","Ended and declined",c.ended_declined]].map(function(f){return '<button class="chip" data-crf="'+f[0]+'" aria-pressed="'+(crFilter===f[0])+'">'+f[1]+(f[2]?' <span class="count">'+f[2]+'</span>':"")+'</button>'}).join("");
+      el.innerHTML='<div class="filter">'+chips+'</div>'+
+        '<div class="row"><button class="btn small" data-do="cr_check">Check connections</button></div><div data-cr-check></div>'+
+        '<details class="card"><summary>Add a creator</summary>'+crAddForm()+'</details>'+
+        '<div class="subhead"><h3>'+(crFilter==="applied"?"Applications":crFilter==="active"?"Active creators":"Ended and declined")+'</h3><span>'+(rows.length?rows.length+" shown":"none")+'</span></div>'+
+        (rows.length?rows.map(crCard).join(""):'<div class="empty">None.</div>');
+    }).catch(function(e){fail(el,e)});
+  }
+  function crRefresh(){if(H.refreshCreators)H.refreshCreators();setTimeout(load,900)}
+  function crRunSetup(card,b,force){b.disabled=true;H.note(card,true,"Running set-up. This can take up to 30 seconds.");var args={id:card.dataset.cr};if(force)args.force=force;
+    H.api("creator_setup",args).then(function(r){var d=r.data||{};if(d.ok===false||d.error)H.note(card,false,"Set-up: "+(d.error||"some steps did not complete")+".");else H.note(card,true,"Set-up finished.");crRefresh()}).catch(function(e){H.note(card,false,(e&&e.message)||"That did not work.");b.disabled=false})}
+  function crSimple(card,b,promise,doneMsg){b.disabled=true;promise.then(function(r){H.note(card,true,doneMsg||(r&&r.message)||"Done.");crRefresh()}).catch(function(e){H.note(card,false,(e&&e.message)||"That did not work.");b.disabled=false})}
+  function crSave(card,b){
+    var cr=crData[card.dataset.cr];if(!cr){H.note(card,false,"Reload the list.");return}
+    var g=function(k){var el=card.querySelector('[data-ce="'+k+'"]');return el?el.value.trim():null};
+    var o={id:card.dataset.cr},n=0;
+    var tier=g("tier");if(tier!==null&&tier!==""&&tier!==(cr.tier||"")){o.tier=tier;n++}
+    ["account_email","contact_email","offer_code","bespoke_terms","notes"].forEach(function(k){var v=g(k);if(v===null)return;if(k==="offer_code")v=v.toUpperCase();if(v!==(cr[k]||"")){o[k]=v;n++}});
+    var cap=g("code_cap");if(cap!==null){var capv=cap===""?null:Number(cap);if(capv!==(cr.code_cap!=null?cr.code_cap:null)){o.code_cap=capv;n++}}
+    if(!n){H.note(card,false,"Nothing has changed.");return}
+    var tierNow=o.tier||cr.tier;
+    if(tierNow==="bespoke"){var bt=("bespoke_terms" in o)?o.bespoke_terms:cr.bespoke_terms,cc=("code_cap" in o)?o.code_cap:cr.code_cap;if(!bt||cc==null){H.note(card,false,"Bespoke needs terms and a cap.");return}}
+    b.disabled=true;H.api("creator_update",o).then(function(r){H.note(card,true,r.message||"Saved.");crRefresh()}).catch(function(e){H.note(card,false,(e&&e.message)||"That did not work.");b.disabled=false})}
+  function crAdd(card,b){
+    var g=function(k){var el=card.querySelector('[data-ca="'+k+'"]');return el?el.value.trim():""};
+    var name=g("display_name");if(!name){H.note(card,false,"Give them a name.");return}
+    var o={display_name:name},ph=g("primary_handle");if(ph)o.primary_handle=ph;
+    var handles={};["instagram","tiktok","facebook"].forEach(function(p){var v=g(p);if(v)handles[p]=v});if(Object.keys(handles).length)o.handles=handles;
+    var f=g("followers");if(f){o.followers=Number(f);var fp=g("followers_platform");if(fp)o.followers_platform=fp}
+    var ae=g("account_email");if(ae)o.account_email=ae;var ce=g("contact_email");if(ce)o.contact_email=ce;
+    var tier=g("tier");if(tier)o.tier=tier;var code=g("offer_code");if(code)o.offer_code=code;
+    b.disabled=true;H.api("creator_add",o).then(function(){H.note(card,true,"Added. They are under Applications until set up.");crFilter="applied";crRefresh()}).catch(function(e){H.note(card,false,(e&&e.message)||"That did not work.");b.disabled=false})}
+  function crOpenPdf(b64){try{var bin=atob(b64),len=bin.length,arr=new Uint8Array(len);for(var i=0;i<len;i++)arr[i]=bin.charCodeAt(i);var url=URL.createObjectURL(new Blob([arr],{type:"application/pdf"}));window.open(url,"_blank","noopener");setTimeout(function(){URL.revokeObjectURL(url)},60000)}catch(e){H.sb&&H.sb("Could not open the PDF.")}}
+  function crUpload(card,b){
+    var fi=card.querySelector("[data-cr-file]");if(!fi||!fi.files||!fi.files[0]){H.note(card,false,"Choose a PDF first.");return}
+    var file=fi.files[0];
+    if(file.type&&file.type!=="application/pdf"){H.note(card,false,"It must be a PDF.");return}
+    if(file.size>5*1024*1024){H.note(card,false,"The limit is 5 MB.");return}
+    b.disabled=true;H.note(card,true,"Uploading.");
+    var fr=new FileReader();
+    fr.onload=function(){var s=String(fr.result||""),i=s.indexOf("base64,"),b64=i>=0?s.slice(i+7):"";if(!b64){H.note(card,false,"Could not read the file.");b.disabled=false;return}
+      H.api("creator_upload_bespoke",{id:card.dataset.cr,filename:file.name,content_base64:b64}).then(function(r){var d=r.data||{};if(d.ok===false||d.error)H.note(card,false,d.error||"Upload failed.");else H.note(card,true,"Signed agreement uploaded.");crRefresh()}).catch(function(e){H.note(card,false,(e&&e.message)||"That did not work.");b.disabled=false})};
+    fr.onerror=function(){H.note(card,false,"Could not read the file.");b.disabled=false};
+    fr.readAsDataURL(file);
+  }
   $("actPane").addEventListener("click",function(ev){
     if(flClick(ev)||ibClick(ev))return;
+    var crf=ev.target.closest("[data-crf]");if(crf){crFilter=crf.dataset.crf;load();return}
     var ch=ev.target.closest("[data-f] .chip");
     if(ch){var f=ch.parentNode.dataset.f;st[f]=ch.dataset.period!==undefined?ch.dataset.period:ch.dataset.v;load();return}
     var rb=ev.target.closest("[data-reason]");if(rb){rb.closest(".card").querySelector("[data-flag-reason]").value=rb.dataset.reason;return}
@@ -1946,6 +2092,17 @@ label.amen:has(input:checked){border-color:var(--brand-line);background:var(--br
     if(what==="sub_dismiss"){subResolve(card.dataset.sub,"dismissed","dismiss",card,b);return}
     if(what==="sub_add"){subAdd(card.dataset.sub,card,b,false);return}
     if(what==="sub_addforce"){subAdd(card.dataset.sub,card,b,true);return}
+    // Creators
+    if(what==="cr_check"){var out=$("actPane").querySelector("[data-cr-check]");b.disabled=true;out.innerHTML='<div class="note">Checking.</div>';H.api("creator_check").then(function(r){out.innerHTML=crCheckHtml(r.data)}).catch(function(e){out.innerHTML="";H.note(card,false,(e&&e.message)||"That did not work.")}).then(function(){b.disabled=false});return}
+    if(what==="cr_add"){crAdd(card,b);return}
+    if(what==="cr_save"){crSave(b.closest("[data-cr]"),b);return}
+    if(what==="cr_approve"){crRunSetup(card,b,null);return}
+    if(what==="cr_viewagr"){b.disabled=true;H.api("creator_agreement_url",{id:card.dataset.cr,which:b.dataset.which}).then(function(r){var d=r.data||{};if(d.url)window.open(d.url,"_blank","noopener");else H.note(card,false,d.error||"No link came back.")}).catch(function(e){H.note(card,false,(e&&e.message)||"That did not work.")}).then(function(){b.disabled=false});return}
+    if(what==="cr_previewagr"){b.disabled=true;H.api("creator_preview_agreement",{id:card.dataset.cr}).then(function(r){var d=r.data||{};if(d.pdf_base64)crOpenPdf(d.pdf_base64);else H.note(card,false,d.error||"No PDF came back.")}).catch(function(e){H.note(card,false,(e&&e.message)||"That did not work.")}).then(function(){b.disabled=false});return}
+    if(what==="cr_upload"){crUpload(card,b);return}
+    if(what==="cr_retry"){crRunSetup(card,b,[b.dataset.step]);return}
+    if(what==="cr_decline"){crSimple(card,b,H.api("creator_decline",{id:card.dataset.cr}),null);return}
+    if(what==="cr_end"){var rs=card.querySelector("[data-cr-endreason]").value.trim();if(!rs){H.note(card,false,"Give a reason for ending.");return}crSimple(card,b,H.api("creator_end",{id:card.dataset.cr,reason:rs}),"Partnership ended.");return}
   });
   $("actPane").addEventListener("change",function(ev){
     if(flChange(ev)||ibChange(ev))return;
