@@ -1673,7 +1673,7 @@ label.amen:has(input:checked){border-color:var(--brand-line);background:var(--br
       '<div class="title">'+esc(plc.name||"A place")+'</div>'+
       (plc.address?'<div class="note">'+esc(plc.address)+'</div>':'')+
       ((plc.dog_policy||plc.dog_policy_note)?'<div class="note">Dog policy: '+esc([plc.dog_policy,plc.dog_policy_note].filter(Boolean).join(". "))+'</div>':'')+
-      (plc.image_url?'<img src="'+esc(plc.image_url)+'" alt="" style="max-width:100%;border-radius:10px;margin-top:8px">':'')+
+      (plc.image_url?'<img src="'+esc(plc.image_url)+'" alt="" style="max-height:200px;width:100%;object-fit:cover;border-radius:10px;margin-top:8px">':'')+
       (canApply&&plc.id?'<div class="row"><button class="btn small" data-ia="openplace">Open place</button></div>':'')+'</div>';
     var reporter=rep?'<div class="prior">Reporter: '+(rep.user_id&&H.can("users_view")?'<button type="button" data-ia="reporter" data-user="'+esc(rep.user_id)+'" style="background:none;border:0;padding:0;font:inherit;color:inherit;text-decoration:underline;cursor:pointer">'+esc(rep.name)+'</button>':esc(rep.name))+' · '+rep.reports_30d+' place report'+(rep.reports_30d===1?"":"s")+' in 30 days</div>':'';
     var report='<div class="card"><div class="meta"><span class="tag">'+esc(row.status)+'</span><span>'+esc(H.when(row.created_at))+'</span></div><div class="title">'+esc(row.reason||"")+'</div>'+(row.details?'<div class="text">'+esc(row.details)+'</div>':'<div class="note">No note left</div>')+reporter+'</div>';
