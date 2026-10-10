@@ -32,9 +32,9 @@ const ANNUAL_TIERS = [
 
 const REDEEM_STEPS = [
   { n: 1, title: "Claim in the app", body: "Open the Profile tab, then Treats, and claim the reward you've reached." },
-  { n: 2, title: "Monthly discounts", body: "Apple applies the discount to your next payment. There's no code to enter and no voucher to keep." },
+  { n: 2, title: "Monthly discounts", body: "Apple applies the discount to your next payment. There's no code to enter and no voucher to keep. Once every 90 days." },
   { n: 3, title: "Annual extensions", body: "Applied straight away. Your renewal date moves out, and you'll see the new date in the app." },
-  { n: 4, title: "A year free", body: "Apple moves your next payment twelve months later. Your subscription carries on as normal, nothing is cancelled." },
+  { n: 4, title: "A year free", body: "On annual, your next payment moves twelve months later. On monthly, it starts a free year on the annual plan, which then renews at the annual price." },
 ];
 
 const FAQ = [
@@ -42,7 +42,9 @@ const FAQ = [
   { q: "Do my reviews need photos?", a: "No. A description of 40 characters or more is what earns the second point. Photos are welcome and they help other dog owners, but they don't change your points." },
   { q: "What counts towards a point?", a: "An approved review of a dog-friendly place you've genuinely visited. Reviews are moderated, so only approved ones earn points." },
   { q: "What if my review isn't approved?", a: "Then it doesn't earn points. Reviews are moderated, and anything found to be fake, spammy or manipulated may have its rewards withheld or revoked. See our Terms of Use." },
-  { q: "Do points expire?", a: "The 10 and 20 point tiers use a rolling 90-day window: you need the points earned in the last 90 days, and each is claimable once per period. The 50-point year free is a lifetime total, claimable once, ever." },
+  { q: "Do points expire?", a: "Points for the 10 and 20 point treats count for 90 days from the day you post the review, once it's approved. Points towards the year free never expire." },
+  { q: "Who can claim Treats?", a: "Anyone with a paid BarkFind subscription through the App Store. If you're on a free trial, your points count from your first review, and treats start once your trial becomes a paid subscription. Premium given as a gift or through a partnership earns points but can't be used for treats." },
+  { q: "What if my subscription ends?", a: "Your points keep counting. If you've earned a treat, you can use it to come back for less: 25% or 50% off a month, once every 90 days." },
   { q: "I'm on the annual plan, how does a discount work for me?", a: "It doesn't. A percentage off a single yearly bill wouldn't come to much, so annual members get time added to their subscription instead: 30 days at 10 points, 90 days at 20. The year free at 50 points is the same for everyone." },
   { q: "What if a claim doesn't arrive?", a: "Email info@barkfind.com and we'll sort it out. Nothing is lost: if a claim fails, the points stay on your account and you can claim again." },
 ];
@@ -142,7 +144,7 @@ export default function Treats() {
           </div>
           <div>
             <p className="font-serif text-2xl">50 points: a year free</p>
-            <p className="text-sm text-white/80">The same on either plan. Once per account, ever.</p>
+            <p className="text-sm text-white/80">Reach 50 points for a year free. These points never expire. One per account. If you're on monthly, it moves you onto the annual plan.</p>
           </div>
         </div>
       </Section>
@@ -161,7 +163,7 @@ export default function Treats() {
 
         {/* Limits worth stating plainly */}
         <div className="rounded-xl bg-[#FAEFD1] border border-[#B74217]/15 p-5 mt-2 text-sm text-[#444] flex flex-col gap-2">
-          <p><strong className="text-[#1a1a1a]">One claim per billing cycle.</strong> You can't stack several claims onto one bill.</p>
+          <p><strong className="text-[#1a1a1a]">How often you can claim.</strong> On monthly, one discount every 90 days, counted from the last one you claimed. On annual, one extension a month, up to three a year. Claiming doesn't use up your points.</p>
           <p><strong className="text-[#1a1a1a]">Up to three extensions a year.</strong> Apple allows a maximum of three subscription extensions per person per year, so annual members can claim at most three times in twelve months.</p>
         </div>
 
