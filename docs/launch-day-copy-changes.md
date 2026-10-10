@@ -57,6 +57,14 @@ Post-flip checks:
 - `:37` "BarkFind is launching on iPhone soon and isn't downloadable yet. Join early access… At launch you'll create an account, add your dog's profile, and start your 14-day free trial." -> "BarkFind is on the App Store. You can browse without an account; create one when you want to review, save a place, add a dog profile or subscribe. New subscribers get a 14-day free trial."
 - `:40` "Register interest on our homepage to be notified when either launches." -> update the iOS half (iOS is live); keep Android wording if still pending.
 
+### src/pages/Treats.tsx
+Added 10 Oct 2026. The `/treats` page does not read `src/data/launch.ts`, so its pre-launch
+lines change by hand on the day.
+- `:101` intro "…The app launches on iPhone soon, and Treats go live with it." -> "…The app is on the App Store, and Treats are live with it."
+- `:155` "When Treats go live, you'll claim in the app under Profile, then Treats." -> "You claim in the app under Profile, then Treats."
+- `:191` CTA "Start earning Treats" body "BarkFind is launching on iPhone soon. Join early access to be first in, and to lock in founding-member pricing, then start earning points from your very first review." -> "BarkFind is free to download on the App Store. Start earning points from your very first review." (keep the founding-member line only if that pricing is still offered).
+- `:193,:196` CTA button "Get early access" (href `/#download`, hardcoded) -> "Download on the App Store" pointing at `APP_STORE_URL`. Import `APP_STORE_URL` from `src/data/launch.ts` as LandingPage does, since `/treats` does not read it today.
+
 ### src/pages/BetaLanding.tsx
 - `:823` same "launches on iPhone soon / early access" description as LandingPage. `/beta` is the redesign preview; update in step with LandingPage if it is still being served.
 
