@@ -2360,12 +2360,13 @@ label.amen:has(input:checked){border-color:var(--brand-line);background:var(--br
   function listView(el){
     var f=pl.f;
     el.innerHTML='<div class="fbar"><input type="search" class="pill-in" id="plQ" placeholder="Search name, address or id" value="'+esc(f.q)+'">'+
-      sel("plCat",[["","All categories"]].concat(CATS.map(function(c){return [c,pretty(c)]})),f.category,"Category")+sel("plStatus",STATUS,f.status,"Show")+sel("plSort",SORT,f.sort,"Sort")+'</div><div class="stack" id="plList"><div class="empty">Loading.</div></div>';
+      sel("plCat",[["","All categories"]].concat(CATS.map(function(c){return [c,pretty(c)]})).concat([["tag:woodland","Woodland"],["tag:secure-field","Secure field"]]),f.category,"Category")+sel("plStatus",STATUS,f.status,"Show")+sel("plSort",SORT,f.sort,"Sort")+'</div><div class="stack" id="plList"><div class="empty">Loading.</div></div>';
     load();
   }
   function load(){
-    var f=pl.f;
-    H.api("places_list",{q:f.q,category:f.category,status:f.status,sort:f.sort,page:pl.page}).then(function(r){
+    var f=pl.f, cat=f.category, tag="";
+    if(cat&&cat.indexOf("tag:")===0){tag=cat.slice(4);cat=""}
+    H.api("places_list",{q:f.q,category:cat,tag:tag,status:f.status,sort:f.sort,page:pl.page}).then(function(r){
       var d=r.data, from=d.page*d.page_size, box=$("plList");if(!box)return;
       box.innerHTML='<div class="note">'+(d.total?(from+1).toLocaleString("en-GB")+" to "+Math.min(from+d.page_size,d.total).toLocaleString("en-GB")+" of "+d.total.toLocaleString("en-GB"):"Nothing matches")+'</div>'+
         d.rows.map(function(x){return '<button class="card" data-pl="open" data-id="'+esc(x.id)+'" style="text-align:left;cursor:pointer;width:100%"><div class="meta"><span class="tag plain">'+esc(pretty(x.category))+'</span>'+
@@ -2416,6 +2417,9 @@ label.amen:has(input:checked){border-color:var(--brand-line);background:var(--br
       '</div></div>';
     $("sheetBody").innerHTML=h;
   }
+  // Three-way control for a manual category tag: Automatic (follow the rule), Yes or No.
+  function ovSel(tag,ov){var v=ov&&(tag in ov)?String(ov[tag]):"";
+    return '<select data-pf-ov="'+tag+'"><option value=""'+(v===""?" selected":"")+'>Automatic</option><option value="true"'+(v==="true"?" selected":"")+'>Yes</option><option value="false"'+(v==="false"?" selected":"")+'>No</option></select>'}
   function fields(p){
     var oh=Array.isArray(p.opening_hours)?p.opening_hours.join("\n"):"";
     return '<div class="grid2"><label>Name<input type="text" data-pf="name" maxlength="200" value="'+esc(p.name||"")+'"></label>'+
@@ -2425,6 +2429,10 @@ label.amen:has(input:checked){border-color:var(--brand-line);background:var(--br
       '<label>Photo link (https)<input type="text" data-pf="image_url" maxlength="500" value="'+esc(p.image_url||"")+'"></label>'+
       '<label>Dog policy<select data-pf="dog_policy">'+Object.keys(DOG).map(function(k){return '<option value="'+k+'"'+(k===(p.dog_policy||"")?" selected":"")+'>'+DOG[k]+'</option>'}).join("")+'</select></label>'+
       '<label>Dog policy note<input type="text" data-pf="dog_policy_note" maxlength="300" value="'+esc(p.dog_policy_note||"")+'"></label></div>'+
+      '<div class="note" style="margin-top:10px;font-weight:700">Also show as</div>'+
+      '<div class="note" style="margin:0 0 4px">Woodland and secure fields are extra tags, not the main category. Automatic follows the rule from the name, website and Google type.</div>'+
+      '<div class="grid2"><label>Woodland'+ovSel("woodland",p.category_overrides)+'</label><label>Secure field'+ovSel("secure-field",p.category_overrides)+'</label></div>'+
+      '<div class="note">Currently shown as: '+esc((p.categories||[]).map(pretty).join(", ")||"none")+'.</div>'+
       '<div data-pf-amen>'+amenPicker(p.category||"pub",p.amenities||[])+'</div>'+
       '<label class="note">Opening hours, one line per day</label><textarea data-pf="opening_hours" style="min-height:120px">'+esc(oh)+'</textarea>'+
       '<label class="note">Description</label><textarea data-pf="description" maxlength="2000">'+esc(p.description||"")+'</textarea>';
@@ -2461,6 +2469,9 @@ label.amen:has(input:checked){border-color:var(--brand-line);background:var(--br
   function changes(p,o){var c={};Object.keys(o).forEach(function(k){var a=o[k],b=p[k];
     if(k==="amenities"){if(JSON.stringify(a.slice().sort())!==JSON.stringify((b||[]).slice().sort()))c[k]=a}
     else if(k==="opening_hours"){if(JSON.stringify(a)!==JSON.stringify(b||[]))c[k]=a}else if((a||"")!==(b||""))c[k]=a});return c}
+  // Manual category tags from the three-way selects: "" = Automatic (key left out).
+  function readOv(root){var o={};root.querySelectorAll("[data-pf-ov]").forEach(function(s){if(s.value==="true")o[s.dataset.pfOv]=true;else if(s.value==="false")o[s.dataset.pfOv]=false});return o}
+  function ovDiffers(a,b){return ["woodland","secure-field"].some(function(k){return (k in a?a[k]:null)!==(k in b?b[k]:null)})}
   function checkFields(o){
     if("name" in o&&!o.name)return "Give it a name.";
     if(o.website&&!/^https?:\/\/\S+$/i.test(o.website))return "The website must start with https:// or http://";
@@ -2470,7 +2481,8 @@ label.amen:has(input:checked){border-color:var(--brand-line);background:var(--br
   }
   $("sheetBody").addEventListener("click",function(ev){
     var b=ev.target.closest("button[data-pl]");if(!b||!pl.open)return;var p=pl.open, w=b.dataset.pl, card=b.closest(".card")||$("sheetBody");
-    if(w==="save"){var ch=changes(p,readFields(card)),err=checkFields(ch);if(err){H.note(card,false,err);return}if(!Object.keys(ch).length){H.note(card,false,"Nothing has changed.");return}
+    if(w==="save"){var ch=changes(p,readFields(card));var ov=readOv(card);if(ovDiffers(ov,p.category_overrides||{}))ch.category_overrides=ov;
+      var err=checkFields(ch);if(err){H.note(card,false,err);return}if(!Object.keys(ch).length){H.note(card,false,"Nothing has changed.");return}
       ch.id=p.id;busy(b,H.api("place_save",ch),card,refresh);return}
     if(w==="toggle"){busy(b,H.api("place_toggle",{id:p.id,field:b.dataset.f,on:b.dataset.on==="true"}),card,refresh);return}
     if(b.dataset.confirm&&!H.armed(b))return;

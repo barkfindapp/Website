@@ -21,7 +21,7 @@
 // function (the Google key stays in Supabase secrets):
 // an ID already in locations opens that place instead; a blocked ID cannot be added.
 import type { Pool, PoolClient } from 'pg';
-import { HttpError, bad, only, uuid, str, oneOf, bool, writeTx, toTrash } from './hq-core.js';
+import { HttpError, bad, obj, only, uuid, str, oneOf, bool, writeTx, toTrash } from './hq-core.js';
 import { CATEGORIES } from './hq-flags.js';
 import type { Op, Ctx } from './hq-act.js';
 import { AMENITY_CODES, AMENITY_GROUPS, CATEGORY_GROUP, AMENITY_SOURCE } from './amenities.js';
@@ -172,6 +172,22 @@ function readFields(a: Record<string, unknown>) {
   return f;
 }
 const FIELD_KEYS = ['name', 'category', 'address', 'website', 'image_url', 'description', 'dog_policy', 'dog_policy_note', 'opening_hours', 'amenities'];
+
+// Manual category tags (woodland, secure-field) are extra tags, not one of the nine
+// categories. They live in locations.category_overrides (jsonb): true forces the tag on,
+// false forces it off, a missing key leaves the automatic rule (trg_sync_categories) in
+// charge. The trigger that recomputes l.categories only fires on category or extra_data, so
+// a save that changes category_overrides must also touch extra_data (set extra_data = extra_data).
+const CAT_TAGS = ['woodland', 'secure-field'] as const;
+function readOverrides(v: unknown): Record<string, boolean> {
+  const o = obj(v);
+  only(o, [...CAT_TAGS]);
+  const out: Record<string, boolean> = {};
+  for (const k of CAT_TAGS) if (k in o) out[k] = bool(o[k]);
+  return out;
+}
+// Order-independent compare of two override objects.
+const ovKey = (o: any) => JSON.stringify(CAT_TAGS.filter((k) => o && k in o).map((k) => [k, o[k]]));
 const same = (x: unknown, y: unknown) => {
   // Amenities are a set: the same codes in another order are not a change.
   if (Array.isArray(x) && Array.isArray(y)) return JSON.stringify([...x].sort()) === JSON.stringify([...y].sort());
@@ -184,7 +200,7 @@ const DETAIL_COLS = `l.id, l.name, l.category, l.categories, l.address, l.latitu
   l.community_amenities, l.opening_hours, l.image_url, l.image_source, l.image_credit, l.dog_policy, l.dog_policy_note, l.dog_policy_source,
   l.dog_policy_at, l.barkfind_rating, l.google_rating, l.review_count, l.is_verified, l.google_verified, l.barkfind_verified, l.is_sponsored,
   l.flagged, l.flag_reason, l.flagged_at, l.flag_rule, l.flag_review, l.mylo_verdict, l.authority, l.restrictions_state, l.created_at,
-  l.locked_fields, l.details_set_at, l.details_set_by, l.category_locked, l.category_set_at, l.category_set_by`;
+  l.locked_fields, l.details_set_at, l.details_set_by, l.category_locked, l.category_set_at, l.category_set_by, l.category_overrides`;
 
 async function lockPlace(c: PoolClient, id: string) {
   const r = await c.query(`select ${DETAIL_COLS} from public.locations l where l.id = $1 for update`, [id]);
@@ -239,14 +255,16 @@ export function placeOps(pool: Pool): Record<string, Op> {
     places_list: {
       perm: 'places_edit',
       run: async (a) => {
-        only(a, ['q', 'category', 'status', 'sort', 'page']);
+        only(a, ['q', 'category', 'tag', 'status', 'sort', 'page']);
         const q = str(a.q, 100, { optional: true }).toLowerCase();
         const category = oneOf(a.category, CATEGORIES, { optional: true });
+        const tag = oneOf(a.tag, CAT_TAGS, { optional: true });
         const status = (oneOf(a.status, Object.keys(STATUS) as (keyof typeof STATUS)[], { optional: true }) || 'all') as keyof typeof STATUS;
         const sort = (oneOf(a.sort, Object.keys(SORT) as (keyof typeof SORT)[], { optional: true }) || 'name') as keyof typeof SORT;
         const page = Number.isInteger(a.page) && (a.page as number) >= 0 && (a.page as number) < 2000 ? a.page as number : 0;
         const w: string[] = [STATUS[status]], p: unknown[] = [];
         if (category) { p.push(category); w.push(`l.category = $${p.length}`); }
+        if (tag) { p.push(tag); w.push(`l.categories @> array[$${p.length}]::text[]`); }
         if (q) {
           if (/^[0-9a-f-]{36}$/.test(q)) { p.push(q); w.push(`l.id::text = $${p.length}`); }
           else {
@@ -300,12 +318,14 @@ export function placeOps(pool: Pool): Record<string, Op> {
     place_save: {
       perm: 'places_edit',
       run: async (a, ctx) => {
-        only(a, ['id', ...FIELD_KEYS]);
+        only(a, ['id', ...FIELD_KEYS, 'category_overrides']);
         const id = uuid(a.id), f = readFields(a);
+        const ov = 'category_overrides' in a ? readOverrides(a.category_overrides) : undefined;
         return writeTx(pool, ctx.staff.userId, async (c, audit) => {
           const before = await lockPlace(c, id);
           const changed = Object.keys(f).filter((k) => !same(f[k], before[k]));
-          if (!changed.length) throw new HttpError(409, 'Nothing has changed.');
+          const ovChanged = ov !== undefined && ovKey(ov) !== ovKey(before.category_overrides || {});
+          if (!changed.length && !ovChanged) throw new HttpError(409, 'Nothing has changed.');
           const sets: string[] = [], p: unknown[] = [id];
           for (const k of changed) { p.push(val(k, f[k])); sets.push(`${k} = $${p.length}${cast(k)}`); }
           // The dog policy lock covers its note too. Any person's save sets details_set_at,
@@ -314,11 +334,16 @@ export function placeOps(pool: Pool): Record<string, Op> {
           if (lock.length) { p.push(lock); sets.push(`locked_fields = (select array(select distinct unnest(locked_fields || $${p.length}::text[])))`); }
           p.push(ctx.staff.userId); sets.push(`details_set_at = now(), details_set_by = $${p.length}`);
           if (changed.includes('category')) { p.push(ctx.staff.userId); sets.push(`category_locked = true, category_set_at = now(), category_set_by = $${p.length}`); }
+          // Manual category tags: set the column, and touch extra_data so trg_sync_categories
+          // recomputes l.categories. extra_data = extra_data keeps the Google data as it is.
+          if (ovChanged) { p.push(JSON.stringify(ov)); sets.push(`category_overrides = $${p.length}::jsonb, extra_data = extra_data`); }
           await c.query(`update public.locations set ${sets.join(', ')} where id = $1`, p);
           const after = (await c.query(`select ${DETAIL_COLS} from public.locations l where l.id = $1`, [id])).rows[0];
-          const pick = (o: any) => Object.fromEntries([...changed, 'locked_fields', 'category_locked'].map((k) => [k, o[k]]));
+          const pickKeys = [...changed, 'locked_fields', 'category_locked', ...(ovChanged ? ['category_overrides', 'categories'] : [])];
+          const pick = (o: any) => Object.fromEntries(pickKeys.map((k) => [k, o[k]]));
+          const parts = [...changed]; if (ovChanged) parts.push('category tags');
           await audit({ action: 'place_save', entity: 'locations', entityId: id,
-            detail: `Edited place ${label(after)}: ${changed.join(', ')}${lock.length || changed.includes('category') ? ' (locked)' : ''}`,
+            detail: `Edited place ${label(after)}: ${parts.join(', ')}${lock.length || changed.includes('category') ? ' (locked)' : ''}`,
             before: pick(before), after: pick(after) });
           return { ok: true, message: lock.length || changed.includes('category') ? 'Saved. The fields you changed are locked, so automatic updates will not overwrite them.' : 'Saved.' };
         });
