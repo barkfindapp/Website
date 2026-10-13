@@ -1,5 +1,6 @@
 import PageShell, { Section } from "../components/PageShell";
 import { useSeo } from "../lib/seo";
+import { APP_STORE_URL } from "../data/launch";
 
 // Brand paw mark (matches the in-app rating / rewards icon)
 function PawMark({ className = "", color = "currentColor" }: { className?: string; color?: string }) {
@@ -98,8 +99,8 @@ export default function Treats() {
     >
       <p className="text-[#444] leading-relaxed">
         Treats are our way of saying thank you. Every review you leave helps another owner work out whether they can
-        bring their dog, and the more you add, the more you save on BarkFind. The app launches on iPhone soon, and
-        Treats go live with it.
+        bring their dog, and the more you add, the more you save on BarkFind. The app is on the App Store, and
+        Treats are live with it.
       </p>
 
       {/* Earning: points */}
@@ -152,7 +153,7 @@ export default function Treats() {
       {/* How to redeem */}
       <Section title="How claiming works">
         <p>
-          When Treats go live, you'll claim in the app under{" "}
+          You claim in the app under{" "}
           <strong className="text-[#1a1a1a]">Profile, then Treats</strong>. Here's what happens for each reward:
         </p>
         <div className="flex flex-col gap-5 mt-1">
@@ -188,12 +189,12 @@ export default function Treats() {
 
       {/* CTA */}
       <Section title="Start earning Treats">
-        <p>BarkFind is launching on iPhone soon. Join early access to be first in, and to lock in founding-member pricing, then start earning points from your very first review.</p>
+        <p>BarkFind is free to download on the App Store, and founding members get their first year for £19.99. Start earning points from your very first review.</p>
         <a
-          href="/#download"
+          href={APP_STORE_URL}
           className="inline-flex items-center justify-center mt-1 px-7 py-3.5 rounded-full bg-[#B74217] text-white font-bold text-sm hover:opacity-90 transition-opacity shadow-sm shadow-[#B74217]/25 self-start"
         >
-          Get early access
+          Download on the App Store
         </a>
       </Section>
     </PageShell>

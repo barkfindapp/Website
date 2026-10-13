@@ -13,7 +13,7 @@ export default function TermsOfUse() {
     path: "/terms",
   });
   return (
-    <PageShell title="Terms of Use" meta="Last updated: 15 September 2026">
+    <PageShell title="Terms of Use" meta="Last updated: 13 October 2026">
         <p className="text-[#444] leading-relaxed">
           These Terms of Use ("Terms") govern your access to and use of the BarkFind mobile app and the
           barkfind.com website (together, the "Service"), operated by BarkFind Limited (company no. GB17093288),

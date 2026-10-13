@@ -12,7 +12,7 @@ export default function PrivacyPolicy() {
     path: "/privacy",
   });
   return (
-    <PageShell title="Privacy Policy" meta="Last updated: 15 September 2026">
+    <PageShell title="Privacy Policy" meta="Last updated: 13 October 2026">
         <p className="text-[#444] leading-relaxed">
           BarkFind ("BarkFind", "we", "us", "our") is operated by <strong>BARKFIND LIMITED</strong> (company
           no. GB17093288), registered at 80A Walliscote Road, Weston-Super-Mare, North Somerset, United

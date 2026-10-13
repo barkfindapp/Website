@@ -41,16 +41,16 @@ export default function Support() {
 
       <Section title="Getting started">
         <QA q="How do I start using BarkFind?">
-          <p>BarkFind is launching on iPhone soon and isn't downloadable yet. Join early access on our homepage to be first in. We'll email you the moment it's live. At launch you'll create an account, add your dog's profile, and start your 14-day free trial.</p>
+          <p>BarkFind is on the App Store. You can browse without an account; create one when you want to review, save a place, add a dog profile or subscribe. New subscribers get a 14-day free trial.</p>
         </QA>
         <QA q="Which devices are supported?">
-          <p>BarkFind is coming to iPhone (iOS) first. Android is on the way. Register interest on our homepage to be notified when either launches.</p>
+          <p>BarkFind is on iPhone (iOS). Android is on the way; register interest on our homepage to be notified when it launches.</p>
         </QA>
       </Section>
 
       <Section title="Subscriptions & billing">
         <QA q="How does the free trial work?">
-          <p>At launch, new subscribers start a 14-day free trial. It's card-gated through Apple: you add a payment method to begin but you're charged £0 up front. If you don't cancel before it ends, it auto-renews into your chosen plan (Monthly £5.99 or Annual £39.99).</p>
+          <p>New subscribers start a 14-day free trial. It's card-gated through Apple: you add a payment method to begin but you're charged £0 up front. If you don't cancel before it ends, it auto-renews into your chosen plan (Monthly £5.99 or Annual £39.99).</p>
         </QA>
         <QA q="What happens when my trial ends?">
           <p>If you don't subscribe, BarkFind switches to read-only rather than locking you out. You keep your saved spots, your profile and dog profile, and your own reviews, and you can still read other people's reviews and leave new ones. You lose searching for new places, Ask Mylo, saving new favourites, and dog-profile recommendations until you subscribe.</p>

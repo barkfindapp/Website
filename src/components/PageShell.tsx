@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { APP_STORE_URL } from "../data/launch";
 
 // Shared layout + interactive nav for secondary pages
 // (Support, Delete Account, Business, Privacy, Terms).
@@ -121,7 +122,7 @@ function PageNav({ currentPath }: { currentPath: string }) {
           </div>
 
           <a
-            href="/#download"
+            href={APP_STORE_URL}
             className="inline-flex items-center px-5 py-2.5 rounded-full bg-[#B74217] text-white text-sm font-bold hover:opacity-90 transition-opacity shadow-sm shadow-[#B74217]/30"
           >
             Start Free Trial
@@ -172,7 +173,7 @@ function PageNav({ currentPath }: { currentPath: string }) {
             </a>
           ))}
           <a
-            href="/#download"
+            href={APP_STORE_URL}
             onClick={() => setMenuOpen(false)}
             className="mt-3 text-center px-5 py-2.5 rounded-full bg-[#B74217] text-white font-bold shadow-sm"
           >
