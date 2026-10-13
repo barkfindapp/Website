@@ -138,6 +138,7 @@ dd .flag{display:inline-block;margin-left:6px;font:800 10.5px/1 var(--sans);padd
 .flag.warn{color:var(--warn);background:var(--warn-soft)} .flag.crit{color:var(--crit);background:var(--crit-soft)} .flag.ok{color:var(--ok);background:var(--ok-soft)}
 .note{font-size:13px;color:var(--mute);line-height:1.5}
 .panel.off{opacity:.62}
+.meterbar{height:10px;border-radius:999px;background:var(--well);overflow:hidden}.meterbar span{display:block;height:100%;width:0;background:var(--ok);border-radius:999px;transition:width .3s}
 .panel .err{font-size:13px;color:var(--warn);background:var(--warn-soft);padding:9px 12px;border-radius:12px}
 svg.spark{width:100%;height:46px;display:block}
 
@@ -454,6 +455,12 @@ label.amen:has(input:checked){border-color:var(--brand-line);background:var(--br
   <section aria-labelledby="h-now">
     <h2 class="sec" id="h-now">The business today</h2>
     <div class="grid">
+      <article class="panel" id="p-founders">
+        <h3><span class="ttl">Founding members</span><small>Offer code</small></h3>
+        <div class="row" style="justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap"><div class="hero"><span class="v" id="f-count">–</span><span class="u" id="f-of"></span></div><span class="pill idle" id="f-pill"><i></i><span id="f-state">Loading</span></span></div>
+        <div class="meterbar" role="img" id="f-bar-wrap" aria-label="Founding members redeemed"><span id="f-bar"></span></div>
+        <p class="note" id="f-last" style="margin:0"></p>
+      </article>
       <article class="panel" id="p-customers">
         <h3>Customers <small>People</small></h3>
         <div class="hero"><span class="v" id="c-real">–</span><span class="u">signed-up accounts</span></div>
@@ -906,7 +913,8 @@ label.amen:has(input:checked){border-color:var(--brand-line);background:var(--br
     // Creator applications are not in the snapshot or queue, so fetch the count here for the
     // Today card and the Act chip. Only owners (the creators permission) see it.
     var e=HQ.can("creators")?api("creators_counts").then(function(r){state.creatorApps=r.data.applied;state.creatorCounts=r.data}).catch(function(){state.creatorApps=0}):Promise.resolve();
-    Promise.all([a,b,c,d,e]).then(function(){state.loadedAt=Date.now();render();if(window.HQAct)HQAct.onQueue(state.queue);$("refresh").disabled=false});
+    var o=api("offer_code_counts").then(function(r){state.offers=r.data;state.errors.offers=null}).catch(function(e){state.offers=null;state.errors.offers=errCopy(e,"Supabase")});
+    Promise.all([a,b,c,d,e,o]).then(function(){state.loadedAt=Date.now();render();renderFounders();if(window.HQAct)HQAct.onQueue(state.queue);$("refresh").disabled=false});
   }
 
   // ---------- queue (Act and Outreach tabs) ----------
@@ -920,6 +928,17 @@ label.amen:has(input:checked){border-color:var(--brand-line);background:var(--br
     return api("action",{action:action,args:args}).then(function(r){return r.data});
   }
   function when(ts){if(!ts)return "";var d=new Date(ts);return d.toLocaleString("en-GB",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"})}
+  // "5 minutes ago", "yesterday", or a date once it is over a week old.
+  function ago(ts){if(!ts)return "";var m=Math.round((Date.now()-new Date(ts).getTime())/60000);if(m<1)return "just now";if(m<60)return m+" minute"+(m===1?"":"s")+" ago";var h=Math.round(m/60);if(h<24)return h+" hour"+(h===1?"":"s")+" ago";var d=Math.round(h/24);if(d===1)return "yesterday";if(d<7)return d+" days ago";return "on "+new Date(ts).toLocaleDateString("en-GB",{day:"numeric",month:"short"})}
+  // Founding members card: FOUNDER100 redemptions against the cap, and whether the offer is open.
+  function renderFounders(){
+    var f=state.offers&&state.offers.founder;
+    if(!f){$("f-count").textContent="–";$("f-of").textContent="";$("f-pill").className="pill idle";$("f-state").textContent="Unknown";$("f-bar").style.width="0";$("f-last").textContent=state.errors.offers||"";return}
+    $("f-count").textContent=f.count.toLocaleString("en-GB");$("f-of").textContent=f.cap!=null?"of "+f.cap.toLocaleString("en-GB"):"redeemed";
+    $("f-pill").className="pill "+(f.open?"ok":"idle");$("f-state").textContent=f.open?"Open":"Closed";
+    var pct=f.cap?Math.min(100,Math.round(100*f.count/f.cap)):0;$("f-bar").style.width=pct+"%";$("f-bar-wrap").setAttribute("aria-label",f.count+" of "+(f.cap!=null?f.cap:"?")+" founding members");
+    $("f-last").textContent=f.last_at?"Last redeemed "+ago(f.last_at):"No redemptions yet";
+  }
   function day(ts){if(!ts)return "";return new Date(ts+"T12:00:00").toLocaleDateString("en-GB",{weekday:"short",day:"numeric",month:"short"})}
 
   // Two-step confirm on any button with data-confirm. First click arms it, second runs.
@@ -1927,6 +1946,15 @@ label.amen:has(input:checked){border-color:var(--brand-line);background:var(--br
   var crFilter="applied", crData={};
   var CR_STEPS=[["user","Account"],["offer_code","Code"],["premium","Premium"],["agreement","Agreement"],["page","Page"],["email","Email"]];
   var CR_FORCE=["user","offer_code","premium","agreement","email"];
+  // Redemptions of this creator's code, from offer_code_redemptions (crCounts, loaded with the list).
+  var crCounts=null;
+  function crRedeemed(cr){
+    if(!cr.offer_code||!crCounts)return "";
+    var n=crCounts[String(cr.offer_code).toUpperCase()]||0;
+    if(cr.code_cap==null)return ' · '+n+' redeemed';
+    var full=n>=cr.code_cap;
+    return ' · '+(full?'<span style="color:var(--warn);font-weight:700">'+n+' of '+cr.code_cap+' redeemed. Cap reached</span>':n+' of '+cr.code_cap+' redeemed');
+  }
   function crTierOf(f){return f>=30000?"bespoke":f>=10000?"mid":"small"}
   var CR_PLATFORMS=[["instagram","Instagram"],["tiktok","TikTok"],["facebook","Facebook"],["youtube","YouTube"],["other","Other"]];
   // Shown beside the Tier select; the tier itself is still chosen by hand.
@@ -1987,7 +2015,7 @@ label.amen:has(input:checked){border-color:var(--brand-line);background:var(--br
       (cr.followers!=null?'<div class="note">'+Number(cr.followers).toLocaleString("en-GB")+' followers'+(cr.followers_platform?' on '+esc(cr.followers_platform):'')+(cr.followers_on?', given '+esc(H.when(cr.followers_on)):'')+'</div>':'')+
       (contact&&(cr.account_email||cr.contact_email)?'<dl class="kvs">'+(cr.account_email?'<dt>Account email</dt><dd>'+esc(cr.account_email)+'</dd>':'')+(cr.contact_email?'<dt>Contact email</dt><dd>'+esc(cr.contact_email)+'</dd>':'')+'</dl>':'')+
       crSig(cr)+
-      '<dl class="kvs"><dt>Code</dt><dd>'+esc(cr.offer_code||"none")+(cr.code_cap!=null?' (cap '+cr.code_cap+')':'')+'</dd>'+(st==="active"?'<dt>Page</dt><dd><a href="https://www.barkfind.com/with/'+esc(cr.slug)+'" target="_blank" rel="noopener noreferrer">barkfind.com/with/'+esc(cr.slug)+'</a></dd>':'')+(st==="ended"&&cr.ended_reason?'<dt>Ended</dt><dd>'+esc(cr.ended_reason)+'</dd>':'')+'</dl>'+
+      '<dl class="kvs"><dt>Code</dt><dd>'+esc(cr.offer_code||"none")+(cr.code_cap!=null?' (cap '+cr.code_cap+')':'')+crRedeemed(cr)+'</dd>'+(st==="active"?'<dt>Page</dt><dd><a href="https://www.barkfind.com/with/'+esc(cr.slug)+'" target="_blank" rel="noopener noreferrer">barkfind.com/with/'+esc(cr.slug)+'</a></dd>':'')+(st==="ended"&&cr.ended_reason?'<dt>Ended</dt><dd>'+esc(cr.ended_reason)+'</dd>':'')+'</dl>'+
       crSteps(cr)+
       (st==="applied"&&cr.followers!=null?'<div class="note">Suggested tier: '+crTierOf(cr.followers)+(crTierOf(cr.followers)==="bespoke"?". Agree terms with them first":"")+'</div>':'');
     var agr=[];
@@ -2028,7 +2056,9 @@ label.amen:has(input:checked){border-color:var(--brand-line);background:var(--br
     return row+errs;
   }
   function creators(el){
-    H.api("creators_list",{filter:crFilter}).then(function(r){
+    // Counts are a nice-to-have on the card: if they fail to load, the list still shows.
+    var counts=H.api("offer_code_counts").then(function(r){crCounts={};(r.data.codes||[]).forEach(function(x){crCounts[x.code]=x.count})}).catch(function(){crCounts=null});
+    Promise.all([H.api("creators_list",{filter:crFilter}),counts]).then(function(rr){var r=rr[0];
       var rows=r.data.rows||[],c=r.data.counts||{};crData={};rows.forEach(function(x){crData[x.id]=x});
       var chips=[["applied","Applications",c.applied],["active","Active",c.active],["ended_declined","Ended and declined",c.ended_declined]].map(function(f){return '<button class="chip" data-crf="'+f[0]+'" aria-pressed="'+(crFilter===f[0])+'">'+f[1]+(f[2]?' <span class="count">'+f[2]+'</span>':"")+'</button>'}).join("");
       el.innerHTML='<div class="filter">'+chips+'</div>'+

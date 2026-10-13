@@ -332,6 +332,22 @@ function queueFor(ctx: Ctx, q: any) {
   return out;
 }
 
+async function offerCodeCounts() {
+  const [codes, cfg] = await Promise.all([
+    pool.query(`select code, count(*)::int as count, max(created_at) as last_at from public.offer_code_redemptions
+                 where code not like 'ZZTEST%' group by code order by code`),
+    pool.query("select key, value from public.app_config where key in ('founder_offer_code', 'founder_offer_cap', 'founder_offer_open')"),
+  ]);
+  const c: Record<string, string> = Object.fromEntries(cfg.rows.map((r) => [r.key, r.value == null ? '' : String(r.value)]));
+  const code = (c.founder_offer_code || '').toUpperCase();
+  const cap = Number.parseInt(c.founder_offer_cap || '', 10);
+  const hit = codes.rows.find((r) => r.code === code);
+  return {
+    founder: { code: code || null, cap: Number.isFinite(cap) ? cap : null, open: c.founder_offer_open === 'true', count: hit ? hit.count : 0, last_at: hit ? hit.last_at : null },
+    codes: codes.rows,
+  };
+}
+
 const OPS: Record<string, Op | { perm: null; run: Op['run'] }> = {
   // Who am I and what can I see: any active member of staff.
   me: { perm: null, run: async (a, ctx) => (noArgs(a), { data: { id: ctx.staff.userId, name: ctx.staff.name, email: ctx.staff.email, level: ctx.staff.level, perms: [...ctx.staff.perms] } }) },
@@ -349,6 +365,9 @@ const OPS: Record<string, Op | { perm: null; run: Op['run'] }> = {
   queue: { perm: 'today', run: async (a, ctx) => (noArgs(a), { data: queueFor(ctx, await queue()) }) },
   history: { perm: 'today', run: async (a) => (noArgs(a), { data: await history() }) },
   email_metrics: { perm: 'today', run: async (a) => (noArgs(a), { data: await emailMetrics() }) },
+  // App Store offer code redemptions (written by revenuecat-webhook): the founding-member
+  // card on Today and the counts on creator cards. Read only. ZZTEST codes are test rows.
+  offer_code_counts: { perm: 'today', run: async (a) => (noArgs(a), { data: await offerCodeCounts() }) },
 
   // The action's own permission is checked in runAction.
   action: {
