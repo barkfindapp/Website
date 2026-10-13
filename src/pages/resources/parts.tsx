@@ -55,7 +55,7 @@ export function DownloadCta({ placeCount }: { placeCount?: number }) {
       </p>
       <a
         href={href}
-        className="mt-5 inline-flex items-center px-6 py-3 rounded-full bg-[#B74217] text-white font-bold hover:opacity-90 transition-opacity shadow-sm shadow-[#B74217]/30"
+        className="mt-5 inline-flex items-center px-6 py-3 rounded-full bg-[#B74217] text-white font-bold hover:bg-[#333333] transition-colors shadow-sm shadow-[#B74217]/30"
       >
         {label}
       </a>

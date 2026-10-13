@@ -2,6 +2,8 @@ import { useState, useEffect } from "react";
 import { useSeo, organizationSchema, softwareApplicationSchema, faqSchema } from "../lib/seo";
 import EarlyAccessForm from "../components/EarlyAccessForm";
 import { APP_STORE_URL } from "../data/launch";
+import { track } from "../lib/analytics";
+import { fetchFounderOpen } from "../lib/founderDb";
 
 // ─── Nav ─────────────────────────────────────────────────────────────────────
 
@@ -25,7 +27,7 @@ function Nav() {
 
         <a
           href={APP_STORE_URL}
-          className="hidden md:inline-flex items-center px-5 py-2.5 rounded-full bg-[#B74217] text-white text-sm font-bold hover:opacity-90 transition-opacity shadow-sm shadow-[#B74217]/30"
+          className="hidden md:inline-flex items-center px-5 py-2.5 rounded-full bg-[#B74217] text-white text-sm font-bold hover:bg-[#333333] transition-colors shadow-sm shadow-[#B74217]/30"
         >
           Download on iOS
         </a>
@@ -104,15 +106,12 @@ function Hero() {
           </p>
 
           <div className="flex flex-col sm:flex-row items-center gap-4 justify-center md:justify-start">
-            <a
-              href={APP_STORE_URL}
-              className="w-full sm:w-auto px-8 py-3.5 rounded-full bg-[#B74217] text-white font-bold text-base hover:opacity-90 transition-all shadow-lg shadow-[#B74217]/25 text-center"
-            >
-              Download on the App Store
+            <a href={APP_STORE_URL} aria-label="Download on the App Store" className="inline-block hover:opacity-90 transition-opacity">
+              <img src="/app-store-badge.svg" alt="Download on the App Store" className="h-[52px] w-auto" />
             </a>
             <a
               href="#features"
-              className="w-full sm:w-auto px-8 py-3.5 rounded-full border-2 border-[#B74217]/30 text-[#B74217] font-bold text-base hover:border-[#B74217] hover:bg-[#B74217]/5 transition-all text-center"
+              className="w-full sm:w-auto px-8 py-3.5 rounded-full bg-[#B74217] text-white font-bold text-base hover:bg-[#333333] transition-colors shadow-lg shadow-[#B74217]/25 text-center"
             >
               See how it works
             </a>
@@ -995,8 +994,8 @@ function Pricing() {
                 href={APP_STORE_URL}
                 className={`text-center px-5 py-3 rounded-full font-bold text-sm transition-all ${
                   plan.highlight
-                    ? "bg-white text-[#B74217] hover:bg-[#FAEFD1] shadow-md"
-                    : "bg-[#B74217] text-white hover:opacity-90 shadow-sm shadow-[#B74217]/20"
+                    ? "bg-white text-[#B74217] hover:bg-[#333333] hover:text-white shadow-md"
+                    : "bg-[#B74217] text-white hover:bg-[#333333] shadow-sm shadow-[#B74217]/20"
                 }`}
               >
                 Download on the App Store
@@ -1153,6 +1152,67 @@ function FAQ() {
 // ─── Early Access CTA ─────────────────────────────────────────────────────────
 
 function DownloadCTA() {
+  const [open, setOpen] = useState(true);
+  const [email, setEmail] = useState("");
+  const [status, setStatus] = useState<"idle" | "loading" | "done" | "error">("idle");
+  const [founderSent, setFounderSent] = useState(false);
+  const [errorMsg, setErrorMsg] = useState("");
+
+  useEffect(() => {
+    // Default to the open state; api/founder re-checks before it sends anything.
+    fetchFounderOpen().then(setOpen).catch(() => setOpen(true));
+  }, []);
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email.trim()) return;
+    setStatus("loading");
+    setErrorMsg("");
+    try {
+      const res = await fetch("/api/founder", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email.trim().toLowerCase() }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        // No event properties on the Starter plan, so open vs closed is two names.
+        track(data.founder ? "Founder Signup" : "Founder Signup Closed");
+        setFounderSent(!!data.founder);
+        setStatus("done");
+      } else {
+        setErrorMsg(data.error || "Something went wrong. Please try again.");
+        setStatus("error");
+      }
+    } catch {
+      setErrorMsg("Something went wrong. Please try again.");
+      setStatus("error");
+    }
+  };
+
+  const form = (buttonLabel: string) => (
+    <div className="max-w-md mx-auto">
+      <form onSubmit={submit} className="flex flex-col sm:flex-row gap-2.5">
+        <input
+          type="email"
+          required
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          placeholder="Enter your email"
+          className="flex-1 px-5 py-3.5 rounded-full text-[#2F291E] text-sm font-medium outline-none focus:ring-2 focus:ring-white/40 bg-white shadow-sm"
+        />
+        <button
+          type="submit"
+          disabled={status === "loading"}
+          className="px-7 py-3.5 rounded-full bg-white text-[#B74217] font-bold text-sm hover:bg-[#333333] hover:text-white transition-colors disabled:opacity-60 whitespace-nowrap shadow-sm"
+        >
+          {status === "loading" ? "…" : buttonLabel}
+        </button>
+      </form>
+      {status === "error" && <p className="mt-3 text-white/70 text-xs">{errorMsg}</p>}
+    </div>
+  );
+
   return (
     <section
       id="download"
@@ -1164,27 +1224,45 @@ function DownloadCTA() {
       <div className="absolute -bottom-16 -left-16 w-64 h-64 rounded-full opacity-10 pointer-events-none" style={{ background: "radial-gradient(circle, #F5F1E9 0%, transparent 70%)" }} />
 
       <div className="relative max-w-2xl mx-auto px-6 text-center">
-        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/15 text-white text-xs font-bold mb-6 border border-white/20">
-          <span className="w-1.5 h-1.5 rounded-full bg-white" />
-          Now on the App Store
-        </div>
-        <h2 className="font-serif text-3xl md:text-4xl lg:text-5xl text-white mb-5">
-          Download BarkFind
-        </h2>
-        <p className="text-white/80 text-lg mb-8 leading-relaxed">
-          BarkFind is live on the App Store. Download it free, and founding members get their first year for <strong className="text-white">£19.99</strong> instead of £39.99, limited to our first <strong className="text-white">100 members</strong>.
-        </p>
-
-        <a
-          href={APP_STORE_URL}
-          className="inline-flex items-center justify-center px-8 py-3.5 rounded-full bg-white text-[#B74217] font-bold text-base hover:bg-[#FAEFD1] transition-colors shadow-lg"
-        >
-          Download on the App Store
-        </a>
-
-        <p className="text-white/55 text-xs mt-4 max-w-md mx-auto leading-relaxed">
-          Founding-member pricing is limited to our first 100 members, so it may run out.
-        </p>
+        {open ? (
+          <>
+            <h2 className="font-serif text-3xl md:text-4xl lg:text-5xl text-white mb-5">Become a founding member</h2>
+            <p className="text-white/80 text-lg mb-8 leading-relaxed">
+              Our first 100 members get their first year of BarkFind Premium for <strong className="text-white">£19.99</strong> instead of £39.99. Pop your email in and we'll send your founding-member link straight away.
+            </p>
+            {status === "done" ? (
+              <div className="max-w-md mx-auto bg-white/15 backdrop-blur-sm rounded-2xl p-5 text-white border border-white/20">
+                <p className="font-bold mb-1">Check your inbox.</p>
+                <p className="text-white/80 text-sm leading-relaxed">
+                  {founderSent
+                    ? "We've sent your founding-member link. Open it on your iPhone before you start your free trial, so the founding price is applied."
+                    : "The founding places have just gone, but you're on the newsletter. You can download BarkFind free and start a 14-day trial."}
+                </p>
+              </div>
+            ) : (
+              form("Send my link")
+            )}
+            <p className="text-white/55 text-xs mt-4 max-w-md mx-auto leading-relaxed">
+              One link per email. It renews at £39.99 a year unless you cancel. We'll also send you the occasional BarkFind newsletter, and you can unsubscribe at any time.
+            </p>
+          </>
+        ) : (
+          <>
+            <h2 className="font-serif text-3xl md:text-4xl lg:text-5xl text-white mb-5">Founding places have gone</h2>
+            <p className="text-white/80 text-lg mb-8 leading-relaxed">
+              All 100 founding places have been taken. Thank you. You can still download BarkFind free and start a 14-day free trial.
+            </p>
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-8">
+              <a href={APP_STORE_URL} className="inline-flex items-center justify-center px-8 py-3.5 rounded-full bg-white text-[#B74217] font-bold text-base hover:bg-[#333333] hover:text-white transition-colors shadow-lg">Download on the App Store</a>
+              <a href={APP_STORE_URL} aria-label="Download on the App Store" className="inline-block hover:opacity-90 transition-opacity"><img src="/app-store-badge.svg" alt="Download on the App Store" className="h-[52px] w-auto" /></a>
+            </div>
+            {status === "done" ? (
+              <div className="max-w-md mx-auto bg-white/15 backdrop-blur-sm rounded-2xl p-5 text-white border border-white/20"><p className="font-bold">You're on the newsletter.</p></div>
+            ) : (
+              form("Keep me posted")
+            )}
+          </>
+        )}
 
         {/* Android, same list, tagged android */}
         <div className="mt-10 pt-8 border-t border-white/15 w-full max-w-md mx-auto">
@@ -1194,7 +1272,7 @@ function DownloadCTA() {
             </svg>
             <p className="font-bold text-sm">On Android?</p>
           </div>
-          <p className="text-white/60 text-sm mb-4">Join the same list, we'll email you when BarkFind reaches Android, founding offer included.</p>
+          <p className="text-white/60 text-sm mb-4">Join the list, we'll email you when BarkFind reaches Android.</p>
           <EarlyAccessForm platform="android" buttonLabel="Notify me" compact />
         </div>
       </div>
@@ -1208,7 +1286,7 @@ function Footer() {
   return (
     <footer className="bg-[#1a1a1a] text-white/50 py-14">
       <div className="max-w-6xl mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-8">
-        <div className="flex items-center">
+        <div className="flex flex-col items-center md:items-start gap-4">
           <img src="/barkfind-logo-white.png" alt="BarkFind" className="h-7 opacity-80" />
         </div>
 
@@ -1251,8 +1329,11 @@ function Footer() {
         </div>
       </div>
 
-      <div className="max-w-6xl mx-auto px-6 mt-10 pt-6 border-t border-white/10 text-center text-xs">
-        © {new Date().getFullYear()} BarkFind. All rights reserved.
+      <div className="max-w-6xl mx-auto px-6 mt-10 pt-6 border-t border-white/10 flex flex-col-reverse sm:flex-row items-center justify-between gap-6">
+        <p className="text-xs text-center sm:text-left">© {new Date().getFullYear()} BarkFind. All rights reserved.</p>
+        <a href={APP_STORE_URL} aria-label="Download on the App Store" className="inline-block hover:opacity-90 transition-opacity">
+          <img src="/app-store-badge.svg" alt="Download on the App Store" className="h-10 w-auto" />
+        </a>
       </div>
     </footer>
   );

@@ -49,10 +49,12 @@ export default function EarlyAccessForm({
     return (
       <div className={`bg-white/15 backdrop-blur-sm rounded-2xl p-5 text-white border border-white/20 ${compact ? "" : "max-w-md mx-auto"}`}>
         <p className="font-bold mb-1">
-          {status === "duplicate" ? "You're already on the list, nice one." : "You're on the list! 🐾"}
+          {status === "duplicate" ? "You're already on the list, nice one." : "You're on the list."}
         </p>
         <p className="text-white/80 text-sm leading-relaxed">
-          We'll email you the moment BarkFind launches, with your founding-member offer. Founding pricing is limited to 100 members, so keep an eye on your inbox.
+          {platform === "android"
+            ? "We'll email you when BarkFind reaches Android."
+            : "We'll email you with the latest from BarkFind."}
         </p>
       </div>
     );

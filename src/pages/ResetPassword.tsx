@@ -178,7 +178,7 @@ export default function ResetPassword() {
             </p>
             <a
               href={APP_STORE_URL}
-              className="inline-flex items-center mt-5 px-6 py-3 rounded-full bg-[#B74217] text-white font-bold hover:opacity-90 transition-opacity shadow-sm shadow-[#B74217]/30"
+              className="inline-flex items-center mt-5 px-6 py-3 rounded-full bg-[#B74217] text-white font-bold hover:bg-[#333333] transition-colors shadow-sm shadow-[#B74217]/30"
             >
               Get BarkFind on the App Store
             </a>
@@ -231,7 +231,7 @@ export default function ResetPassword() {
         <button
           type="submit"
           disabled={saving}
-          className="mt-1 inline-flex items-center justify-center px-6 py-3 rounded-full bg-[#B74217] text-white font-bold hover:opacity-90 transition-opacity shadow-sm shadow-[#B74217]/30 disabled:opacity-60"
+          className="mt-1 inline-flex items-center justify-center px-6 py-3 rounded-full bg-[#B74217] text-white font-bold hover:bg-[#333333] transition-colors shadow-sm shadow-[#B74217]/30 disabled:opacity-60"
         >
           {saving ? "Saving" : "Change password"}
         </button>

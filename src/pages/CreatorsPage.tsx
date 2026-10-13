@@ -522,7 +522,7 @@ export default function CreatorsPage() {
         <p>Your code is unique to you. That is how we know a subscriber came from you.</p>
         <a
           href="#questions"
-          className="inline-flex items-center gap-2 w-fit px-5 py-2.5 rounded-full bg-[#B74217] text-white text-sm font-bold hover:opacity-90 transition-opacity"
+          className="inline-flex items-center gap-2 w-fit px-5 py-2.5 rounded-full bg-[#B74217] text-white text-sm font-bold hover:bg-[#333333] transition-colors"
         >
           Your questions asked
           <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
