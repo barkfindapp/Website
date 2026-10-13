@@ -1178,12 +1178,17 @@ function DownloadCTA() {
           BarkFind is live on the App Store. Download it free, and founding members get their first year for <strong className="text-white">£19.99</strong> instead of £39.99, limited to our first <strong className="text-white">100 members</strong>.
         </p>
 
-        <a
-          href={APP_STORE_URL}
-          className="inline-flex items-center justify-center px-8 py-3.5 rounded-full bg-white text-[#B74217] font-bold text-base hover:bg-[#FAEFD1] transition-colors shadow-lg"
-        >
-          Download on the App Store
-        </a>
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+          <a
+            href={APP_STORE_URL}
+            className="inline-flex items-center justify-center px-8 py-3.5 rounded-full bg-white text-[#B74217] font-bold text-base hover:bg-[#FAEFD1] transition-colors shadow-lg"
+          >
+            Download on the App Store
+          </a>
+          <a href={APP_STORE_URL} aria-label="Download on the App Store" className="inline-block hover:opacity-90 transition-opacity">
+            <img src="/app-store-badge.svg" alt="Download on the App Store" className="h-[52px] w-auto" />
+          </a>
+        </div>
 
         <p className="text-white/55 text-xs mt-4 max-w-md mx-auto leading-relaxed">
           Founding-member pricing is limited to our first 100 members, so it may run out.
@@ -1211,8 +1216,11 @@ function Footer() {
   return (
     <footer className="bg-[#1a1a1a] text-white/50 py-14">
       <div className="max-w-6xl mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-8">
-        <div className="flex items-center">
+        <div className="flex flex-col items-center md:items-start gap-4">
           <img src="/barkfind-logo-white.png" alt="BarkFind" className="h-7 opacity-80" />
+          <a href={APP_STORE_URL} aria-label="Download on the App Store" className="inline-block hover:opacity-90 transition-opacity">
+            <img src="/app-store-badge.svg" alt="Download on the App Store" className="h-10 w-auto" />
+          </a>
         </div>
 
         <nav className="flex flex-wrap justify-center gap-x-7 gap-y-3 text-sm">
