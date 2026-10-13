@@ -24,10 +24,10 @@ function Nav() {
         </nav>
 
         <a
-          href="#download"
+          href={APP_STORE_URL}
           className="hidden md:inline-flex items-center px-5 py-2.5 rounded-full bg-[#B74217] text-white text-sm font-bold hover:opacity-90 transition-opacity shadow-sm shadow-[#B74217]/30"
         >
-          Get Early Access
+          Download on iOS
         </a>
 
         <button
@@ -55,11 +55,11 @@ function Nav() {
           <a href="#faq" onClick={() => setMenuOpen(false)} className="text-[#585858]">FAQ</a>
           <a href="/discover" onClick={() => setMenuOpen(false)} className="text-[#585858]">Discover</a>
           <a
-            href="#download"
+            href={APP_STORE_URL}
             onClick={() => setMenuOpen(false)}
             className="text-center px-5 py-2 rounded-full bg-[#B74217] text-white font-bold shadow-sm"
           >
-            Get Early Access
+            Download on iOS
           </a>
         </div>
       )}
@@ -91,7 +91,7 @@ function Hero() {
         <div className="flex-1 text-center md:text-left">
           <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/60 text-[#B74217] text-xs font-bold mb-7 border border-[#B74217]/20 shadow-sm backdrop-blur-sm">
             <svg viewBox="0 0 384 512" className="w-3 h-3" fill="currentColor" aria-hidden="true"><path d="M318.7 268.7c-.2-36.7 16.4-64.4 50-84.8-18.8-26.9-47.2-41.7-84.7-44.6-35.5-2.8-74.3 20.7-88.5 20.7-15 0-49.4-19.7-76.4-19.7C63.3 141.2 4 184.8 4 273.5q0 39.3 14.4 81.2c12.8 36.7 59 126.7 107.2 125.2 25.2-.6 43-17.9 75.8-17.9 31.8 0 48.3 17.9 76.4 17.9 48.6-.7 90.4-82.5 102.6-119.3-65.2-30.7-61.7-90-61.7-91.9zm-56.6-164.2c27.3-32.4 24.8-61.9 24-72.5-24.1 1.4-52 16.4-67.9 34.9-17.5 19.8-27.8 44.3-25.6 71.9 26.1 2 49.9-11.4 69.5-34.3z"/></svg>
-            Coming soon to iOS
+            Now on iOS
           </div>
 
           <h1 className="font-serif text-4xl md:text-5xl lg:text-[3.75rem] text-[#1a1a1a] leading-[1.1] mb-5 tracking-tight">
@@ -100,15 +100,15 @@ function Hero() {
           </h1>
 
           <p className="text-lg text-[#585858] mb-9 max-w-xl mx-auto md:mx-0 leading-relaxed">
-            BarkFind is the community-powered map that helps you and your dog discover cafes, parks, pubs, and more, all reviewed by people who actually bring their dogs. Launching soon on iPhone. Join early access below.
+            BarkFind is the community-powered map that helps you and your dog discover cafes, parks, pubs, and more, all reviewed by people who actually bring their dogs. Now on the App Store, free to download.
           </p>
 
           <div className="flex flex-col sm:flex-row items-center gap-4 justify-center md:justify-start">
             <a
-              href="#download"
+              href={APP_STORE_URL}
               className="w-full sm:w-auto px-8 py-3.5 rounded-full bg-[#B74217] text-white font-bold text-base hover:opacity-90 transition-all shadow-lg shadow-[#B74217]/25 text-center"
             >
-              Get early access
+              Download on the App Store
             </a>
             <a
               href="#features"
@@ -123,7 +123,7 @@ function Hero() {
               <svg className="w-4 h-4 text-[#4FA4A1]" fill="currentColor" viewBox="0 0 20 20">
                 <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
               </svg>
-              Launching soon on iPhone
+              On the App Store
             </span>
             <span className="w-1 h-1 rounded-full bg-[#585858]/40" />
             <span className="flex items-center gap-1.5">
@@ -773,8 +773,8 @@ function Rewards() {
 const STEPS = [
   {
     number: "01",
-    title: "Join early access",
-    description: "BarkFind launches on iPhone soon. Sign up on the homepage and we'll email you the moment it's live, with your founding-member offer.",
+    title: "Download BarkFind",
+    description: "Get BarkFind free from the App Store. You can browse straight away, and make an account when you want to review or save a place. Founding members get their first year for £19.99.",
   },
   {
     number: "02",
@@ -891,7 +891,7 @@ function Pricing() {
           <h2 className="font-serif text-3xl md:text-4xl lg:text-5xl text-[#1a1a1a] mb-5">
             Simple, transparent pricing
           </h2>
-          <p className="text-lg text-[#585858] max-w-xl mx-auto">Browsing and reading are free. When BarkFind launches, a subscription adds search, Ask Mylo and more, starting with a 14-day free trial you can cancel anytime before it renews.</p>
+          <p className="text-lg text-[#585858] max-w-xl mx-auto">Browsing and reading are free. A subscription adds search, Ask Mylo and more, starting with a 14-day free trial you can cancel anytime before it renews.</p>
         </div>
 
         {/* Free, and stays free */}
@@ -992,21 +992,21 @@ function Pricing() {
               </ul>
 
               <a
-                href="#download"
+                href={APP_STORE_URL}
                 className={`text-center px-5 py-3 rounded-full font-bold text-sm transition-all ${
                   plan.highlight
                     ? "bg-white text-[#B74217] hover:bg-[#FAEFD1] shadow-md"
                     : "bg-[#B74217] text-white hover:opacity-90 shadow-sm shadow-[#B74217]/20"
                 }`}
               >
-                Get early access
+                Download on the App Store
               </a>
             </div>
           ))}
         </div>
 
         <p className="text-center text-xs text-[#8a857c] max-w-2xl mx-auto">Ask Mylo: 60 questions a day on annual and during the trial, 15 a day on monthly, counted over a rolling 30 days rather than a calendar month. Fair-use limits apply. Your saved spots and your own reviews stay yours either way.</p>
-        <p className="text-center text-sm text-[#585858] mt-4">Prices apply when BarkFind launches on iPhone · Founding members get their first year for £19.99</p>
+        <p className="text-center text-sm text-[#585858] mt-4">Prices apply in the app · Founding members get their first year for £19.99</p>
       </div>
     </section>
   );
@@ -1093,8 +1093,8 @@ function Testimonials() {
 // ─── FAQ ──────────────────────────────────────────────────────────────────────
 
 const FAQ_ITEMS = [
-  { q: "How do I get started?", a: "BarkFind is launching on iPhone soon. Join early access on our homepage to be first in, and to get first shot at founding-member pricing (your first year for £19.99). We'll email you the moment it's live." },
-  { q: "How does the free trial work?", a: "When BarkFind launches, you can start a 14-day free trial. It's card-gated through Apple: you add a payment method to begin, but you're charged £0 up front. After 14 days it auto-renews into your chosen plan (Monthly £5.99 or Annual £39.99) unless you cancel before then." },
+  { q: "How do I get started?", a: "Download BarkFind free from the App Store. You can browse straight away, and make an account when you want to review or save a place. Founding members get their first year for £19.99 instead of £39.99." },
+  { q: "How does the free trial work?", a: "New subscribers get a 14-day free trial. It's card-gated through Apple: you add a payment method to begin, but you're charged £0 up front. After 14 days it auto-renews into your chosen plan (Monthly £5.99 or Annual £39.99) unless you cancel before then." },
   { q: "What happens after my trial ends?", a: "If you don't subscribe, BarkFind switches to read-only rather than locking you out. You keep your saved spots, your profile and dog profile, and your own reviews, and you can still read other people's reviews and leave new ones. You lose searching for new places, Ask Mylo, saving new favourites, and dog-profile recommendations until you subscribe." },
   { q: "Is BarkFind available on Android?", a: "BarkFind is on iOS first. Android is on the roadmap and coming soon. Join the list on our homepage to be the first to know when it lands." },
   { q: "How are locations verified?", a: "Locations are verified through a combination of community reports, business owner claims, and our moderation team. A verified badge means the dog-friendly status has been confirmed." },
@@ -1165,20 +1165,25 @@ function DownloadCTA() {
 
       <div className="relative max-w-2xl mx-auto px-6 text-center">
         <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/15 text-white text-xs font-bold mb-6 border border-white/20">
-          <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
-          Early access · Launching soon on iPhone
+          <span className="w-1.5 h-1.5 rounded-full bg-white" />
+          Now on the App Store
         </div>
         <h2 className="font-serif text-3xl md:text-4xl lg:text-5xl text-white mb-5">
-          Be first through the door
+          Download BarkFind
         </h2>
         <p className="text-white/80 text-lg mb-8 leading-relaxed">
-          BarkFind launches on iPhone soon. Join early access for first shot at founding-member pricing, your first year for <strong className="text-white">£19.99</strong> instead of £39.99. Limited to our first <strong className="text-white">100 members</strong>.
+          BarkFind is live on the App Store. Download it free, and founding members get their first year for <strong className="text-white">£19.99</strong> instead of £39.99, limited to our first <strong className="text-white">100 members</strong>.
         </p>
 
-        <EarlyAccessForm platform="ios" buttonLabel="Get early access" />
+        <a
+          href={APP_STORE_URL}
+          className="inline-flex items-center justify-center px-8 py-3.5 rounded-full bg-white text-[#B74217] font-bold text-base hover:bg-[#FAEFD1] transition-colors shadow-lg"
+        >
+          Download on the App Store
+        </a>
 
         <p className="text-white/55 text-xs mt-4 max-w-md mx-auto leading-relaxed">
-          First shot at the offer, not a guaranteed slot (we may pass 100), and it arrives when we launch, not today. No spam, unsubscribe any time.
+          Founding-member pricing is limited to our first 100 members, so it may run out.
         </p>
 
         {/* Android, same list, tagged android */}
