@@ -109,7 +109,7 @@ function Hero() {
             </a>
             <a
               href="#features"
-              className="w-full sm:w-auto px-8 py-3.5 rounded-full border-2 border-[#B74217]/30 text-[#B74217] font-bold text-base hover:border-[#B74217] hover:bg-[#B74217]/5 transition-all text-center"
+              className="w-full sm:w-auto px-8 py-3.5 rounded-full bg-[#B74217] text-white font-bold text-base hover:bg-[#333333] transition-colors shadow-lg shadow-[#B74217]/25 text-center"
             >
               See how it works
             </a>
@@ -992,7 +992,7 @@ function Pricing() {
                 href={APP_STORE_URL}
                 className={`text-center px-5 py-3 rounded-full font-bold text-sm transition-all ${
                   plan.highlight
-                    ? "bg-white text-[#B74217] hover:bg-[#FAEFD1] shadow-md"
+                    ? "bg-white text-[#B74217] hover:bg-[#333333] hover:text-white shadow-md"
                     : "bg-[#B74217] text-white hover:bg-[#333333] shadow-sm shadow-[#B74217]/20"
                 }`}
               >
@@ -1175,7 +1175,7 @@ function DownloadCTA() {
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
           <a
             href={APP_STORE_URL}
-            className="inline-flex items-center justify-center px-8 py-3.5 rounded-full bg-white text-[#B74217] font-bold text-base hover:bg-[#FAEFD1] transition-colors shadow-lg"
+            className="inline-flex items-center justify-center px-8 py-3.5 rounded-full bg-white text-[#B74217] font-bold text-base hover:bg-[#333333] hover:text-white transition-colors shadow-lg"
           >
             Download on the App Store
           </a>
