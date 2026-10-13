@@ -14,7 +14,7 @@ const AUDIENCE_ID = process.env.RESEND_AUDIENCE_ID;
 const APP_ID = "6782144377";
 const redeemUrl = (code: string) =>
   `https://apps.apple.com/redeem?ctx=offercodes&id=${APP_ID}&code=${encodeURIComponent(code)}`;
-const APP_STORE_URL = `https://apps.apple.com/app/id${APP_ID}`;
+const APP_STORE_URL = `https://apps.apple.com/gb/app/id${APP_ID}`;
 const UNSUB = "mailto:support@barkfind.com?subject=Unsubscribe";
 
 // Basic per-IP rate limit: 5 a minute. In-memory, so per serverless instance.

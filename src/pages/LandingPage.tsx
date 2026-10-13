@@ -1288,9 +1288,6 @@ function Footer() {
       <div className="max-w-6xl mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-8">
         <div className="flex flex-col items-center md:items-start gap-4">
           <img src="/barkfind-logo-white.png" alt="BarkFind" className="h-7 opacity-80" />
-          <a href={APP_STORE_URL} aria-label="Download on the App Store" className="inline-block hover:opacity-90 transition-opacity">
-            <img src="/app-store-badge.svg" alt="Download on the App Store" className="h-10 w-auto" />
-          </a>
         </div>
 
         <nav className="flex flex-wrap justify-center gap-x-7 gap-y-3 text-sm">
@@ -1332,8 +1329,11 @@ function Footer() {
         </div>
       </div>
 
-      <div className="max-w-6xl mx-auto px-6 mt-10 pt-6 border-t border-white/10 text-center text-xs">
-        © {new Date().getFullYear()} BarkFind. All rights reserved.
+      <div className="max-w-6xl mx-auto px-6 mt-10 pt-6 border-t border-white/10 flex flex-col-reverse sm:flex-row items-center justify-between gap-6">
+        <p className="text-xs text-center sm:text-left">© {new Date().getFullYear()} BarkFind. All rights reserved.</p>
+        <a href={APP_STORE_URL} aria-label="Download on the App Store" className="inline-block hover:opacity-90 transition-opacity">
+          <img src="/app-store-badge.svg" alt="Download on the App Store" className="h-10 w-auto" />
+        </a>
       </div>
     </footer>
   );
