@@ -23,6 +23,13 @@ function Nav() {
           <a href="/discover" className="hover:text-[#B74217] transition-colors">Discover</a>
         </nav>
 
+        <a
+          href={APP_STORE_URL}
+          className="hidden md:inline-flex items-center px-5 py-2.5 rounded-full bg-[#B74217] text-white text-sm font-bold hover:opacity-90 transition-opacity shadow-sm shadow-[#B74217]/30"
+        >
+          Download on iOS
+        </a>
+
         <button
           className="md:hidden p-2 text-[#212121]"
           onClick={() => setMenuOpen(!menuOpen)}
@@ -47,6 +54,13 @@ function Nav() {
           <a href="#pricing" onClick={() => setMenuOpen(false)} className="text-[#585858]">Pricing</a>
           <a href="#faq" onClick={() => setMenuOpen(false)} className="text-[#585858]">FAQ</a>
           <a href="/discover" onClick={() => setMenuOpen(false)} className="text-[#585858]">Discover</a>
+          <a
+            href={APP_STORE_URL}
+            onClick={() => setMenuOpen(false)}
+            className="text-center px-5 py-2 rounded-full bg-[#B74217] text-white font-bold shadow-sm"
+          >
+            Download on iOS
+          </a>
         </div>
       )}
     </header>
@@ -90,12 +104,6 @@ function Hero() {
           </p>
 
           <div className="flex flex-col sm:flex-row items-center gap-4 justify-center md:justify-start">
-            <a
-              href={APP_STORE_URL}
-              className="w-full sm:w-auto px-8 py-3.5 rounded-full bg-[#B74217] text-white font-bold text-base hover:opacity-90 transition-all shadow-lg shadow-[#B74217]/25 text-center"
-            >
-              Download on the App Store
-            </a>
             <a href={APP_STORE_URL} aria-label="Download on the App Store" className="inline-block hover:opacity-90 transition-opacity">
               <img src="/app-store-badge.svg" alt="Download on the App Store" className="h-[52px] w-auto" />
             </a>
