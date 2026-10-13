@@ -110,6 +110,9 @@ function Hero() {
             >
               Download on the App Store
             </a>
+            <a href={APP_STORE_URL} aria-label="Download on the App Store" className="inline-block hover:opacity-90 transition-opacity">
+              <img src="/app-store-badge.svg" alt="Download on the App Store" className="h-[52px] w-auto" />
+            </a>
             <a
               href="#features"
               className="w-full sm:w-auto px-8 py-3.5 rounded-full border-2 border-[#B74217]/30 text-[#B74217] font-bold text-base hover:border-[#B74217] hover:bg-[#B74217]/5 transition-all text-center"
