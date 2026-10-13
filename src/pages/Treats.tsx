@@ -192,7 +192,7 @@ export default function Treats() {
         <p>BarkFind is free to download on the App Store, and founding members get their first year for £19.99. Start earning points from your very first review.</p>
         <a
           href={APP_STORE_URL}
-          className="inline-flex items-center justify-center mt-1 px-7 py-3.5 rounded-full bg-[#B74217] text-white font-bold text-sm hover:opacity-90 transition-opacity shadow-sm shadow-[#B74217]/25 self-start"
+          className="inline-flex items-center justify-center mt-1 px-7 py-3.5 rounded-full bg-[#B74217] text-white font-bold text-sm hover:bg-[#333333] transition-colors shadow-sm shadow-[#B74217]/25 self-start"
         >
           Download on the App Store
         </a>

@@ -137,7 +137,7 @@ export default function CreatorApplyForm() {
         <button
           type="submit"
           disabled={status === "sending"}
-          className="px-7 py-3.5 rounded-full bg-[#B74217] text-white font-bold text-sm hover:opacity-90 transition-opacity disabled:opacity-60"
+          className="px-7 py-3.5 rounded-full bg-[#B74217] text-white font-bold text-sm hover:bg-[#333333] transition-colors disabled:opacity-60"
         >
           {status === "sending" ? "Sending" : "Sign and send application"}
         </button>

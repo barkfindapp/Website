@@ -110,7 +110,7 @@ function EnquiryForm() {
       <button
         type="submit"
         disabled={status === "loading"}
-        className="mt-1 px-6 py-3.5 rounded-full bg-[#B74217] text-white font-bold text-sm hover:opacity-90 transition-opacity disabled:opacity-60 shadow-sm shadow-[#B74217]/20"
+        className="mt-1 px-6 py-3.5 rounded-full bg-[#B74217] text-white font-bold text-sm hover:bg-[#333333] transition-colors disabled:opacity-60 shadow-sm shadow-[#B74217]/20"
       >
         {status === "loading" ? "Sending…" : "Send enquiry"}
       </button>

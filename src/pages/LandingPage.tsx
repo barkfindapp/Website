@@ -25,7 +25,7 @@ function Nav() {
 
         <a
           href={APP_STORE_URL}
-          className="hidden md:inline-flex items-center px-5 py-2.5 rounded-full bg-[#B74217] text-white text-sm font-bold hover:opacity-90 transition-opacity shadow-sm shadow-[#B74217]/30"
+          className="hidden md:inline-flex items-center px-5 py-2.5 rounded-full bg-[#B74217] text-white text-sm font-bold hover:bg-[#333333] transition-colors shadow-sm shadow-[#B74217]/30"
         >
           Download on iOS
         </a>
@@ -993,7 +993,7 @@ function Pricing() {
                 className={`text-center px-5 py-3 rounded-full font-bold text-sm transition-all ${
                   plan.highlight
                     ? "bg-white text-[#B74217] hover:bg-[#FAEFD1] shadow-md"
-                    : "bg-[#B74217] text-white hover:opacity-90 shadow-sm shadow-[#B74217]/20"
+                    : "bg-[#B74217] text-white hover:bg-[#333333] shadow-sm shadow-[#B74217]/20"
                 }`}
               >
                 Download on the App Store

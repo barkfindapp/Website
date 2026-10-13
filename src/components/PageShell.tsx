@@ -123,7 +123,7 @@ function PageNav({ currentPath }: { currentPath: string }) {
 
           <a
             href={APP_STORE_URL}
-            className="inline-flex items-center px-5 py-2.5 rounded-full bg-[#B74217] text-white text-sm font-bold hover:opacity-90 transition-opacity shadow-sm shadow-[#B74217]/30"
+            className="inline-flex items-center px-5 py-2.5 rounded-full bg-[#B74217] text-white text-sm font-bold hover:bg-[#333333] transition-colors shadow-sm shadow-[#B74217]/30"
           >
             Start Free Trial
           </a>
