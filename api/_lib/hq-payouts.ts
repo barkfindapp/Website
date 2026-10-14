@@ -23,7 +23,7 @@ export function payoutOps(pool: Pool): Record<string, Op> {
   return {
     creator_payouts: {
       perm: 'money',
-      run: async (a) => {
+      run: async (a, ctx) => {
         only(a, ['month']);
         const asked = month(a.month, true);
         const months = (await pool.query(
@@ -48,7 +48,7 @@ export function payoutOps(pool: Pool): Record<string, Op> {
         const g = await guaranteeInfo(pool, active.map((x) => x.id));
         const notEarned = active.filter((x) => g[x.id] && !g[x.id].guarantee_month)
           .map((x) => ({ creator_id: x.id, display_name: x.display_name, v2: g[x.id].v2, approved_live: g[x.id].approved_live }));
-        return { data: { month: pick, months, rows: rows.rows, payments: paid.rows, payments_ready: ready, guarantee_not_earned: notEarned } };
+        return { data: { month: pick, months, rows: rows.rows, payments: paid.rows, payments_ready: ready, guarantee_not_earned: notEarned, can_mark: ctx.staff.level === 'owner' } };
       },
     },
 
@@ -56,6 +56,8 @@ export function payoutOps(pool: Pool): Record<string, Op> {
       perm: 'money',
       run: async (a, ctx) => {
         only(a, ['creator_id', 'month', 'amount_gbp', 'paid_on', 'reference']);
+        // Seeing payouts needs money; recording a payment is for owners only (14 Oct 2026).
+        if (ctx.staff.level !== 'owner') throw new HttpError(403, 'Only an owner can mark a creator paid.');
         const creatorId = uuid(a.creator_id);
         const m = month(a.month)!;
         const amount = typeof a.amount_gbp === 'number' ? a.amount_gbp : Number(a.amount_gbp);

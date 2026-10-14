@@ -3037,7 +3037,7 @@ label.amen:has(input:checked){border-color:var(--brand-line);background:var(--br
         if(x.total_gbp==null)agreed=true;else sum+=Number(x.total_gbp);
         var p=paid[x.creator_id];
         var act=p?'<span class="note">Paid '+esc(new Date(p.paid_on+"T12:00:00").toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"}))+(p.amount_gbp!=null?", "+gbp2(p.amount_gbp):"")+'</span>'
-          :d.payments_ready?'<button class="btn small" data-po="open" data-id="'+esc(x.creator_id)+'">Mark paid</button>':'';
+          :d.payments_ready&&d.can_mark?'<button class="btn small" data-po="open" data-id="'+esc(x.creator_id)+'">Mark paid</button>':'';
         var extra=[];
         if(x.refunded_from_earlier>0)extra.push('Refunds from earlier months: '+x.refunded_from_earlier);
         if(x.over_cap)extra.push('<span style="color:var(--warn);font-weight:700">Over the code limit</span>');
@@ -3047,7 +3047,7 @@ label.amen:has(input:checked){border-color:var(--brand-line);background:var(--br
           '<td class="num"><b>'+(x.total_gbp==null?"":gbp2(x.total_gbp))+'</b></td><td>'+act+'</td></tr>'}).join("");
       el.innerHTML=head+
         (open?'<p class="note" style="margin:0;color:var(--warn)">This month isn\'t finished yet. Figures may change.</p>':'')+
-        (d.payments_ready?'':'<p class="note" style="margin:0">Payments cannot be recorded yet: the creator_payments table has not been set up.</p>')+
+        (d.payments_ready?(d.can_mark?'':'<p class="note" style="margin:0">Only an owner can mark a creator paid.</p>'):'<p class="note" style="margin:0">Payments cannot be recorded yet: the creator_payments table has not been set up.</p>')+
         '<div class="card" style="padding:0;overflow-x:auto"><table class="po"><thead><tr><th>Creator</th><th class="num">People paid for</th><th class="num">Refunds</th><th class="num">Fee</th><th class="num">Guarantee (minimum)</th><th class="num">Total</th><th></th></tr></thead><tbody>'+
           (rows||'<tr><td colspan="7" class="note">No creators this month.</td></tr>')+'</tbody>'+
           '<tfoot><tr><td colspan="5"><b>Total</b>'+(agreed?'<div class="note">Plus anyone on agreed terms</div>':'')+'</td><td class="num"><b>'+gbp2(sum)+'</b></td><td></td></tr></tfoot></table></div>'+
