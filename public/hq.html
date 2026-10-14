@@ -3001,15 +3001,15 @@ label.amen:has(input:checked){border-color:var(--brand-line);background:var(--br
         if(x.over_cap)extra.push('<span style="color:var(--warn);font-weight:700">Over the code limit</span>');
         return '<tr data-po-row="'+esc(x.creator_id)+'"><td><b>'+esc(x.display_name)+'</b><div class="note">'+esc(x.offer_code||"No code")+(x.tier?", "+esc(x.tier):"")+'</div>'+(extra.length?'<div class="note">'+extra.join("<br>")+'</div>':'')+'</td>'+
           '<td class="num">'+x.payable_people+'</td><td class="num">'+x.refunded_same_month+'</td>'+
-          '<td class="num">'+(x.fee_gbp==null?'Agreed terms':gbp2(x.fee_gbp))+'</td><td class="num">'+(x.guarantee_gbp?gbp2(x.guarantee_gbp):"")+'</td>'+
+          '<td class="num">'+(x.fee_gbp==null?'Agreed terms':gbp2(x.fee_gbp))+'</td><td class="num">'+(x.guarantee_gbp?gbp2(x.guarantee_gbp)+(x.fee_gbp!=null&&x.payable_people*x.fee_gbp>x.guarantee_gbp?'<div class="note">Fees above the guarantee</div>':''):"")+'</td>'+
           '<td class="num"><b>'+(x.total_gbp==null?"":gbp2(x.total_gbp))+'</b></td><td>'+act+'</td></tr>'}).join("");
       el.innerHTML=head+
         (open?'<p class="note" style="margin:0;color:var(--warn)">This month isn\'t finished yet. Figures may change.</p>':'')+
         (d.payments_ready?'':'<p class="note" style="margin:0">Payments cannot be recorded yet: the creator_payments table has not been set up.</p>')+
-        '<div class="card" style="padding:0;overflow-x:auto"><table class="po"><thead><tr><th>Creator</th><th class="num">People paid for</th><th class="num">Refunds</th><th class="num">Fee</th><th class="num">Guarantee</th><th class="num">Total</th><th></th></tr></thead><tbody>'+
+        '<div class="card" style="padding:0;overflow-x:auto"><table class="po"><thead><tr><th>Creator</th><th class="num">People paid for</th><th class="num">Refunds</th><th class="num">Fee</th><th class="num">Guarantee (minimum)</th><th class="num">Total</th><th></th></tr></thead><tbody>'+
           (rows||'<tr><td colspan="7" class="note">No creators this month.</td></tr>')+'</tbody>'+
           '<tfoot><tr><td colspan="5"><b>Total</b>'+(agreed?'<div class="note">Plus anyone on agreed terms</div>':'')+'</td><td class="num"><b>'+gbp2(sum)+'</b></td><td></td></tr></tfoot></table></div>'+
-        '<p class="note" style="margin:0">People paid for is everyone who used the code this month and paid, less this month\'s refunds and any refunds this month of earlier months. Paid within 14 days of the month ending (creator terms, clauses 1 and 2).</p>';
+        '<p class="note" style="margin:0">People paid for is everyone who used the code this month and paid, less this month\'s refunds and any refunds this month of earlier months. In the month a code goes live the guarantee is a minimum: the total is the fees or the guarantee, whichever is higher, not both. Paid within 14 days of the month ending (creator terms, clauses 1 and 2).</p>';
     }).catch(function(e){el.innerHTML='<div class="subhead"><h3>Creator payouts</h3></div><div class="empty">'+esc((e&&e.message)||"That did not load.")+'</div>'});
   }
   $("poPane").addEventListener("change",function(ev){if(ev.target.id==="poMonth"){po.month=ev.target.value;payouts()}});
