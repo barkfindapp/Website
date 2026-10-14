@@ -198,7 +198,7 @@ function Questions() {
     },
     {
       q: `When do I actually get paid?`,
-      a: `By bank transfer within 14 days of the end of each month, for the month before. Because of Apple's 14 day free trial, a post on the 1st brings its first paying subscribers around the 15th, so expect your first payment about six weeks after your first post.`,
+      a: `By bank transfer within 14 days of the end of each month, for the month before. People who use your code pay straight away, so a post on the 1st is paid for by about the 14th of the following month.`,
     },
     {
       q: `Do I have to say it is an ad?`,
@@ -222,7 +222,7 @@ function Questions() {
     },
     {
       q: `What do my followers actually get?`,
-      a: `20% off their first year of Premium, £31.99 instead of £39.99, with the free trial still included. It works on iPhone; Android is coming.`,
+      a: `20% off their first year of Premium, £31.99 instead of £39.99, paid when they sign up. A code has no free trial. It works on iPhone; Android is coming.`,
     },
     {
       q: `What can I not do with the code?`,
@@ -488,7 +488,7 @@ export default function CreatorsPage() {
               </div>
               <p className="font-bold text-base mb-1 text-[#1a1a1a]">20% off their first Annual Premium subscription</p>
               <p className="text-sm text-[#585858] leading-relaxed mt-2">
-                £31.99 instead of £39.99, after a 14 day free trial. Then £39.99 a year unless they cancel.
+                £31.99 for their first year instead of £39.99, paid when they sign up. Then £39.99 a year unless they cancel.
               </p>
             </div>
             <p className="font-semibold text-[#1a1a1a]">BarkFind Premium gives users:</p>
@@ -558,9 +558,8 @@ export default function CreatorsPage() {
           </div>
         </div>
         <p>
-          A paying subscriber is someone who uses your code and pays for their first year after the free
-          trial. Downloads, trial starts and people who cancel during the trial are not counted, because we
-          have not been paid for them either.
+          A paying subscriber is someone who uses your code and pays for their first year. Downloads and
+          refunds are not counted, because we have not been paid for them either.
         </p>
         <p>
           Whatever the tier, you get BarkFind Premium free for as long as you are part of the programme. If your
@@ -568,8 +567,8 @@ export default function CreatorsPage() {
         </p>
         <p>
           You are paid once a month, by bank transfer, for the previous month's paying subscribers, so each
-          payment lands after the month it covers. Because Apple runs a 14 day trial, a post on the 1st brings
-          its first paying subscribers around the 15th, and that month is settled about four weeks later.
+          payment lands after the month it covers. People who use your code pay when they sign up, so a month's
+          subscribers are paid for within 14 days of that month ending.
         </p>
         <EarningsCalculator />
       </Section>
@@ -667,16 +666,17 @@ export default function CreatorsPage() {
           <p className="mb-6">The short version, written so you can read it in two minutes.</p>
           <ol className="flex flex-col gap-4 list-decimal pl-6 marker:font-bold marker:text-[#1a1a1a]">
             <li>
-              You are paid for each person who uses your code, finishes the free trial and pays for their first
-              year. What you get per person depends on your tier, set out under "How you are paid" above:{" "}
+              You are paid for each person who uses your code and pays for their first year. A code has no free
+              trial, so they pay when they sign up. What you get per person depends on your tier, set out under
+              "How you are paid" above:{" "}
               £{TIERS[0].fee} under {fmt(TIERS[0].maxFollowers)} followers, £{TIERS[1].fee} from{" "}
               {fmt(TIERS[1].minFollowers)} to {fmt(BESPOKE_FROM)}, and a figure we agree in writing above that.
-              We both go by Apple's count of code uses. Downloads, trial starts, cancellations during the trial
-              and refunds do not count.
+              We both go by Apple's count of code uses. Downloads and refunds do not count.
             </li>
             <li>
               You are paid each month by bank transfer, within 14 days of the month ending, for the month just
-              gone. Your first-post guarantee comes with that first payment.
+              gone. For the month your code goes live, you get your first-post guarantee or your per-person fees,
+              whichever is higher, not both added together.
             </li>
             <li>
               Each code works for a set number of people, {TIERS[0].cap} or {TIERS[1].cap} depending on your

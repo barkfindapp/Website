@@ -152,19 +152,19 @@ async function sendFounderEmail(email: string, link: string) {
   const html = layout({
     preheader: "Your first year of Premium for £19.99.",
     heading: "You're one of our first 100",
-    bodyHtml: P("Thanks for joining BarkFind early. Your founding-member link gives you your first year of BarkFind Premium for £19.99 instead of £39.99."),
+    bodyHtml: P("Thanks for joining BarkFind early. Your founding-member link gives you your first year of BarkFind Premium for £19.99 instead of £39.99, paid when you sign up."),
     button: { label: "Claim my founding price", url: link },
-    noteHtml: "Open this link on your iPhone before you start a free trial in the app, so the founding price is applied. It renews at £39.99 a year unless you cancel at least 24 hours before the renewal date, which you can do any time in your App Store settings.",
+    noteHtml: "Open this link on your iPhone before you sign up in the app, so the founding price is applied. It renews at £39.99 a year unless you cancel at least 24 hours before the renewal date, which you can do any time in your App Store settings.",
     afterHtml: `${P("Places are limited to our first 100 members, so it may stop working once they have gone.")}<p style="margin:0;font-size:16px;line-height:1.6;color:#585858;text-align:center;">Josh, BarkFind</p>`,
   });
   const text = [
     "You're one of our first 100",
     "",
-    "Thanks for joining BarkFind early. Your founding-member link gives you your first year of BarkFind Premium for £19.99 instead of £39.99.",
+    "Thanks for joining BarkFind early. Your founding-member link gives you your first year of BarkFind Premium for £19.99 instead of £39.99, paid when you sign up.",
     "",
     `Claim my founding price: ${link}`,
     "",
-    "Open this link on your iPhone before you start a free trial in the app, so the founding price is applied. It renews at £39.99 a year unless you cancel at least 24 hours before the renewal date, which you can do any time in your App Store settings.",
+    "Open this link on your iPhone before you sign up in the app, so the founding price is applied. It renews at £39.99 a year unless you cancel at least 24 hours before the renewal date, which you can do any time in your App Store settings.",
     "",
     "Places are limited to our first 100 members, so it may stop working once they have gone.",
     "",

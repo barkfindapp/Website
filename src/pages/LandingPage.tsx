@@ -1235,7 +1235,7 @@ function DownloadCTA() {
                 <p className="font-bold mb-1">Check your inbox.</p>
                 <p className="text-white/80 text-sm leading-relaxed">
                   {founderSent
-                    ? "We've sent your founding-member link. Open it on your iPhone before you start your free trial, so the founding price is applied."
+                    ? "We've sent your founding-member link. Open it on your iPhone before you sign up in the app, so the founding price is applied."
                     : "The founding places have just gone, but you're on the newsletter. You can download BarkFind free and start a 14-day trial."}
                 </p>
               </div>
