@@ -122,7 +122,7 @@ function CreatorContent({ creator }: { creator: Creator }) {
           </div>
           <p className="font-bold text-base mb-1 text-[#1a1a1a]">20% off your first year</p>
           <p className="text-sm text-[#585858] leading-relaxed mt-2">
-            £31.99 instead of £39.99, after a 14 day free trial. Then £39.99 a year unless you cancel.
+            £31.99 for your first year instead of £39.99, paid when you sign up. Then £39.99 a year unless you cancel.
           </p>
         </div>
 
@@ -160,7 +160,7 @@ function CreatorContent({ creator }: { creator: Creator }) {
         )}
 
         <p className="mt-4 text-xs text-ink/60 leading-relaxed">
-          iPhone only for now. Cancel any time during the free trial and you pay nothing.
+          iPhone only for now. You can cancel the renewal at any time in your Apple settings.
         </p>
       </div>
     </PageShell>

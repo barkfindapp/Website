@@ -137,8 +137,8 @@ function TierEarnings({
   const muted = onLight ? "text-ink/70" : "text-white/85";
 
   let note: string;
-  if (subs === 0) note = `Your first post still earns the £${tier.guarantee} guarantee.`;
-  else if (subs * tier.fee < tier.guarantee) note = `Below the £${tier.guarantee} guarantee, so your first post earns £${tier.guarantee}.`;
+  if (subs === 0) note = `Your first two posts still earn the £${tier.guarantee} guarantee.`;
+  else if (subs * tier.fee < tier.guarantee) note = `Below the £${tier.guarantee} guarantee, so your first two posts earn £${tier.guarantee}.`;
   else note = `£${tier.fee} for each paying subscriber, paid the month after they start paying.`;
   if (subs === tier.cap) note += ` That is as many as your code allows. Reach it and you move up a tier.`;
 
@@ -181,8 +181,8 @@ function Questions() {
 
   const items: { q: string; a: string }[] = [
     {
-      q: `Do I get the £${guarantee} just for posting?`,
-      a: `Yes, your first post is guaranteed at least £${guarantee}, whatever happens. Once you pass ${breakeven} subscribers, you earn £${fee} each instead, because that is worth more. So 0 subscribers is £${guarantee}, 20 is £${20 * fee}, ${cap} is £${cap * fee}. It is one or the other, whichever is higher, not both added together. After the first post there is no minimum, just £${fee} per subscriber.`,
+      q: `How does the £${guarantee} guarantee work?`,
+      a: `Once your first two posts are approved and live, within 30 days of each other, you are guaranteed at least £${guarantee} for that month. Once you pass ${breakeven} subscribers, you earn £${fee} each instead, because that is worth more. So 0 subscribers is £${guarantee}, 20 is £${20 * fee}, ${cap} is £${cap * fee}. It is one or the other, whichever is higher, not both added together. After that there is no minimum, just £${fee} per subscriber, and we may pause a code that goes two months without a post.`,
     },
     {
       q: `I have more than one account. Which one counts?`,
@@ -198,7 +198,7 @@ function Questions() {
     },
     {
       q: `When do I actually get paid?`,
-      a: `By bank transfer within 14 days of the end of each month, for the month before. Because of Apple's 14 day free trial, a post on the 1st brings its first paying subscribers around the 15th, so expect your first payment about six weeks after your first post.`,
+      a: `By bank transfer within 14 days of the end of each month, for the month before. People who use your code pay straight away, so a post on the 1st is paid for by about the 14th of the following month.`,
     },
     {
       q: `Do I have to say it is an ad?`,
@@ -222,7 +222,7 @@ function Questions() {
     },
     {
       q: `What do my followers actually get?`,
-      a: `20% off their first year of Premium, £31.99 instead of £39.99, with the free trial still included. It works on iPhone; Android is coming.`,
+      a: `20% off their first year of Premium, £31.99 instead of £39.99, paid when they sign up. A code has no free trial. It works on iPhone; Android is coming.`,
     },
     {
       q: `What can I not do with the code?`,
@@ -488,7 +488,7 @@ export default function CreatorsPage() {
               </div>
               <p className="font-bold text-base mb-1 text-[#1a1a1a]">20% off their first Annual Premium subscription</p>
               <p className="text-sm text-[#585858] leading-relaxed mt-2">
-                £31.99 instead of £39.99, after a 14 day free trial. Then £39.99 a year unless they cancel.
+                £31.99 for their first year instead of £39.99, paid when they sign up. Then £39.99 a year unless they cancel.
               </p>
             </div>
             <p className="font-semibold text-[#1a1a1a]">BarkFind Premium gives users:</p>
@@ -544,7 +544,7 @@ export default function CreatorsPage() {
             <div key={t.id} className="rounded-2xl bg-white border border-stone-100 shadow-sm p-6">
               <h3 className="font-bold text-[#1a1a1a] mb-1">{t.label} followers</h3>
               <p className="text-sm text-[#585858] leading-relaxed">
-                £{t.fee} for every paying subscriber, a guaranteed £{t.guarantee} on your first post, and your code
+                £{t.fee} for every paying subscriber, a guaranteed £{t.guarantee} across your first two posts, and your code
                 works for up to {t.cap} people.
               </p>
             </div>
@@ -558,9 +558,8 @@ export default function CreatorsPage() {
           </div>
         </div>
         <p>
-          A paying subscriber is someone who uses your code and pays for their first year after the free
-          trial. Downloads, trial starts and people who cancel during the trial are not counted, because we
-          have not been paid for them either.
+          A paying subscriber is someone who uses your code and pays for their first year. Downloads and
+          refunds are not counted, because we have not been paid for them either.
         </p>
         <p>
           Whatever the tier, you get BarkFind Premium free for as long as you are part of the programme. If your
@@ -568,8 +567,8 @@ export default function CreatorsPage() {
         </p>
         <p>
           You are paid once a month, by bank transfer, for the previous month's paying subscribers, so each
-          payment lands after the month it covers. Because Apple runs a 14 day trial, a post on the 1st brings
-          its first paying subscribers around the 15th, and that month is settled about four weeks later.
+          payment lands after the month it covers. People who use your code pay when they sign up, so a month's
+          subscribers are paid for within 14 days of that month ending.
         </p>
         <EarningsCalculator />
       </Section>
@@ -587,6 +586,27 @@ export default function CreatorsPage() {
           Every post, story and video that mentions BarkFind must be labelled as an ad. In the UK that is the
           law, not our preference. "Ad" or "Paid partnership" at the start, visible without tapping "more".
           Performance-based pay is still pay.
+        </p>
+      </Section>
+
+      <Section title="Your first two posts">
+        <p>
+          Send us each of your first two posts before you put it up, by email to{" "}
+          <a href="mailto:info@barkfind.com?subject=Creator%20post%20for%20review" className="text-[#B74217] font-semibold hover:underline">info@barkfind.com</a>,
+          as a draft video or a private link. We reply within 2 working days, with an OK or what to change. We
+          check five things:
+        </p>
+        <Bullets
+          items={[
+            "BarkFind on screen: the map, a real place and what Mylo says about it",
+            "A real visit with your dog, filmed by you",
+            "Your code on screen and in the caption",
+            `"Ad" or "Paid partnership" at the start, visible without tapping "more"`,
+            "At least 20 seconds long",
+          ]}
+        />
+        <p>
+          After your first two, there is no approval step. Keep the three rules above in every post.
         </p>
       </Section>
 
@@ -667,16 +687,18 @@ export default function CreatorsPage() {
           <p className="mb-6">The short version, written so you can read it in two minutes.</p>
           <ol className="flex flex-col gap-4 list-decimal pl-6 marker:font-bold marker:text-[#1a1a1a]">
             <li>
-              You are paid for each person who uses your code, finishes the free trial and pays for their first
-              year. What you get per person depends on your tier, set out under "How you are paid" above:{" "}
+              You are paid for each person who uses your code and pays for their first year. A code has no free
+              trial, so they pay when they sign up. What you get per person depends on your tier, set out under
+              "How you are paid" above:{" "}
               £{TIERS[0].fee} under {fmt(TIERS[0].maxFollowers)} followers, £{TIERS[1].fee} from{" "}
               {fmt(TIERS[1].minFollowers)} to {fmt(BESPOKE_FROM)}, and a figure we agree in writing above that.
-              We both go by Apple's count of code uses. Downloads, trial starts, cancellations during the trial
-              and refunds do not count.
+              We both go by Apple's count of code uses. Downloads and refunds do not count.
             </li>
             <li>
               You are paid each month by bank transfer, within 14 days of the month ending, for the month just
-              gone. Your first-post guarantee comes with that first payment.
+              gone. Your first-post guarantee is earned when your second approved post goes live, within 30 days
+              of your first. For that month, you get the guarantee or your per-person fees, whichever is higher,
+              not both added together.
             </li>
             <li>
               Each code works for a set number of people, {TIERS[0].cap} or {TIERS[1].cap} depending on your
@@ -694,7 +716,7 @@ export default function CreatorsPage() {
             <li>
               We can pause, change or stop a code by telling you {NOTICE_DAYS} days ahead, for instance if the
               price, the discount or the programme changes. Anyone who used it before the change is still paid
-              for.
+              for. If two months go by without a post about BarkFind, we may pause your code in the same way.
             </li>
             <li>
               We can stop a code straight away, with no notice, if it turns up on a coupon or discount site, is
@@ -702,8 +724,10 @@ export default function CreatorsPage() {
               not pay for subscribers who come from that.
             </li>
             <li>
-              Every post that mentions BarkFind needs an ad label, as the CAP Code requires. Keeping your posts
-              within UK advertising law is down to you.
+              Send us each of your first two posts before it goes live. We check it against the checklist on
+              this page and reply within 2 working days, with an OK or what to change. Every post that mentions
+              BarkFind needs an ad label, as the CAP Code requires. Keeping your posts within UK advertising law
+              is down to you.
             </li>
             <li>
               Either of us can end things by giving the other {NOTICE_DAYS} days' notice. Everyone who paid up
