@@ -770,6 +770,8 @@ label.amen:has(input:checked){border-color:var(--brand-line);background:var(--br
     if(q.location_reports_open>0)items.push(["warn",q.location_reports_open+" place report(s) open","A user says a listing is wrong.","#act/reports","Review"]);
     if(q.business_claims_pending>0)items.push(["warn",q.business_claims_pending+" business claim(s) pending","A venue wants to manage its listing.","#act/claims","Verify"]);
     if(q.listing_submissions_pending>0)items.push(["info",q.listing_submissions_pending+" suggested place(s) waiting","Users have suggested new listings.","#act/suggestions","Review"]);
+    var postsDue=(state.creatorCounts&&state.creatorCounts.posts_submitted)||0;
+    if(postsDue>0)items.push(["info",postsDue+" creator post"+(postsDue===1?"":"s")+" to review","Posts sent to us before they go live. Reply within 2 working days.","#act/creators/active","Review"]);
     if(state.creatorApps>0)items.push(["info",state.creatorApps+" creator application"+(state.creatorApps===1?"":"s")+" waiting","Creators have applied to the programme.","#act/creators","Review"]);
     if(q.treat_claims_pending>0)items.push(["warn",q.treat_claims_pending+" treat claim(s) stuck pending","A pending claim locks the user's points until it is confirmed or failed. The 15-minute sweep should clear these.","https://supabase.com/dashboard/project/"+PROJECT+"/editor","Inspect"]);
     if(h.revenuecat_sync_age_minutes>90)items.push(["warn","RevenueCat data is "+h.revenuecat_sync_age_minutes+" minutes old","The hourly revenuecat-sync job may be failing.","https://supabase.com/dashboard/project/"+PROJECT+"/functions","Check function"]);
@@ -1100,9 +1102,9 @@ label.amen:has(input:checked){border-color:var(--brand-line);background:var(--br
   function route(h){
     h=(h||"").replace(/^#/,"");var p=h.split("/"),t=p[0],sec=p[1]||"";
     if(["today","act","users","places","content","comms","money","insights","outreach","admin","consoles"].indexOf(t)<0)return false;
-    if(sec){if(t==="act"&&window.HQAct&&HQAct.open)HQAct.open(sec);else if(t==="content"&&window.HQContent&&HQContent.open)HQContent.open(sec)}
+    if(sec){if(t==="act"&&window.HQAct&&HQAct.open)HQAct.open(sec,p[2]);else if(t==="content"&&window.HQContent&&HQContent.open)HQContent.open(sec)}
     go(t);
-    if(sec){try{history.replaceState(null,"","#"+t+"/"+sec)}catch(e){}}
+    if(sec){try{history.replaceState(null,"","#"+t+"/"+sec+(p[2]?"/"+p[2]:""))}catch(e){}}
     return true;
   }
   window.addEventListener("hashchange",function(){route(location.hash)});
@@ -1432,7 +1434,8 @@ label.amen:has(input:checked){border-color:var(--brand-line);background:var(--br
   window.HQAct={
     init:function(){var ok=SECTIONS.filter(function(s){return s.ok()});cur=ok.length?ok[0].k:null;nav()},
     onQueue:function(){nav()},
-    open:function(sec){if(SECTIONS.some(function(s){return s.k===sec&&s.ok()})){cur=sec;nav()}},
+    // open("creators","active") also picks the Creators filter (used by the Today posts item).
+    open:function(sec,sub){if(sec==="creators"&&["applied","active","ended_declined"].indexOf(sub)>=0)crFilter=sub;if(SECTIONS.some(function(s){return s.k===sec&&s.ok()})){cur=sec;nav()}},
     show:function(){if(cur)load()}
   };
 
@@ -1957,6 +1960,30 @@ label.amen:has(input:checked){border-color:var(--brand-line);background:var(--br
     var full=n>=cr.code_cap;
     return ' · '+(full?'<span style="color:var(--warn);font-weight:700">'+n+' of '+cr.code_cap+' redeemed. Cap reached</span>':n+' of '+cr.code_cap+' redeemed');
   }
+  // ---------- creator posts and the first-post guarantee ----------
+  var CR_POST={submitted:["Waiting for review","warn"],changes_requested:["Changes asked for","info"],approved:["Approved","ok"],rejected:["Rejected",""]};
+  function crMonth(m){return m?new Date(m+"-15T12:00:00").toLocaleDateString("en-GB",{month:"long",year:"numeric"}):""}
+  function crDay(d){return d?new Date(d+"T12:00:00").toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"}):""}
+  function crTodayUK(){return new Intl.DateTimeFormat("en-CA",{timeZone:"Europe/London"}).format(new Date())}
+  function crGuarantee(cr){var g=cr.guarantee;if(!g)return "";
+    if(g.guarantee_month)return '<div class="note">Guarantee: earned '+esc(crMonth(g.guarantee_month))+'</div>';
+    if(g.v2)return '<div class="note">Guarantee: on first post</div>';
+    var n=Math.max(1,2-(g.approved_live||0));return '<div class="note">Guarantee: waiting for '+n+' more approved post'+(n===1?"":"s")+'</div>'}
+  function crPosts(cr){var ps=cr.posts||[],due=ps.filter(function(p){return p.status==="submitted"}).length;
+    var list=ps.map(function(p){var st=CR_POST[p.status]||[p.status,""],open=p.status==="submitted"||p.status==="changes_requested";
+      return '<div class="card" data-post="'+esc(p.id)+'" style="box-shadow:none;border:1px solid var(--line);gap:6px">'+
+        '<div class="meta"><span class="tag '+st[1]+'" style="text-transform:none">'+esc(st[0])+'</span><span>'+esc(String(p.platform||"").replace(/^./,function(c){return c.toUpperCase()}).replace("Tiktok","TikTok").replace("Youtube","YouTube"))+'</span><span>'+(p.posted_on?"Live "+esc(crDay(p.posted_on)):"Not live yet")+'</span><span>Sent '+esc(H.when(p.submitted_at))+'</span></div>'+
+        (p.url&&httpOnly(p.url)?'<a href="'+esc(p.url)+'" target="_blank" rel="noopener noreferrer" style="overflow-wrap:anywhere">'+esc(p.url)+'</a>':'')+
+        (p.note?'<div class="note" style="white-space:pre-wrap">'+esc(p.note)+'</div>':'')+
+        (open?'<div class="row"><button class="btn primary small" data-do="cr_post_approve" data-confirm="Confirm approve">Approve</button></div>'+
+          '<label class="note">What needs changing</label><input type="text" class="pill-in" data-post-note maxlength="1000"><div class="row"><button class="btn small" data-do="cr_post_changes" data-confirm="Confirm send">Ask for changes</button></div>':'')+
+        '<div class="row" style="align-items:center"><input type="date" data-post-live value="'+esc(p.posted_on||crTodayUK())+'" aria-label="Date it went live" style="max-width:170px"><button class="btn small" data-do="cr_post_live">'+(p.posted_on?"Change live date":"Mark live")+'</button></div></div>'}).join("");
+    var add='<div class="grid2"><label>Link to the post<input type="text" data-pa="url" placeholder="https://"></label><label>Platform<select data-pa="platform"><option value="tiktok">TikTok</option><option value="instagram">Instagram</option><option value="youtube">YouTube</option><option value="other">Other</option></select></label></div>'+
+      '<label class="note">Note (optional)</label><input type="text" class="pill-in" data-pa="note" maxlength="1000"><div class="row"><button class="btn small" data-do="cr_post_add">Add post</button></div>';
+    return '<details class="card" data-posts style="box-shadow:none;border:1px solid var(--line)"'+(due?" open":"")+'><summary class="note">Posts'+(ps.length?" ("+ps.length+")":"")+(due?", "+due+" to review":"")+'</summary>'+
+      (list||'<div class="note">No posts recorded yet.</div>')+'<div class="subhead"><h3 style="font-size:16px">Add a post</h3></div>'+add+'</details>'}
+  function crPostAct(b,promise,msg){var box=b.closest("[data-post]")||b.closest("[data-posts]");b.disabled=true;
+    promise.then(function(r){H.note(box,true,msg||(r&&r.message)||"Done.");crRefresh()}).catch(function(e){H.note(box,false,(e&&e.message)||"That did not work.");b.disabled=false;b.dataset.armed="";if(b.dataset.label)b.textContent=b.dataset.label;b.classList.remove("confirm")})}
   function crTierOf(f){return f>=30000?"bespoke":f>=10000?"mid":"small"}
   var CR_PLATFORMS=[["instagram","Instagram"],["tiktok","TikTok"],["facebook","Facebook"],["youtube","YouTube"],["other","Other"]];
   // Shown beside the Tier select; the tier itself is still chosen by hand.
@@ -1998,6 +2025,7 @@ label.amen:has(input:checked){border-color:var(--brand-line);background:var(--br
       '<label>Followers<input type="number" data-ce="followers" min="0" max="50000000" step="1" value="'+(cr.followers!=null?cr.followers:"")+'"></label>'+
       '<label>Platform<select data-ce="followers_platform"><option value=""'+(cr.followers_platform?"":" selected")+'>Not set</option>'+CR_PLATFORMS.map(function(p){return '<option value="'+p[0]+'"'+(p[0]===cr.followers_platform?" selected":"")+'>'+p[1]+'</option>'}).join("")+'</select></label></div>'+
       '<div class="note">Use their largest following. Today\'s date is recorded when you change it.</div>'+
+      (cr.guarantee&&cr.guarantee.v2?'<div class="grid2"><label>First post date<input type="date" data-ce="first_post_on" value="'+esc(cr.first_post_on||"")+'"></label></div><div class="note">Version 2 terms: the guarantee is earned on their first post. Used only when no approved post is recorded.</div>':'')+
       '<label class="note">Bespoke terms'+(bespoke?" (required for bespoke)":"")+'</label><textarea data-ce="bespoke_terms">'+esc(cr.bespoke_terms||"")+'</textarea>'+
       '<label class="note">Notes</label><textarea data-ce="notes">'+esc(cr.notes||"")+'</textarea>'+
       '<div class="row"><button class="btn small" data-do="cr_save">Save changes</button></div></details>';
@@ -2019,13 +2047,14 @@ label.amen:has(input:checked){border-color:var(--brand-line);background:var(--br
       (contact&&(cr.account_email||cr.contact_email)?'<dl class="kvs">'+(cr.account_email?'<dt>Account email</dt><dd>'+esc(cr.account_email)+'</dd>':'')+(cr.contact_email?'<dt>Contact email</dt><dd>'+esc(cr.contact_email)+'</dd>':'')+'</dl>':'')+
       crSig(cr)+
       '<dl class="kvs"><dt>Code</dt><dd>'+esc(cr.offer_code||"none")+(cr.code_cap!=null?' (cap '+cr.code_cap+')':'')+crRedeemed(cr)+'</dd>'+(st==="active"?'<dt>Page</dt><dd><a href="https://www.barkfind.com/with/'+esc(cr.slug)+'" target="_blank" rel="noopener noreferrer">barkfind.com/with/'+esc(cr.slug)+'</a></dd>':'')+(st==="ended"&&cr.ended_reason?'<dt>Ended</dt><dd>'+esc(cr.ended_reason)+'</dd>':'')+'</dl>'+
-      crSteps(cr)+
+      crSteps(cr)+crGuarantee(cr)+
       (st==="applied"&&cr.followers!=null?'<div class="note">Suggested tier: '+crTierOf(cr.followers)+(crTierOf(cr.followers)==="bespoke"?". Agree terms with them first":"")+'</div>':'');
     var agr=[];
     if(cr.agreement_path)agr.push('<button class="btn small" data-do="cr_viewagr" data-which="signed">View agreement</button>');
     if(cr.bespoke_agreement_path)agr.push('<button class="btn small" data-do="cr_viewagr" data-which="bespoke">View bespoke agreement</button>');
     if(setupMode)agr.push('<button class="btn small" data-do="cr_previewagr">Preview agreement</button>');
     if(agr.length)h+='<div class="row">'+agr.join("")+'</div>';
+    if(st==="active"||st==="approved")h+=crPosts(cr);
     if(canEdit)h+=crEdit(cr,bespoke);
     if(bespoke&&setupMode)h+='<div class="note" style="margin-top:6px">Signed bespoke agreement, PDF 3 MB or less'+(cr.bespoke_agreement_path?" (uploaded)":"")+'</div><div class="row"><input type="file" accept="application/pdf" data-cr-file><button class="btn small" data-do="cr_upload">Upload signed agreement</button></div>';
     if(needsSetup)h+='<div class="note" style="color:var(--warn)">Set-up not finished. Run it once the app is live.</div>';
@@ -2083,6 +2112,7 @@ label.amen:has(input:checked){border-color:var(--brand-line);background:var(--br
     ["account_email","contact_email","offer_code","bespoke_terms","notes"].forEach(function(k){var v=g(k);if(v===null)return;if(k==="offer_code")v=v.toUpperCase();if(v!==(cr[k]||"")){o[k]=v;n++}});
     var cap=g("code_cap");if(cap!==null){var capv=cap===""?null:Number(cap);if(capv!==(cr.code_cap!=null?cr.code_cap:null)){o.code_cap=capv;n++}}
     var fol=g("followers");if(fol!==null){fol=fol.replace(/[,\s]/g,"");if(fol!==""&&!/^\d+$/.test(fol)){H.note(card,false,"Followers is a whole number.");return}var folv=fol===""?null:Number(fol);if(folv!==null&&folv>50000000){H.note(card,false,"Followers can be up to 50,000,000.");return}if(folv!==(cr.followers!=null?cr.followers:null)){o.followers=folv;n++}}
+    var fpo=g("first_post_on");if(fpo!==null&&fpo!==(cr.first_post_on||"")){o.first_post_on=fpo;n++}
     var fpl=g("followers_platform");if(fpl!==null&&fpl!==(cr.followers_platform||"")){o.followers_platform=fpl;n++}
     if(!n){H.note(card,false,"Nothing has changed.");return}
     var tierNow=o.tier||cr.tier;
@@ -2144,6 +2174,14 @@ label.amen:has(input:checked){border-color:var(--brand-line);background:var(--br
     // Creators
     if(what==="cr_check"){var out=$("actPane").querySelector("[data-cr-check]");b.disabled=true;out.innerHTML='<div class="note">Checking.</div>';H.api("creator_check").then(function(r){out.innerHTML=crCheckHtml(r.data)}).catch(function(e){out.innerHTML="";H.note(card,false,(e&&e.message)||"That did not work.")}).then(function(){b.disabled=false});return}
     if(what==="cr_add"){crAdd(card,b);return}
+    if(what==="cr_post_add"){var crd=b.closest("[data-cr]"),pa=b.closest("[data-posts]"),gv=function(k){return pa.querySelector('[data-pa="'+k+'"]').value.trim()};
+      if(!/^https?:\/\//i.test(gv("url"))){H.note(pa,false,"Paste the full link to the post, starting https://.");return}
+      var po={creator_id:crd.dataset.cr,url:gv("url"),platform:gv("platform")};if(gv("note"))po.note=gv("note");crPostAct(b,H.api("creator_post_add",po));return}
+    if(what==="cr_post_approve"){if(!H.armed(b))return;crPostAct(b,H.api("creator_post_review",{id:b.closest("[data-post]").dataset.post,decision:"approved"}));return}
+    if(what==="cr_post_changes"){var pc=b.closest("[data-post]"),nt=pc.querySelector("[data-post-note]").value.trim();if(!nt){H.note(pc,false,"Say what needs changing.");return}if(!H.armed(b))return;
+      crPostAct(b,H.api("creator_post_review",{id:pc.dataset.post,decision:"changes_requested",note:nt}));return}
+    if(what==="cr_post_live"){var pl2=b.closest("[data-post]"),dv=pl2.querySelector("[data-post-live]").value;if(!dv){H.note(pl2,false,"Choose the date it went live.");return}
+      crPostAct(b,H.api("creator_post_live",{id:pl2.dataset.post,posted_on:dv}));return}
     if(what==="cr_save"){crSave(b.closest("[data-cr]"),b);return}
     if(what==="cr_approve"){crRunSetup(card,b,null);return}
     if(what==="cr_viewagr"){b.disabled=true;H.api("creator_agreement_url",{id:card.dataset.cr,which:b.dataset.which}).then(function(r){var d=r.data||{};if(d.url)window.open(d.url,"_blank","noopener");else H.note(card,false,d.error||"No link came back.")}).catch(function(e){H.note(card,false,(e&&e.message)||"That did not work.")}).then(function(){b.disabled=false});return}
@@ -2987,7 +3025,11 @@ label.amen:has(input:checked){border-color:var(--brand-line);background:var(--br
     var el=$("poPane");el.innerHTML='<div class="subhead"><h3>Creator payouts</h3></div><div class="empty">Loading.</div>';
     H.api("creator_payouts",po.month?{month:po.month}:{}).then(function(r){var d=r.data;po.data=d;po.month=d.month;
       var head='<div class="subhead"><h3>Creator payouts</h3>'+(d.months.length?'<label class="note" style="display:flex;gap:8px;align-items:center">Month <select id="poMonth">'+d.months.map(function(m){return '<option value="'+esc(m.month)+'"'+(m.month===d.month?" selected":"")+'>'+esc(monthLabel(m.month))+(m.closed?"":" (not finished)")+'</option>'}).join("")+'</select></label>':'')+'</div>';
-      if(!d.month){el.innerHTML=head+'<div class="empty">No creator months yet.</div>';return}
+      // Active creators whose first-post guarantee is not earned yet, under the table.
+      var ne=(d.guarantee_not_earned||[]);
+      var neHtml=ne.length?'<div class="card"><div class="subhead"><h3 style="font-size:18px">Guarantee not earned yet</h3></div>'+ne.map(function(x){var n=Math.max(1,2-(x.approved_live||0));
+        return '<div class="note"><b>'+esc(x.display_name)+'</b>: '+(x.v2?"on their first post (version 2 terms), no first post recorded yet":"waiting for "+n+" more approved post"+(n===1?"":"s"))+'</div>'}).join("")+'</div>':'';
+      if(!d.month){el.innerHTML=head+'<div class="empty">No creator months yet.</div>'+neHtml;return}
       var paid={};d.payments.forEach(function(p){paid[p.creator_id]=p});
       var open=d.rows.some(function(x){return !x.month_closed});
       var sum=0,agreed=false;
@@ -3009,6 +3051,7 @@ label.amen:has(input:checked){border-color:var(--brand-line);background:var(--br
         '<div class="card" style="padding:0;overflow-x:auto"><table class="po"><thead><tr><th>Creator</th><th class="num">People paid for</th><th class="num">Refunds</th><th class="num">Fee</th><th class="num">Guarantee (minimum)</th><th class="num">Total</th><th></th></tr></thead><tbody>'+
           (rows||'<tr><td colspan="7" class="note">No creators this month.</td></tr>')+'</tbody>'+
           '<tfoot><tr><td colspan="5"><b>Total</b>'+(agreed?'<div class="note">Plus anyone on agreed terms</div>':'')+'</td><td class="num"><b>'+gbp2(sum)+'</b></td><td></td></tr></tfoot></table></div>'+
+        neHtml+
         '<p class="note" style="margin:0">People paid for is everyone who used the code this month and paid, less this month\'s refunds and any refunds this month of earlier months. In the month a code goes live the guarantee is a minimum: the total is the fees or the guarantee, whichever is higher, not both. Paid within 14 days of the month ending (creator terms, clauses 1 and 2).</p>';
     }).catch(function(e){el.innerHTML='<div class="subhead"><h3>Creator payouts</h3></div><div class="empty">'+esc((e&&e.message)||"That did not load.")+'</div>'});
   }

@@ -20,7 +20,7 @@ const MAX_B64 = 6 * 1024 * 1024; // headroom over the 4.2 MB cap (Vercel's reque
 const COLS = `id, slug, display_name, primary_handle, handles, followers, followers_platform, followers_on,
   account_email, contact_email, user_id, tier, bespoke_terms, offer_code, code_cap, status, terms_version,
   terms_agreed_at, signature_name, signed_at, agreement_path, bespoke_agreement_path, setup, notes, source,
-  created_at, activated_at, ended_at, ended_reason`;
+  created_at, activated_at, ended_at, ended_reason, first_post_on::text as first_post_on`;
 
 const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 function email(v: unknown, { optional = false } = {}): string {
@@ -58,9 +58,42 @@ async function callAdmin(pool: Pool, body: Record<string, unknown>): Promise<{ h
   }
 }
 
+// Where each creator's first-post guarantee falls, worked out exactly as the
+// creator_payout_months view does it (keep the two in step):
+// Version 2 (or no version on file, the migrated rows) earn it in the month of
+// first_post_on, or else of their first approved live post. Version 3 onwards earn it in the
+// month of the first approved live post that went live within 30 days of the previous one.
+export const TERMS_V2 = 'Version 2, 27 September 2026';
+export async function guaranteeInfo(q: { query: Pool['query'] }, ids: string[]) {
+  if (!ids.length) return {} as Record<string, { v2: boolean; guarantee_month: string | null; approved_live: number }>;
+  const r = await q.query(
+    `with ap as (select p.creator_id, p.posted_on,
+                        lag(p.posted_on) over (partition by p.creator_id order by p.posted_on, p.id) as prev_on
+                   from public.creator_posts p where p.status = 'approved' and p.posted_on is not null)
+     select c.id, (c.terms_version = $2 or c.terms_version is null) as v2,
+            to_char(case when c.terms_version = $2 or c.terms_version is null
+                         then date_trunc('month', coalesce(c.first_post_on, (select min(ap.posted_on) from ap where ap.creator_id = c.id))::timestamp)
+                         else date_trunc('month', (select min(ap.posted_on) from ap where ap.creator_id = c.id and ap.prev_on is not null and ap.posted_on - ap.prev_on <= 30)::timestamp)
+                    end, 'YYYY-MM') as guarantee_month,
+            (select count(*) from ap where ap.creator_id = c.id)::int as approved_live
+       from public.creators c where c.id = any($1::uuid[])`, [ids, TERMS_V2]);
+  return Object.fromEntries(r.rows.map((x) => [x.id, { v2: x.v2, guarantee_month: x.guarantee_month, approved_live: x.approved_live }]));
+}
+
+const POST_COLS = `id, creator_id, url, platform, status, note, posted_on::text as posted_on, submitted_at, reviewed_at,
+  reviewed_by, created_at, updated_at`;
+const POST_PLATFORMS = ['tiktok', 'instagram', 'youtube', 'other'] as const;
+const postUrl = (v: unknown) => {
+  const s = str(v, 500, { min: 1 });
+  let u: URL; try { u = new URL(s); } catch { throw new HttpError(400, 'Paste the full link to the post, starting https://.'); }
+  if (u.protocol !== 'https:' && u.protocol !== 'http:') throw new HttpError(400, 'Paste the full link to the post, starting https://.');
+  return u.toString();
+};
+
 const COUNTS_SQL = `select count(*) filter (where status = 'applied')::int as applied,
   count(*) filter (where status = 'active')::int as active,
-  count(*) filter (where status in ('ended','declined'))::int as ended_declined
+  count(*) filter (where status in ('ended','declined'))::int as ended_declined,
+  (select count(*) from public.creator_posts where status = 'submitted')::int as posts_submitted
   from public.creators`;
 
 export function creatorOps(pool: Pool): Record<string, Op> {
@@ -83,7 +116,15 @@ export function creatorOps(pool: Pool): Record<string, Op> {
         const rows = (await pool.query(`select ${COLS} from public.creators where ${where} order by created_at desc limit 500`)).rows;
         const counts = (await pool.query(COUNTS_SQL)).rows[0];
         const contact = ctx.staff.perms.has('users_contact');
-        const out = contact ? rows : rows.map((x: any) => ({ ...x, account_email: null, contact_email: null }));
+        const ids = rows.map((x: any) => x.id);
+        const [posts, g] = await Promise.all([
+          ids.length ? pool.query(`select ${POST_COLS} from public.creator_posts where creator_id = any($1::uuid[]) order by submitted_at desc`, [ids]) : Promise.resolve({ rows: [] as any[] }),
+          guaranteeInfo(pool, ids),
+        ]);
+        const byCreator: Record<string, any[]> = {};
+        for (const p of posts.rows) (byCreator[p.creator_id] ||= []).push(p);
+        const withPosts = rows.map((x: any) => ({ ...x, posts: byCreator[x.id] || [], guarantee: g[x.id] || null }));
+        const out = contact ? withPosts : withPosts.map((x: any) => ({ ...x, account_email: null, contact_email: null }));
         return { data: { rows: out, counts, terms_version: filter } };
       },
     },
@@ -91,7 +132,7 @@ export function creatorOps(pool: Pool): Record<string, Op> {
     creator_update: {
       perm: 'creators',
       run: async (a, ctx) => {
-        only(a, ['id', 'tier', 'account_email', 'contact_email', 'offer_code', 'bespoke_terms', 'code_cap', 'notes', 'followers', 'followers_platform']);
+        only(a, ['id', 'tier', 'account_email', 'contact_email', 'offer_code', 'bespoke_terms', 'code_cap', 'notes', 'followers', 'followers_platform', 'first_post_on']);
         const id = uuid(a.id);
         const f: Record<string, unknown> = {};
         if ('tier' in a) f.tier = oneOf(a.tier, TIERS);
@@ -104,11 +145,16 @@ export function creatorOps(pool: Pool): Record<string, Op> {
         // Re-measured following. followers_on is never typed: it is set below when the count changes.
         if ('followers' in a) f.followers = intOrNull(a.followers, 50000000);
         if ('followers_platform' in a) f.followers_platform = a.followers_platform === '' || a.followers_platform == null ? null : oneOf(a.followers_platform, PLATFORMS);
+        // Version 2 creators only (checked below): a fallback first-post date for the guarantee.
+        if ('first_post_on' in a) f.first_post_on = date(a.first_post_on, { optional: true }) || null;
         const keys = Object.keys(f);
         if (!keys.length) throw new HttpError(409, 'Nothing has changed.');
         return writeTx(pool, ctx.staff.userId, async (c, audit) => {
           const before = (await c.query(`select ${COLS}, asc_offer_code_id from public.creators where id = $1 for update`, [id])).rows[0];
           if (!before) throw new HttpError(404, 'That creator no longer exists.');
+          if ('first_post_on' in f && before.terms_version != null && before.terms_version !== TERMS_V2) {
+            throw new HttpError(409, 'A first post date is only used for creators on version 2 of the terms. Record their posts instead.');
+          }
           // Once the code is live in App Store Connect its code, tier and cap are fixed.
           if (before.asc_offer_code_id && ('offer_code' in f || 'tier' in f || 'code_cap' in f)) {
             throw new HttpError(409, 'The code exists in App Store Connect. End the partnership and set them up again to change it.');
@@ -121,6 +167,66 @@ export function creatorOps(pool: Pool): Record<string, Op> {
           const pick = (o: any) => Object.fromEntries(keys.map((k) => [k, o[k]]));
           await audit({ action: 'creator_update', entity: 'creators', entityId: id, detail: `Edited creator ${before.display_name}: ${keys.join(', ')}`, before: pick(before), after: pick(after) });
           return { ok: true, message: 'Saved.' };
+        });
+      },
+    },
+    // Posts sent to us before going live (terms v3: the first two; v2 creators' posts can be
+    // recorded too). Needs creators only, no money. Each write is audited with before and after.
+    creator_post_add: {
+      perm: 'creators',
+      run: async (a, ctx) => {
+        only(a, ['creator_id', 'url', 'platform', 'note']);
+        const creatorId = uuid(a.creator_id);
+        const url = postUrl(a.url);
+        const platform = oneOf(a.platform, POST_PLATFORMS);
+        const note = str(a.note, 1000, { optional: true }) || null;
+        return writeTx(pool, ctx.staff.userId, async (c, audit) => {
+          const cr = (await c.query('select display_name from public.creators where id = $1', [creatorId])).rows[0];
+          if (!cr) throw new HttpError(404, 'That creator no longer exists.');
+          const row = (await c.query(
+            `insert into public.creator_posts (creator_id, url, platform, note) values ($1, $2, $3, $4) returning ${POST_COLS}`,
+            [creatorId, url, platform, note])).rows[0];
+          await audit({ action: 'creator_post_add', entity: 'creator_posts', entityId: row.id, detail: `Added a post for ${cr.display_name}`, before: null, after: row });
+          return { ok: true, message: 'Post added. It is waiting for review.' };
+        });
+      },
+    },
+    creator_post_review: {
+      perm: 'creators',
+      run: async (a, ctx) => {
+        only(a, ['id', 'decision', 'note']);
+        const id = uuid(a.id);
+        const decision = oneOf(a.decision, ['approved', 'changes_requested'] as const);
+        const note = str(a.note, 1000, { optional: true }) || null;
+        if (decision === 'changes_requested' && !note) throw new HttpError(400, 'Say what needs changing.');
+        return writeTx(pool, ctx.staff.userId, async (c, audit) => {
+          const before = (await c.query(`select ${POST_COLS} from public.creator_posts where id = $1 for update`, [id])).rows[0];
+          if (!before) throw new HttpError(404, 'That post no longer exists.');
+          const after = (await c.query(
+            `update public.creator_posts set status = $2, note = coalesce($3, note), reviewed_at = now(), reviewed_by = $4, updated_at = now()
+              where id = $1 returning ${POST_COLS}`, [id, decision, note, ctx.staff.userId])).rows[0];
+          const cr = (await c.query('select display_name from public.creators where id = $1', [before.creator_id])).rows[0];
+          await audit({ action: 'creator_post_review', entity: 'creator_posts', entityId: id,
+            detail: `${decision === 'approved' ? 'Approved' : 'Asked for changes to'} a post by ${cr ? cr.display_name : 'a creator'}`, before, after });
+          return { ok: true, message: decision === 'approved' ? 'Approved.' : 'Changes requested.' };
+        });
+      },
+    },
+    creator_post_live: {
+      perm: 'creators',
+      run: async (a, ctx) => {
+        only(a, ['id', 'posted_on']);
+        const id = uuid(a.id);
+        const postedOn = date(a.posted_on);
+        return writeTx(pool, ctx.staff.userId, async (c, audit) => {
+          const before = (await c.query(`select ${POST_COLS} from public.creator_posts where id = $1 for update`, [id])).rows[0];
+          if (!before) throw new HttpError(404, 'That post no longer exists.');
+          const after = (await c.query(
+            `update public.creator_posts set posted_on = $2, updated_at = now() where id = $1 returning ${POST_COLS}`, [id, postedOn])).rows[0];
+          const cr = (await c.query('select display_name from public.creators where id = $1', [before.creator_id])).rows[0];
+          await audit({ action: 'creator_post_live', entity: 'creator_posts', entityId: id,
+            detail: `Marked a post by ${cr ? cr.display_name : 'a creator'} live on ${postedOn}`, before, after });
+          return { ok: true, message: `Marked live on ${postedOn}.` };
         });
       },
     },

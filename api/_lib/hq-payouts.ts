@@ -6,6 +6,7 @@
 import type { Pool } from 'pg';
 import { HttpError, only, uuid, str, date, writeTx } from './hq-core.js';
 import type { Op } from './hq-act.js';
+import { guaranteeInfo } from './hq-creators.js';
 
 const MONTH_RE = /^\d{4}-(0[1-9]|1[0-2])$/;
 const month = (v: unknown, optional = false): string | null => {
@@ -42,7 +43,12 @@ export function payoutOps(pool: Pool): Record<string, Op> {
                from public.creator_payments p left join public.hq_staff s on s.user_id = p.created_by where p.month = $1`, [pick])
             : Promise.resolve({ rows: [] }),
         ]) : [{ rows: [] }, { rows: [] }];
-        return { data: { month: pick, months, rows: rows.rows, payments: paid.rows, payments_ready: ready } };
+        // Active creators whose first-post guarantee is not earned yet (same rule as the view).
+        const active = (await pool.query("select id, display_name from public.creators where status = 'active' order by lower(display_name)")).rows;
+        const g = await guaranteeInfo(pool, active.map((x) => x.id));
+        const notEarned = active.filter((x) => g[x.id] && !g[x.id].guarantee_month)
+          .map((x) => ({ creator_id: x.id, display_name: x.display_name, v2: g[x.id].v2, approved_live: g[x.id].approved_live }));
+        return { data: { month: pick, months, rows: rows.rows, payments: paid.rows, payments_ready: ready, guarantee_not_earned: notEarned } };
       },
     },
 
