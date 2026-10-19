@@ -482,10 +482,30 @@ const PLACES_SQL = `
     AND address IS NOT NULL
     AND public.content_town_of(address) = ANY($1)`;
 
+// Transaction mode (port 6543) rather than session mode (5432) on Supabase's pooler: the build is
+// one read-only transaction, and session mode's 15 slots were full on 19 Oct 2026 (EMAXCONNSESSION).
+function transactionModeUrl(raw) {
+  try { const u = new URL(raw); if (/\.pooler\.supabase\.com$/i.test(u.hostname) && (u.port === "5432" || u.port === "")) u.port = "6543"; return u.toString(); }
+  catch { return raw; }
+}
+// The pooler can be briefly full: try up to 3 times, 5 seconds apart, before giving up.
+async function connectWithRetry(pg, url) {
+  for (let attempt = 1; ; attempt++) {
+    const client = new pg.Client({ connectionString: transactionModeUrl(url), ssl: { rejectUnauthorized: false }, connectionTimeoutMillis: 15000 });
+    try { await client.connect(); return client; }
+    catch (e) {
+      await client.end().catch(() => {});
+      const full = /max clients|EMAXCONN|too many (clients|connections)|remaining connection slots/i.test(String(e && (e.message || e.code)));
+      if (!full || attempt >= 3) throw e;
+      console.warn(`[build-resources] database pool full (attempt ${attempt} of 3), retrying in 5 seconds`);
+      await new Promise((r) => setTimeout(r, 5000));
+    }
+  }
+}
+
 async function readFromDatabase(url) {
   const { default: pg } = await import("pg");
-  const client = new pg.Client({ connectionString: url, ssl: { rejectUnauthorized: false } });
-  await client.connect();
+  const client = await connectWithRetry(pg, url);
   try {
     // Read-only transaction: this build cannot write to the database even by mistake.
     await client.query("BEGIN READ ONLY");
@@ -496,6 +516,8 @@ async function readFromDatabase(url) {
     const ruleRows = towns.length ? (await client.query(RULES_SQL, [towns])).rows : [];
     const placeRows = towns.length ? (await client.query(PLACES_SQL, [towns])).rows : [];
     await client.query("COMMIT");
+    // Let the connection go as soon as the reads are done, before the rest of the build.
+    await client.end().catch(() => {});
     const photos = Object.fromEntries(photoRows.map((r) => [r.town, r]));
     const rules = {};
     for (const r of ruleRows) (rules[r.town] ||= []).push(r);

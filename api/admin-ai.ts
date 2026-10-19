@@ -2,11 +2,12 @@
 // Same auth gate as /api/admin (valid session + admin role + second sign-in step), then calls Anthropic.
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { Pool } from 'pg';
+import { runtimeDbUrl, POOL_OPTS } from './_lib/db-url.js';
 import { requireAdmin, tokenAal } from './_lib/admin-auth.js';
 
 const DB_URL = process.env.SUPABASE_DB_URL!;
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
-const pool = new Pool({ connectionString: DB_URL, ssl: { rejectUnauthorized: false }, max: 2 });
+const pool = new Pool({ connectionString: runtimeDbUrl(DB_URL), ...POOL_OPTS });
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method === 'OPTIONS') return res.status(200).end();
