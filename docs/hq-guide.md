@@ -14,7 +14,7 @@ HQ is at barkfind.com/hq. Sign in with your own account and the code from your a
 
 You see the parts of HQ your permissions allow. For Megan, today, that is:
 
-- **Outreach:** venues, press, creator prospects and community contacts. You can view, add, edit, log and draft. You cannot delete; ask Josh.
+- **Outreach:** venues, press, creator prospects and community contacts. You can view, add, edit, log and draft, and send emails one at a time once Josh turns sending on for you. You cannot delete; ask Josh.
 - **Creators:** applications, active creators, their codes and posts waiting for approval.
 - **Ask Ralphy:** questions about anything you can see.
 
@@ -66,6 +66,25 @@ Tap a contact to open its panel. For a venue it shows the place: photo, category
 - Check the facts: ratings change as reviews come in. Open the place to see today's rating.
 
 **Edit details** holds the name, contact details, area, owner, tags, handles and notes. **Linked place** connects a venue to its BarkFind listing; search by name or postcode, tap Link, then Save changes. A place already linked to another contact is refused, and Unlink removes a link.
+
+## Sending an email from HQ
+
+**Send an email** in a contact's panel sends one email, from you, through HQ. There is no bulk send.
+
+1. Pick a template, or write your own subject and message. Only {{name}}, {{place_name}}, {{place_url}} and {{area}} can be filled in for you. Your signature, the company footer and an unsubscribe link are added automatically.
+2. Tap **Preview**. It shows exactly what will go: who it is to, your From name and address, where replies go, and how many of your 15 for today you have used.
+3. Tap **Send**, then tap again to confirm.
+
+It goes from your hello.barkfind.com address, and replies come to your own inbox. HQ logs the full email, moves the contact to Contacted and sets a follow-up 10 days out. Log their reply yourself when it comes.
+
+HQ will not send when:
+
+- the address unsubscribed, bounced, marked an email as spam or is on the do-not-email list;
+- your sender is not set up (ask Josh to add it in Admin, Team);
+- you have sent 15 today (it resets at midnight);
+- HQ emailed them less than 14 days ago, unless you tick **Send anyway**, which is recorded.
+
+**Email templates** (next to Import from places) is where templates are added and edited.
 
 ## Adding contacts
 

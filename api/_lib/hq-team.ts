@@ -204,6 +204,7 @@ export function teamOps(pool: Pool): Record<string, Op | { perm: null; run: Op['
         only(a, []);
         const r = await pool.query(
           `select s.user_id, s.email, s.display_name, case when s.level = 'support' then 'moderator' else s.level end as level, s.status, s.grants, s.denies, s.alert_email, s.alert_push, s.note,
+                  s.outreach_from_name, s.outreach_from_email, s.outreach_reply_to, s.outreach_title,
                   s.invited_at, s.accepted_at, s.last_seen_at, s.removed_at, s.updated_at,
                   coalesce(ib.display_name, ib.email) as invited_by_name,
                   exists (select 1 from auth.mfa_factors f where f.user_id = s.user_id and f.factor_type = 'totp' and f.status = 'verified') as mfa,
