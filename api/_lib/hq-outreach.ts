@@ -248,6 +248,27 @@ export function outreachOps(pool: Pool): Record<string, Op> {
       },
     },
 
+    // Linked place in Edit: places by name, saying which are already linked to a contact
+    // (outreach_save refuses those; one venue is never worked twice).
+    outreach_place_search: {
+      perm: 'outreach_edit',
+      run: async (a) => {
+        only(a, ['q']);
+        const q = str(a.q, 80, { min: 2 });
+        // Every word must appear in the name or the address, so "new inn axbridge" or
+        // "ship inn bs23" finds the right one among many places with the same name.
+        const words = q.split(/\s+/).filter(Boolean).slice(0, 6).map((w) => w.replace(/[%_\\]/g, (m) => '\\' + m));
+        const where = words.map((_, i) => `(l.name || ' ' || coalesce(l.address, '')) ilike '%' || $${i + 2} || '%'`).join(' and ');
+        const r = await pool.query(
+          `select l.id, l.name, l.category, l.address, l.barkfind_rating, l.review_count, l.flagged,
+                  (select o.name from public.hq_outreach o where o.location_id = l.id limit 1) as linked_to
+             from public.locations l where ${where}
+            order by (lower(l.name) = lower($1)) desc, l.review_count desc nulls last, l.name limit 20`,
+          [q, ...words]);
+        return { data: r.rows };
+      },
+    },
+
     // Import from places, step 1: how many would be added, and the first twenty.
     outreach_import_preview: {
       perm: 'outreach_edit',

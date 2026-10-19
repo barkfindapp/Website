@@ -3263,6 +3263,12 @@ label.amen:has(input:checked){border-color:var(--brand-line);background:var(--br
     b.innerHTML='<b>'+ids.length+' selected</b><input type="text" class="pill-in" id="outTag" placeholder="Tag, for example bs23" maxlength="40" style="max-width:200px"><button class="btn small" data-op="tagadd">Add tag</button><button class="btn small" data-op="tagrm">Remove tag</button><button class="btn small" data-op="selclear">Clear selection</button>'}
 
   // ---------- detail ----------
+  // Linked place: search by name and pick one, or Unlink. Saved through outreach_save.
+  function linkBlock(o,pl){var id=o.location_id||"";
+    return '<div class="out-link" data-link><span class="note">Linked place</span><input type="hidden" data-f="location_id" value="'+esc(id)+'">'+
+      '<div class="row" style="align-items:center;gap:8px"><b data-link-now>'+(id?esc(pl&&pl.name?pl.name+(pl.address?", "+pl.address:""):"Linked"):'<span class="note">Not linked</span>')+'</b>'+
+      '<button type="button" class="btn small" data-ol="unlink"'+(id?'':' hidden')+'>Unlink</button></div>'+
+      '<input type="search" class="pill-in" data-ol-q placeholder="Search places, for example new inn axbridge" aria-label="Search places to link"><div class="stack" data-link-res style="gap:6px"></div></div>'}
   function contactForm(o,p){o=o||{};var h=o.handles||{},ow=(st.data&&st.data.options&&st.data.options.owners)||[];
     return '<div class="grid2"><label>Name<input type="text" data-f="name" value="'+esc(o.name||"")+'" maxlength="200"></label><label>Organisation<input type="text" data-f="org" value="'+esc(o.org||"")+'"></label>'+
       '<label>Kind<select data-f="kind">'+opt(KINDS,o.kind||"venue")+'</select></label><label>Status<select data-f="status">'+opt(STATUSES,o.status||"to_contact")+'</select></label>'+
@@ -3273,7 +3279,7 @@ label.amen:has(input:checked){border-color:var(--brand-line);background:var(--br
       '<label>Next follow-up<input type="date" data-f="next_follow_up" value="'+esc(o.next_follow_up||"")+'"></label><label>Tags (comma separated)<input type="text" data-f="tags" value="'+esc((o.tags||[]).join(", "))+'"></label></div>'+
       '<label class="note">Next action</label><input type="text" data-f="next_action" value="'+esc(o.next_action||"")+'">'+
       '<label class="note">What you owe them</label><input type="text" data-f="owed" value="'+esc(o.owed||"")+'">'+
-      '<label class="note">Notes</label><textarea data-f="notes" style="min-height:70px">'+esc(o.notes||"")+'</textarea>'}
+      '<label class="note">Notes</label><textarea data-f="notes" style="min-height:70px">'+esc(o.notes||"")+'</textarea>'+linkBlock(o,p)}
   function readForm(box){var o={};box.querySelectorAll("[data-f]").forEach(function(el){o[el.dataset.f]=el.value.trim()});
     o.tags=o.tags?o.tags.split(",").map(function(t){return t.trim().toLowerCase()}).filter(Boolean):[];
     var h={};box.querySelectorAll("[data-h]").forEach(function(el){if(el.value.trim())h[el.dataset.h]=el.value.trim()});o.handles=h;return o}
@@ -3301,7 +3307,7 @@ label.amen:has(input:checked){border-color:var(--brand-line);background:var(--br
       var hist='<div class="card"><div class="subhead"><h3 style="font-size:16px">History</h3><span>'+d.log.length+'</span></div>'+(d.log.length?d.log.map(function(g){
           var bits=[esc(day(g.at))];if(g.channel)bits.push(esc(lab(CHANNELS,g.channel)));if(g.direction)bits.push(g.direction==="in"?"from them":"from us");if(g.by_name)bits.push("by "+esc(g.by_name));
           return '<div class="out-log"><div class="meta">'+bits.join(" · ")+'</div><div style="white-space:pre-wrap">'+esc(g.note)+'</div>'+(g.body?'<details><summary class="note">Full message</summary><div style="white-space:pre-wrap">'+esc(g.body)+'</div></details>':'')+'</div>'}).join(""):'<div class="note">Nothing logged yet.</div>')+'</div>';
-      var edit=ed?'<details class="card" data-ocard="edit"><summary class="note" style="cursor:pointer">Edit details</summary><div class="stack" style="margin-top:8px">'+contactForm(o)+
+      var edit=ed?'<details class="card" data-ocard="edit"><summary class="note" style="cursor:pointer">Edit details</summary><div class="stack" style="margin-top:8px">'+contactForm(o,pl)+
         '<div class="row"><button class="btn primary small" data-od="save">Save changes</button>'+(canDel()?'<button class="btn danger small" data-od="delete" data-confirm="Confirm delete">Delete</button>':'')+'</div></div></details>':'';
       $("sheetBody").innerHTML='<div data-osheet="'+esc(o.id)+'" class="stack">'+head+place+logForm+hist+edit+'</div>';
     }).catch(function(e){$("sheetBody").innerHTML='<div class="empty">'+esc((e&&e.message)||"That did not load.")+'</div>'});
@@ -3359,6 +3365,24 @@ label.amen:has(input:checked){border-color:var(--brand-line);background:var(--br
       }).catch(fail(card)).then(function(){b.disabled=false});return}
     if(w==="import"){if(!H.armed(b))return;b.disabled=true;H.api("outreach_import",args).then(function(r){H.note(card,true,r.message);st.view="to_contact";st.page=0;setTimeout(function(){$("outNew").innerHTML="";$("outNew").dataset.mode="";load()},900)}).catch(fail(card,b));return}
   });
+  // Linked place search and pick, in Edit (side panel) and Add a contact.
+  var linkTimer=null;
+  function linkSearch(box,q){var res=box.querySelector("[data-link-res]");if(q.length<2){res.innerHTML="";return}
+    H.api("outreach_place_search",{q:q}).then(function(r){var cur=box.querySelector('[data-f="location_id"]').value;
+      res.innerHTML=r.data.length?r.data.map(function(x){var taken=x.linked_to&&x.id!==cur;
+        return '<div class="row" style="justify-content:space-between;align-items:center;gap:8px;border:1px solid var(--line);border-radius:12px;padding:8px 10px"><div style="min-width:0"><b>'+esc(x.name)+'</b><div class="note">'+esc([String(x.category||"").replace(/_/g," "),x.address].filter(Boolean).join(" · "))+'</div>'+
+          '<div class="note">BarkFind '+(x.barkfind_rating!=null?esc(Number(x.barkfind_rating).toFixed(1)):"no rating")+', '+(x.review_count||0)+' review'+(x.review_count===1?"":"s")+(x.flagged?". Hidden from the app":"")+(taken?'. Already linked to '+esc(x.linked_to):'')+'</div></div>'+
+          (taken?'':'<button type="button" class="btn small" data-ol="pick" data-pid="'+esc(x.id)+'" data-pname="'+esc(x.name+(x.address?", "+x.address:""))+'">'+(x.id===cur?"Linked":"Link")+'</button>')+'</div>'}).join(""):'<div class="note">No places with that name.</div>'}).catch(function(e){res.innerHTML='<div class="note">'+esc((e&&e.message)||"That did not load.")+'</div>'})}
+  function linkClick(ev){var b=ev.target.closest("[data-ol]");if(!b)return false;var box=b.closest("[data-link]"),hid=box.querySelector('[data-f="location_id"]'),now=box.querySelector("[data-link-now]"),un=box.querySelector('[data-ol="unlink"]');
+    if(b.dataset.ol==="pick"){hid.value=b.dataset.pid;now.textContent=b.dataset.pname;un.hidden=false;box.querySelector("[data-link-res]").innerHTML="";box.querySelector("[data-ol-q]").value=""}
+    else if(b.dataset.ol==="unlink"){hid.value="";now.innerHTML='<span class="note">Not linked</span>';un.hidden=true}
+    var card=box.closest(".card");if(card)H.note(card,true,"Press "+(card.dataset.ocard==="new"?"Add":"Save changes")+" to keep this.");return true}
+  function linkInput(ev){var q=ev.target.closest("[data-ol-q]");if(!q)return;var box=q.closest("[data-link]");clearTimeout(linkTimer);linkTimer=setTimeout(function(){linkSearch(box,q.value.trim())},300)}
+  $("sheetBody").addEventListener("click",function(ev){if(ev.target.closest("[data-osheet]"))linkClick(ev)});
+  $("sheetBody").addEventListener("input",linkInput);
+  $("outNew").addEventListener("click",linkClick);
+  $("outNew").addEventListener("input",linkInput);
+
   window.HQOutreach={show:show,refreshIfOpen:function(){var t=document.querySelector('[data-tab="outreach"]');if(st.loaded&&t&&!t.hidden)load()}};
 })();
 </script>
