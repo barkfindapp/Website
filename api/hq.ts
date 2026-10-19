@@ -7,6 +7,7 @@
 // transaction with its admin_audit row (see _lib/hq-core.ts).
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { Pool, type PoolClient } from 'pg';
+import { runtimeDbUrl, POOL_OPTS } from './_lib/db-url.js';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { requireStaff, type Perm } from './_lib/hq-staff.js';
@@ -40,7 +41,7 @@ const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 const FALLBACK_MODEL = 'claude-haiku-4-5-20251001';
 const MAX_TOKENS = 800;
 
-const pool = new Pool({ connectionString: DB_URL, ssl: { rejectUnauthorized: false }, max: 3 });
+const pool = new Pool({ connectionString: runtimeDbUrl(DB_URL), ...POOL_OPTS });
 
 // creator-admin's setup step takes up to ~30 seconds, so the function needs longer than the
 // platform default before it returns. Applies to the whole /api/hq function; it is a ceiling,

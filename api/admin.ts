@@ -6,13 +6,14 @@
 // the browser; admin access is enforced here (not just in the UI).
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { Pool } from 'pg';
+import { runtimeDbUrl, POOL_OPTS } from './_lib/db-url.js';
 import { requireAdmin, tokenAal } from './_lib/admin-auth.js';
 
 // Postgres connection string (Supabase → Settings → Database → Connection string → URI).
 // Use the pooled "Session"/"Transaction" URI with the DB password. Server-side only.
 const DB_URL = process.env.SUPABASE_DB_URL!;
 
-const pool = new Pool({ connectionString: DB_URL, ssl: { rejectUnauthorized: false }, max: 3 });
+const pool = new Pool({ connectionString: runtimeDbUrl(DB_URL), ...POOL_OPTS });
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method === 'OPTIONS') return res.status(200).end();
