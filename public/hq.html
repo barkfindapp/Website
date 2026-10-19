@@ -219,7 +219,7 @@ details.card summary::-webkit-details-marker{display:none}
 .speak:hover{color:var(--brand);border-color:var(--brand-line)}
 .speak[aria-pressed="true"]{background:var(--brand);border-color:var(--brand);color:#fff}
 .speakrow{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
-.voice{font:700 16px/1.2 var(--sans);border:1px solid var(--line-2);border-radius:999px;padding:6px 30px 6px 12px;background:#fff;color:var(--fg2);max-width:220px;min-width:0;-webkit-appearance:none;appearance:none;background-image:linear-gradient(45deg,transparent 50%,var(--fg2) 50%),linear-gradient(135deg,var(--fg2) 50%,transparent 50%);background-position:calc(100% - 16px) 55%,calc(100% - 11px) 55%;background-size:5px 5px;background-repeat:no-repeat}
+.voice{font:600 13px/1.2 var(--sans);border:1px solid var(--line-2);border-radius:999px;padding:6px 30px 6px 12px;background:#fff;color:var(--fg2);max-width:220px;min-width:0;-webkit-appearance:none;appearance:none;background-image:linear-gradient(45deg,transparent 50%,var(--fg2) 50%),linear-gradient(135deg,var(--fg2) 50%,transparent 50%);background-position:calc(100% - 16px) 55%,calc(100% - 11px) 55%;background-size:5px 5px;background-repeat:no-repeat}
 .voice[hidden]{display:none}
 section.cta .answer-wrap{background:#fff;border-radius:16px;padding:14px 16px;display:flex;flex-direction:column;gap:10px;color:var(--fg)}
 section.cta .answer-wrap[hidden]{display:none}
@@ -296,6 +296,27 @@ label.amen:has(input:checked){border-color:var(--brand-line);background:var(--br
 .sheet-bg[hidden]{display:none}
 .sheet{background:#fff;width:min(560px,100%);height:100%;overflow:auto;padding:18px 18px 40px;box-shadow:-10px 0 30px rgba(0,0,0,.12);display:flex;flex-direction:column;gap:14px}
 .sheet-bg.wide .sheet{width:min(1000px,100%)}
+.sheet.ralphy{width:max(50vw,480px);max-width:100%;overflow:hidden;padding-bottom:12px}
+.rp-body{flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column;gap:16px;margin:0 -18px;padding:4px 18px}
+.sheet.ralphy h3{display:flex;align-items:center;gap:10px;white-space:nowrap}.sheet.ralphy h3 .rav{width:30px;height:30px;font-size:16px}
+.rp-settings{border:1px solid var(--line);border-radius:14px;padding:10px 14px}.rp-settings[open]{display:flex;flex-direction:column;gap:10px}.rp-settings summary{cursor:pointer}
+.rp-set{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.rp-convo{display:flex;flex-direction:column;gap:12px}.rp-convo:empty{display:none}
+.rp-q{align-self:flex-end;max-width:85%;background:var(--well);border-radius:16px 16px 4px 16px;padding:10px 14px;font-size:15px;white-space:pre-wrap}
+.rp-a{border:1px solid var(--line);border-radius:16px 16px 16px 4px;padding:12px 14px;display:flex;flex-direction:column;gap:10px}
+.rp-a .who{display:flex;align-items:center;gap:8px;font:800 13px/1 var(--sans)}.rp-a .who .rav{width:24px;height:24px;font-size:14px}
+.rp-a .txt{white-space:pre-wrap;font-size:15px;line-height:1.6}
+.sheet.ralphy .sheet-head .row{flex-wrap:nowrap;gap:6px}
+.rp-intro{margin:0;font-size:15px;color:var(--fg2)}
+.rp-suggest{display:flex;flex-direction:column;gap:10px}.rp-suggest #rpGroups{display:flex;flex-direction:column;gap:10px}.rp-suggest #rpGroups[hidden]{display:none}
+.rp-topics{display:flex;flex-wrap:wrap;gap:6px}
+.rp-list{display:flex;flex-direction:column;border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.rp-list button{all:unset;box-sizing:border-box;display:flex;justify-content:space-between;align-items:center;gap:10px;padding:12px 14px;font:600 14.5px/1.35 var(--sans);color:var(--fg);cursor:pointer;border-top:1px solid var(--line)}
+.rp-list button:first-child{border-top:0}.rp-list button:hover,.rp-list button:focus-visible{background:var(--well)}.rp-list button::after{content:"›";color:var(--fg2);font-size:18px}
+.rp-more{all:unset;cursor:pointer;font:700 13px/1 var(--sans);color:var(--brand);align-self:flex-start;padding:4px 0}.rp-more[hidden]{display:none}
+.rp-form{flex:none;display:flex;gap:8px;align-items:flex-end;padding-top:12px;border-top:1px solid var(--line)}
+.rp-form textarea{flex:1;min-width:0;min-height:46px;max-height:140px;resize:none}.rp-form .btn{flex:none}
+.mini-links .open-ralphy{font-weight:800}
 .ib-cols{display:grid;gap:14px;align-items:start}
 @media (min-width:900px){.sheet-bg.wide .ib-cols{grid-template-columns:1.5fr 1fr}}
 .sheet-head{display:flex;justify-content:space-between;align-items:center;gap:10px;position:sticky;top:-18px;background:#fff;padding:6px 0;z-index:1}
@@ -412,11 +433,7 @@ label.amen:has(input:checked){border-color:var(--brand-line);background:var(--br
         <button type="button" data-q="today">What's on today?</button>
         <button type="button" data-q="Anything urgent right now?">Anything urgent?</button>
         <button type="button" data-q="How are sign-ups and subscriptions doing this week?">This week's numbers</button>
-      </div>
-      <div class="mini-ans" id="miniAns" hidden aria-live="polite">
-        <div class="who"><span class="rav">R</span>Ralphy</div>
-        <div class="txt" id="miniTxt"></div>
-        <div class="speakrow"><button type="button" class="speak" data-for="miniTxt" aria-pressed="false">Read it to me</button><select class="voice" aria-label="Reading voice"></select></div>
+        <button type="button" id="openRalphy" class="open-ralphy">More questions and settings</button>
       </div>
     </div>
     <div class="countdown" id="countdown">
@@ -513,27 +530,6 @@ label.amen:has(input:checked){border-color:var(--brand-line);background:var(--br
       </article>
     </div>
   </section>
-
-  <section class="cta bleed" aria-labelledby="h-ask"><div class="inner">
-    <h2 class="sec" id="h-ask">Ask Ralphy</h2>
-    <div class="ask">
-      <form id="askForm">
-        <label for="askInput" class="note" style="flex-basis:100%">Ralphy answers from the live numbers on this page, and can read his answer aloud. For anything deeper, open a chat in the BarkFind project.</label>
-        <input id="askInput" name="q" autocomplete="off" placeholder="Hey Ralphy, what should I do before 9am?">
-        <button class="btn primary" id="askBtn" type="submit">Ask</button>
-      </form>
-      <div class="chips" id="chips">
-        <button type="button" class="chip" data-q="today">What's on today?</button>
-        <button type="button" class="chip">How are sign-ups and subscriptions doing this week?</button>
-        <button type="button" class="chip">What's waiting in support, reviews and reports?</button>
-        <button type="button" class="chip">Who's due a follow-up in outreach?</button>
-        <button type="button" class="chip">Is everything running? Any failed jobs or outages?</button>
-        <button type="button" class="chip">Where is money going this month?</button>
-        <button type="button" class="chip">What renewals or reminders are due this week?</button>
-      </div>
-      <div class="answer-wrap" id="answerWrap" hidden><div class="who"><span class="rav">R</span>Ralphy</div><div class="answer" id="answer" aria-live="polite"></div><div class="speakrow"><button type="button" class="speak" data-for="answer" aria-pressed="false">Read it to me</button><select class="voice" aria-label="Reading voice"></select></div></div>
-    </div>
-  </div></section>
 
   <section aria-labelledby="h-feed">
     <h2 class="sec" id="h-feed">Recent alerts</h2>
@@ -667,6 +663,23 @@ label.amen:has(input:checked){border-color:var(--brand-line);background:var(--br
 </main></main>
 </div>
 
+<div class="sheet-bg ralphy-bg" id="ralphyBg" hidden><div class="sheet ralphy" role="dialog" aria-modal="true" aria-labelledby="ralphyTitle">
+  <div class="sheet-head"><h3 id="ralphyTitle"><span class="rav" aria-hidden="true">R</span> Ask Ralphy</h3><div class="row"><button class="btn small" type="button" id="rpNew">New chat</button><button class="btn small" type="button" id="rpClose">Close</button></div></div>
+  <details class="rp-settings"><summary class="note">Question settings</summary>
+    <div class="rp-set"><span class="note">Answers</span><div class="filter" id="rpLength"><button type="button" class="chip" data-len="short" aria-pressed="true">Short</button><button type="button" class="chip" data-len="detailed" aria-pressed="false">Detailed</button></div></div>
+    <label class="rp-set note"><input type="checkbox" id="rpAuto"> Read answers aloud automatically</label>
+    <div class="rp-set"><span class="note">Voice</span><select class="voice" aria-label="Reading voice"></select></div>
+    <p class="note" style="margin:0">Short is a quick spoken summary. Detailed is a fuller written answer, good for drafts. Ralphy remembers the last 3 questions in this conversation, so you can ask follow-ups. Settings are kept on this device.</p>
+  </details>
+  <div class="rp-body" id="rpBody">
+    <div class="rp-convo" id="rpConvo" aria-live="polite"></div>
+    <div class="rp-suggest" id="rpSuggest">
+      <button type="button" class="rp-more" id="rpMore" hidden>Suggested questions</button>
+      <div id="rpGroups"><p class="rp-intro">Ask me anything on HQ, or pick a topic.</p><div class="rp-topics filter" id="rpTopics"></div><div class="rp-list" id="rpList"></div></div>
+    </div>
+  </div>
+  <form class="rp-form" id="rpForm" autocomplete="off"><label for="rpInput" class="sr">Ask Ralphy</label><textarea id="rpInput" rows="2" placeholder="Ask about tickets, reviews, outreach, creators, money or anything on HQ"></textarea><button class="btn primary" id="rpBtn" type="submit">Ask</button></form>
+</div></div>
 <div class="sheet-bg" id="sheetBg" hidden><div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle">
   <div class="sheet-head"><h3 id="sheetTitle">Details</h3><button class="btn small" type="button" id="sheetClose">Close</button></div>
   <div class="stack" id="sheetBody"></div>
@@ -1078,7 +1091,7 @@ label.amen:has(input:checked){border-color:var(--brand-line);background:var(--br
     show("t-act",c("safety")||c("privacy")||c("reviews")||c("reports")||c("claims")||c("support_read")||c("places_moderate")||c("places_delete"));
     show("t-users",c("users_view"));show("t-places",c("places_edit"));show("t-content",c("content"));show("t-comms",c("announce"));show("t-money",c("money"));show("t-insights",c("insights"));show("t-outreach",c("outreach"));show("t-admin",c("staff_manage")||c("audit_view")||c("trash_restore"));
     show("p-money",c("money"));show("p-costs",c("money"));show("p-renewals",c("renewals"));
-    var ask=document.querySelector("section.cta");if(ask)ask.hidden=!c("ask_ralphy");
+
     show("miniForm",c("ask_ralphy"));show("miniLinks",c("ask_ralphy"));
     if(window.HQAct)HQAct.init();
     if(window.HQContent)HQContent.init();
@@ -1120,26 +1133,59 @@ label.amen:has(input:checked){border-color:var(--brand-line);background:var(--br
   // Ask Ralphy (hero block and the band both use the ask op)
   var TODAY_Q="Hey Ralphy, what's on today? Give me a short rundown I could listen to: what needs me first, anything urgent, what is due this week, and one number worth knowing.";
   var busy=false;
-  function ask(q,outId){
+  // Ask Ralphy panel: one conversation, kept while the page is open. Settings live on this device.
+  var RP_KEY="hq-ralphy-settings", rp={convo:[],len:"short",auto:false,n:0};
+  try{var st=JSON.parse(localStorage.getItem(RP_KEY)||"{}");if(st.len==="detailed")rp.len="detailed";rp.auto=!!st.auto}catch(e){}
+  function rpSave(){try{localStorage.setItem(RP_KEY,JSON.stringify({len:rp.len,auto:rp.auto}))}catch(e){}}
+  // Prompt groups, each shown only with the access it needs. "today" is the spoken rundown.
+  var RP_GROUPS=[
+    ["Today",function(){return true},[["today","What's on today?"],"Anything urgent right now?","What should I deal with first?"]],
+    ["Support",function(){return HQ.can("support_read")},["What's waiting in support?","Has any customer replied and is waiting on me?","Draft a reply to the newest open ticket"]],
+    ["Reviews and reports",function(){return HQ.can("reviews")||HQ.can("reports")},["Any reviews to moderate?","Any user or place reports to deal with?","What have people said in reviews this fortnight?"]],
+    ["Places",function(){return HQ.can("places_edit")},["Any listing changes or place suggestions waiting?"]],
+    ["Outreach",function(){return HQ.can("outreach")},["Who's due a follow-up in outreach?","Draft a follow-up for the most overdue contact"]],
+    ["Creators",function(){return HQ.can("creators")},["Any creator posts or applications to review?","How are the creator codes doing?"]],
+    ["Growth",function(){return true},["How are sign-ups doing this week?","How many founding members so far?"]],
+    ["Money",function(){return HQ.can("money")},["How are subscriptions doing this week?","Where is money going this month?","What do I owe creators this month?"]],
+    ["Running",function(){return true},["Is everything running? Any failed jobs or outages?","What renewals or reminders are due this week?","How is the App Store release looking?"]]
+  ];
+  // Topics as one row of chips; the chosen topic's questions as a short list underneath.
+  var rpTopic="Today";
+  function rpGroups(){var gs=RP_GROUPS.filter(function(g){return g[1]()});if(!gs.some(function(g){return g[0]===rpTopic}))rpTopic=gs[0][0];
+    $("rpTopics").innerHTML=gs.map(function(g){return '<button type="button" class="chip" data-topic="'+esc(g[0])+'" aria-pressed="'+(g[0]===rpTopic)+'">'+esc(g[0])+'</button>'}).join("");
+    var g=gs.filter(function(x){return x[0]===rpTopic})[0];
+    $("rpList").innerHTML=g[2].map(function(x){var q=Array.isArray(x)?x[0]:x,l=Array.isArray(x)?x[1]:x;return '<button type="button" data-q="'+esc(q)+'">'+esc(l)+'</button>'}).join("");
+    // Once a conversation has started, the suggestions fold away behind one link.
+    var talking=rp.convo.length>0||$("rpConvo").children.length>0;$("rpMore").hidden=!talking;if(talking&&!rp.showSuggest)$("rpGroups").hidden=true;else $("rpGroups").hidden=false;$("rpMore").textContent=$("rpGroups").hidden?"Suggested questions":"Hide suggestions"}
+  function rpSettings(){$("rpLength").querySelectorAll("[data-len]").forEach(function(b){b.setAttribute("aria-pressed",b.dataset.len===rp.len?"true":"false")});$("rpAuto").checked=rp.auto}
+  function openRalphy(){rpGroups();rpSettings();$("ralphyBg").hidden=false;document.body.style.overflow="hidden";setTimeout(function(){try{$("rpInput").focus({preventScroll:true})}catch(e){}},50)}
+  function closeRalphy(){stopSpeaking();$("ralphyBg").hidden=true;document.body.style.overflow=""}
+  function rpScroll(){var b=$("rpBody");b.scrollTop=b.scrollHeight}
+  function ask(q,label){
     q=(q||"").trim();if(!q||busy)return;
-    if(q==="today")q=TODAY_Q;
-    var out=$(outId||"answer"), box=outId==="miniTxt"?$("miniAns"):$("answerWrap");
-    box.hidden=false;
+    var shown=label||q;if(q==="today")q=TODAY_Q;
+    if($("ralphyBg").hidden)openRalphy();
     stopSpeaking();
-    busy=true;$("askBtn").disabled=true;$("miniBtn").disabled=true;out.textContent="Ralphy is having a look…";
-    api("ask",{question:q})
-      .then(function(r){out.textContent=r.text+(r.truncated?"\n\n(Answer cut short.)":"")+(r.metered===false?"\n\n(The cost of this answer was not recorded in api_usage.)":"")})
-      .catch(function(e){out.textContent=(e&&e.message)||"No answer came back. Try again."})
-      .then(function(){busy=false;$("askBtn").disabled=false;$("miniBtn").disabled=false});
+    var id="rpA"+(++rp.n), wrap=document.createElement("div");
+    wrap.innerHTML='<div class="rp-q"></div><div class="rp-a"><div class="who"><span class="rav">R</span>Ralphy</div><div class="txt" id="'+id+'">Ralphy is having a look…</div><div class="speakrow"><button type="button" class="speak" data-for="'+id+'" aria-pressed="false">Read it to me</button><button type="button" class="speak" data-copy="'+id+'">Copy</button></div></div>';
+    wrap.querySelector(".rp-q").textContent=shown;wrap.style.display="contents";$("rpConvo").appendChild(wrap);$("rpInput").value="";rp.showSuggest=false;rpGroups();rpScroll();
+    busy=true;$("rpBtn").disabled=true;$("miniBtn").disabled=true;
+    var hist=rp.convo.slice(-3);
+    api("ask",{question:q,length:rp.len,history:hist})
+      .then(function(r){var t=r.text+(r.truncated?"\n\n(Answer cut short.)":"")+(r.metered===false?"\n\n(The cost of this answer was not recorded in api_usage.)":"");$(id).textContent=t;
+        rp.convo.push({q:q.slice(0,1000),a:String(r.text||"").slice(0,4000)});if(rp.auto)speakFrom(wrap.querySelector('[data-for="'+id+'"]'))})
+      .catch(function(e){$(id).textContent=(e&&e.message)||"No answer came back. Try again."})
+      .then(function(){busy=false;$("rpBtn").disabled=false;$("miniBtn").disabled=false;rpScroll()});
   }
   // Read aloud with the phone's own voice, British English where available. No service, no cost.
-  function stopSpeaking(){try{if(window.speechSynthesis)speechSynthesis.cancel()}catch(e){}document.querySelectorAll(".speak").forEach(function(b){b.setAttribute("aria-pressed","false");b.textContent="Read it to me"})}
-  // The chosen voice is remembered on this device only. "Automatic" prefers a British voice.
+  function stopSpeaking(){try{if(window.speechSynthesis)speechSynthesis.cancel()}catch(e){}document.querySelectorAll(".speak[data-for]").forEach(function(b){b.setAttribute("aria-pressed","false");b.textContent="Read it to me"})}
+  // The chosen voice is remembered on this device only. "Default voice" is Google UK English Male where the browser has it.
   var VOICE_KEY="hq-voice";
   function savedVoice(){try{return localStorage.getItem(VOICE_KEY)||""}catch(e){return ""}}
   function pickVoice(){try{var v=speechSynthesis.getVoices()||[],id=savedVoice();
     if(id){var m=v.filter(function(x){return x.voiceURI===id})[0];if(m)return m}
-    return v.filter(function(x){return /en-GB/i.test(x.lang)&&/Daniel|Arthur|Oliver|Male/i.test(x.name)})[0]||v.filter(function(x){return /en-GB/i.test(x.lang)})[0]||null}catch(e){return null}}
+    // Default: Google UK English Male (Chrome), then another British male voice, then any British voice.
+    return v.filter(function(x){return x.name==="Google UK English Male"})[0]||v.filter(function(x){return /en-GB/i.test(x.lang)&&/Daniel|Arthur|Oliver|Male/i.test(x.name)})[0]||v.filter(function(x){return /en-GB/i.test(x.lang)})[0]||null}catch(e){return null}}
   function voiceList(){try{var v=speechSynthesis.getVoices()||[],gb=v.filter(function(x){return /en[-_]GB/i.test(x.lang)});
     var list=gb.length?gb:v.filter(function(x){return /^en/i.test(x.lang)});
     return list.slice().sort(function(a,b){return a.name.localeCompare(b.name)})}catch(e){return []}}
@@ -1147,7 +1193,7 @@ label.amen:has(input:checked){border-color:var(--brand-line);background:var(--br
     var sels=document.querySelectorAll("select.voice");
     if(!window.speechSynthesis){sels.forEach(function(s){s.hidden=true});return}
     var list=voiceList(),id=savedVoice();
-    var html='<option value="">Automatic voice</option>'+list.map(function(x){return '<option value="'+esc(x.voiceURI)+'">'+esc(x.name.replace(/\s*\(.*\)$/,""))+'</option>'}).join("");
+    var html='<option value="">Default voice</option>'+list.map(function(x){return '<option value="'+esc(x.voiceURI)+'">'+esc(x.name.replace(/\s*\(.*\)$/,""))+'</option>'}).join("");
     sels.forEach(function(s){s.innerHTML=html;s.value=list.some(function(x){return x.voiceURI===id})?id:"";s.hidden=!list.length});
   }
   if(window.speechSynthesis){fillVoices();try{speechSynthesis.addEventListener("voiceschanged",fillVoices)}catch(e){speechSynthesis.onvoiceschanged=fillVoices}setTimeout(fillVoices,800)}
@@ -1160,7 +1206,10 @@ label.amen:has(input:checked){border-color:var(--brand-line);background:var(--br
     var u=new SpeechSynthesisUtterance("Hello, I'm Ralphy. This is how I'll read your answers.");u.lang="en-GB";var v=pickVoice();if(v)u.voice=v;speechSynthesis.speak(u);
   });
   document.addEventListener("click",function(ev){
-    var b=ev.target.closest(".speak");if(!b)return;
+    var c=ev.target.closest("[data-copy]");if(c){var tx=($(c.dataset.copy).textContent||"").trim();try{navigator.clipboard.writeText(tx).then(function(){c.textContent="Copied";setTimeout(function(){c.textContent="Copy"},1500)})}catch(e){}return}
+    var b=ev.target.closest(".speak[data-for]");if(b)speakFrom(b);
+  });
+  function speakFrom(b){
     if(!window.speechSynthesis||!window.SpeechSynthesisUtterance){b.textContent="Reading aloud is not available here";return}
     if(b.getAttribute("aria-pressed")==="true"){stopSpeaking();return}
     var t=($(b.dataset.for).textContent||"").trim();if(!t||/^Ralphy is having a look/.test(t))return;
@@ -1169,11 +1218,20 @@ label.amen:has(input:checked){border-color:var(--brand-line);background:var(--br
     u.onend=u.onerror=function(){b.setAttribute("aria-pressed","false");b.textContent="Read it to me"};
     b.setAttribute("aria-pressed","true");b.textContent="Stop";
     speechSynthesis.speak(u);
-  });
-  $("askForm").addEventListener("submit",function(ev){ev.preventDefault();ask($("askInput").value,"answer")});
-  $("chips").addEventListener("click",function(ev){var b=ev.target.closest(".chip");if(!b)return;$("askInput").value=b.textContent;ask(b.dataset.q||b.textContent,"answer")});
-  $("miniForm").addEventListener("submit",function(ev){ev.preventDefault();ask($("miniInput").value,"miniTxt")});
-  $("miniLinks").addEventListener("click",function(ev){var b=ev.target.closest("button[data-q]");if(!b)return;$("miniInput").value=b.textContent;ask(b.dataset.q,"miniTxt")});
+  }
+  // The top box and its quick links open the panel and ask there.
+  $("miniForm").addEventListener("submit",function(ev){ev.preventDefault();var v=$("miniInput").value;$("miniInput").value="";ask(v)});
+  $("miniLinks").addEventListener("click",function(ev){if(ev.target.closest("#openRalphy")){openRalphy();return}var b=ev.target.closest("button[data-q]");if(!b)return;ask(b.dataset.q,b.textContent)});
+  $("rpForm").addEventListener("submit",function(ev){ev.preventDefault();ask($("rpInput").value)});
+  $("rpInput").addEventListener("keydown",function(ev){if(ev.key==="Enter"&&!ev.shiftKey){ev.preventDefault();ask($("rpInput").value)}});
+  $("rpGroups").addEventListener("click",function(ev){var t=ev.target.closest("[data-topic]");if(t){rpTopic=t.dataset.topic;rpGroups();return}var b=ev.target.closest("[data-q]");if(b)ask(b.dataset.q,b.textContent)});
+  $("rpMore").addEventListener("click",function(){rp.showSuggest=$("rpGroups").hidden;rpGroups();if(rp.showSuggest)rpScroll()});
+  $("rpLength").addEventListener("click",function(ev){var b=ev.target.closest("[data-len]");if(!b)return;rp.len=b.dataset.len;rpSave();rpSettings()});
+  $("rpAuto").addEventListener("change",function(){rp.auto=this.checked;rpSave()});
+  $("rpNew").addEventListener("click",function(){stopSpeaking();rp.convo=[];$("rpConvo").innerHTML="";rp.showSuggest=false;rpGroups();$("rpInput").focus()});
+  $("rpClose").addEventListener("click",closeRalphy);
+  $("ralphyBg").addEventListener("click",function(ev){if(ev.target===this)closeRalphy()});
+  document.addEventListener("keydown",function(ev){if(ev.key==="Escape"&&!$("ralphyBg").hidden)closeRalphy()});
 
   // ---------- sign-in (same supabase-js email and password flow as admin.html) ----------
   var SUPA_URL="https://kwwnwniyijeuorpbyvmn.supabase.co";
