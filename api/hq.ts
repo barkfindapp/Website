@@ -15,7 +15,7 @@ import { inboxOps } from './_lib/hq-inbox.js';
 import { contentOps } from './_lib/hq-content.js';
 import { announceOps } from './_lib/hq-announce.js';
 import { placeOps } from './_lib/hq-places.js';
-import { creatorOps } from './_lib/hq-creators.js';
+import { creatorOps, guaranteeInfo } from './_lib/hq-creators.js';
 import { usdToGbp, type Fx } from './_lib/hq-fx.js';
 import { rewardOps } from './_lib/hq-rewards.js';
 import { insightOps } from './_lib/hq-insights.js';
@@ -242,7 +242,7 @@ function productionRevenue(snap: any) {
 }
 
 function askPrompt(ctx: unknown, q: string) {
-  return "You are Ralphy, Josh's spaniel, working as the operations assistant inside BarkFind HQ. BarkFind is a solo-founded UK iOS app for finding places that are genuinely good with dogs; its in-app guide is Mylo, Josh's Vizsla, so never call yourself Mylo. Speak in the first person as Ralphy: warm, quick and to the point, like a sharp colleague who happens to be a spaniel. At most one light touch of character per answer, never a pun, never barking noises. Answers may be read aloud, so write short sentences that sound natural spoken, lead with the answer, avoid tables and long lists, and say numbers plainly. BarkFind launched on the UK App Store on Tuesday 13 October 2026 and is live now; the current version is 1.0.3. Talk about the app as live, never as upcoming. Use only the live data below and say plainly when it does not cover something (App Store reviews, crash rates, Starling bank balance and Lovable are not in this snapshot). Revenue from RevenueCat is production only; if it is missing, say real revenue is not available yet rather than guessing. Money in the data is in US dollars (fields ending usd), but Josh runs a UK business: always answer in pounds, converting at the rate in fx (pounds per dollar, with its date), to the nearest penny under 1,000 pounds and the nearest pound above. Do not mention dollars unless asked. If fx is missing, say the figures are in US dollars. Google spend comes from a view that already applies free allowances. UK English, no em dashes or en dashes, no exclamation marks, no emoji. If asked to draft a customer reply, write it plainly in Josh's voice, in the first person singular, and sign it Josh, not Ralphy and never 'the team'.\n\nLIVE DATA (JSON):\n" + JSON.stringify(ctx) + "\n\nJOSH ASKS: " + q;
+  return "You are Ralphy, Josh's spaniel, working as the operations assistant inside BarkFind HQ. BarkFind is a solo-founded UK iOS app for finding places that are genuinely good with dogs; its in-app guide is Mylo, Josh's Vizsla, so never call yourself Mylo. Speak in the first person as Ralphy: warm, quick and to the point, like a sharp colleague who happens to be a spaniel. At most one light touch of character per answer, never a pun, never barking noises. Answers may be read aloud, so write short sentences that sound natural spoken, lead with the answer and avoid tables. Always write numbers, money, dates and versions as digits and symbols (£46, 18 subscribers, 13 October, version 1.0.3), never spelled out in words; the voice reads them correctly. BarkFind launched on the UK App Store on Tuesday 13 October 2026 and is live now; the current version is 1.0.3. Talk about the app as live, never as upcoming. Use only the live data below and say plainly when it does not cover something (App Store reviews, crash rates, Starling bank balance and Lovable are not in it). The data has the summary snapshot plus the live work: work_queue (open tickets, reviews to moderate, user and place reports, claims, place suggestions, outreach due and recent alerts), recent_tickets (the last 30 days and anything still open, with the latest reply and who sent it), recent_reviews (last 14 days), pending_listing_changes, creators (status, code, redemptions, posts to review, guarantee), offer_codes (founding members and each code) and creator_payouts (this month and last). A section that is missing is one Josh's access does not cover. Be specific: name the ticket, place or person, and say what to do next. If asked about a particular ticket, review or contact, use its details from the data. Revenue from RevenueCat is production only; if it is missing, say real revenue is not available yet rather than guessing. Money in the data is in US dollars (fields ending usd), but Josh runs a UK business: always answer in pounds, converting at the rate in fx (pounds per dollar, with its date), to the nearest penny under 1,000 pounds and the nearest pound above. Do not mention dollars unless asked. If fx is missing, say the figures are in US dollars. Google spend comes from a view that already applies free allowances. UK English, no em dashes or en dashes, no exclamation marks, no emoji. If asked to draft a customer reply, write it plainly in Josh's voice, in the first person singular, and sign it Josh, not Ralphy and never 'the team'.\n\nLIVE DATA (JSON):\n" + JSON.stringify(ctx) + "\n\nJOSH ASKS: " + q;
 }
 
 function ticketPrompt(t: any) {
@@ -352,6 +352,57 @@ async function offerCodeCounts() {
   };
 }
 
+// Everything Ralphy can see beyond the snapshot: the live work (the same Act queue the person
+// sees, filtered by their permissions), recent tickets with their last reply, recent reviews,
+// pending listing changes, outreach, creators, offer codes and payouts. Each part needs the
+// same permission as its tab, is capped in size, and is left out if it fails to load.
+const clip = (v: unknown, n: number) => { const t = v == null ? '' : String(v).replace(/\s+/g, ' ').trim(); return t.length > n ? t.slice(0, n) + '…' : t; };
+async function ralphyContext(ctx: Ctx) {
+  const part = async <T>(ok: boolean, f: () => Promise<T>): Promise<T | undefined> => {
+    if (!ok) return undefined;
+    try { return await f(); } catch (e: any) { console.error('hq ralphy context', e?.message); return undefined; }
+  };
+  const [work, tickets, reviews, changes, creators, offers, payouts] = await Promise.all([
+    part(true, async () => {
+      const q: any = queueFor(ctx, await queue());
+      if (!q) return q;
+      return { ...q, alerts: (q.alerts || []).slice(0, 15).map((a: any) => ({ kind: a.kind, title: a.title, severity: a.severity, at: a.created_at })),
+        outreach: (q.outreach || []).slice(0, 20).map((o: any) => ({ name: o.name, org: o.org, kind: o.kind, status: o.status, next_action: o.next_action,
+          next_follow_up: o.next_follow_up, owed: o.owed, notes: clip(o.notes, 200), last_contact_at: o.last_contact_at })) };
+    }),
+    part(has(ctx, 'support_read'), async () => (await pool.query(
+      `select t.subject, t.category, t.status, t.priority, t.full_name as customer, t.created_at, t.updated_at, left(t.message, 500) as message,
+              (select count(*) from public.support_responses r where r.ticket_id = t.id)::int as replies,
+              (select left(r.body, 300) from public.support_responses r where r.ticket_id = t.id order by r.created_at desc limit 1) as last_reply,
+              (select coalesce(r.direction, 'out') from public.support_responses r where r.ticket_id = t.id order by r.created_at desc limit 1) as last_reply_from
+         from public.support_tickets t where t.created_at > now() - interval '30 days' or t.status <> 'resolved'
+        order by t.created_at desc limit 25`)).rows.map((t: any) => ({ ...t, last_reply_from: t.last_reply_from === 'in' ? 'customer' : t.last_reply_from ? 'Josh' : null }))),
+    part(has(ctx, 'reviews'), async () => (await pool.query(
+      `select l.name as place, r.paw_rating, r.status, left(r.review_text, 300) as text, r.created_at
+         from public.reviews r left join public.locations l on l.id = r.location_id
+        where r.created_at > now() - interval '14 days' and not coalesce(r.ai_flags, '[]'::jsonb) @> '["csae_escalate"]'::jsonb
+        order by r.created_at desc limit 20`)).rows),
+    part(has(ctx, 'places_edit'), async () => (await pool.query(
+      `select l.name as place, c.requester_role, c.source, c.changes, left(c.message, 300) as message, c.created_at
+         from public.listing_change_requests c left join public.locations l on l.id = c.location_id
+        where c.status = 'pending' order by c.created_at desc limit 15`)).rows),
+    part(has(ctx, 'creators'), async () => {
+      const rows = (await pool.query(
+        `select c.id, c.display_name, c.status, c.tier, c.offer_code, c.code_cap, c.followers, c.followers_platform,
+                (select count(*) from public.offer_code_redemptions x where x.code = upper(c.offer_code))::int as redeemed,
+                (select count(*) from public.creator_posts p where p.creator_id = c.id and p.status = 'submitted')::int as posts_to_review
+           from public.creators c where c.status in ('applied', 'approved', 'active') order by c.status, c.display_name`)).rows;
+      const g = await guaranteeInfo(pool, rows.map((r: any) => r.id));
+      return rows.map(({ id, ...r }: any) => ({ ...r, guarantee_earned_month: g[id]?.guarantee_month || null }));
+    }),
+    part(true, () => offerCodeCounts()),
+    part(has(ctx, 'money'), async () => (await pool.query(
+      `select display_name, month, month_closed, payable_people, refunded_same_month, refunded_from_earlier, fee_gbp, guarantee_gbp, total_gbp, over_cap
+         from public.creator_payout_months where month >= to_char((now() at time zone 'Europe/London') - interval '1 month', 'YYYY-MM') order by month desc, display_name`)).rows),
+  ]);
+  return { work_queue: work, recent_tickets: tickets, recent_reviews: reviews, pending_listing_changes: changes, creators, offer_codes: offers, creator_payouts: payouts };
+}
+
 const OPS: Record<string, Op | { perm: null; run: Op['run'] }> = {
   // Who am I and what can I see: any active member of staff.
   me: { perm: null, run: async (a, ctx) => (noArgs(a), { data: { id: ctx.staff.userId, name: ctx.staff.name, email: ctx.staff.email, level: ctx.staff.level, perms: [...ctx.staff.perms] } }) },
@@ -389,12 +440,12 @@ const OPS: Record<string, Op | { perm: null; run: Op['run'] }> = {
     run: async (a, ctx) => {
       only(a, ['question']);
       const q = str(a.question, 1000, { min: 1 });
-      const [raw, fx] = await Promise.all([snapshot(), usdToGbp(pool)]);
-      const snap = scrubEmails(productionRevenue(raw));
+      const [raw, fx, more] = await Promise.all([snapshot(), usdToGbp(pool), ralphyContext(ctx)]);
+      const snap = scrubEmails(productionRevenue(snapshotFor(ctx, raw)));
       let email: unknown = null;
       try { email = await emailMetrics(); } catch { email = null; }
       const rate = fx ? { gbp_per_usd: fx.rate, date: fx.date, stale: fx.stale } : null;
-      return claude('hq_ask', askPrompt({ snapshot: snap, email_30d: email, fx: rate }, q), ctx.staff.userId);
+      return claude('hq_ask', askPrompt({ snapshot: snap, email_30d: email, fx: rate, ...scrubEmails(more) }, q), ctx.staff.userId);
     },
   },
 
