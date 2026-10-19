@@ -139,6 +139,18 @@ dd .flag{display:inline-block;margin-left:6px;font:800 10.5px/1 var(--sans);padd
 .note{font-size:13px;color:var(--mute);line-height:1.5}
 .panel.off{opacity:.62}
 table.po{width:100%;border-collapse:collapse;min-width:640px;font-size:14px}table.po th{text-align:left;font:800 11px/1.2 var(--sans);letter-spacing:.06em;text-transform:uppercase;color:var(--fg2);padding:12px 14px;border-bottom:1px solid var(--line)}table.po td{padding:12px 14px;border-bottom:1px solid var(--line);vertical-align:top}table.po .num{text-align:right;white-space:nowrap}table.po tfoot td{border-bottom:0}table.po tbody td:first-child{min-width:150px}
+.out-layout{display:grid;grid-template-columns:210px minmax(0,1fr);gap:18px;align-items:start}
+.out-views{display:flex;flex-direction:column;gap:4px;position:sticky;top:12px}
+.out-views button{all:unset;box-sizing:border-box;display:flex;justify-content:space-between;align-items:center;gap:8px;padding:9px 12px;border-radius:10px;font:600 14px/1.2 var(--sans);color:var(--fg);cursor:pointer}
+.out-views button:hover{background:var(--well)}.out-views button[aria-pressed="true"]{background:var(--brand);color:#fff}.out-views .n{font:700 12px/1 var(--sans);opacity:.8}
+.out-row{display:grid;grid-template-columns:24px minmax(0,1fr) auto;gap:10px;align-items:start;padding:12px 14px;border:1px solid var(--line);border-radius:14px;background:var(--surface);cursor:pointer}
+.out-row:hover{border-color:var(--line-2)}.out-row .nm{font:700 15px/1.3 var(--sans)}.out-row .sub{font-size:13px;color:var(--fg2);margin-top:3px}.out-row .side{text-align:right;font-size:12.5px;color:var(--fg2);white-space:nowrap}
+.out-row .tag,[data-osheet] .tag{text-transform:none}
+#outBar{flex-wrap:wrap}#outBar>input[type=search]{flex:1 1 100%}#outBar select{flex:1 1 150px;max-width:none;min-width:140px}
+.out-sel{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:10px 12px;border-radius:12px;background:var(--well)}.out-sel[hidden]{display:none}
+.out-place{display:grid;grid-template-columns:96px minmax(0,1fr);gap:12px;align-items:start}.out-place img{width:96px;height:96px;object-fit:cover;border-radius:12px;background:var(--well)}
+.out-log{border-left:3px solid var(--line);padding:4px 0 4px 12px;display:flex;flex-direction:column;gap:4px}.out-log .meta{font-size:12.5px}
+@media (max-width:760px){#outBar{flex-direction:row}#outBar select{flex:1 1 calc(50% - 4px);min-width:0;width:auto}.out-row{grid-template-columns:24px minmax(0,1fr)}.out-row .side{grid-column:2;text-align:left}.out-layout{grid-template-columns:1fr}.out-views{flex-direction:row;overflow-x:auto;position:static}.out-views button{white-space:nowrap}}
 .meterbar{height:10px;border-radius:999px;background:var(--well);overflow:hidden}.meterbar span{display:block;height:100%;width:0;background:var(--ok);border-radius:999px;transition:width .3s}
 .panel .err{font-size:13px;color:var(--warn);background:var(--warn-soft);padding:9px 12px;border-radius:12px}
 svg.spark{width:100%;height:46px;display:block}
@@ -598,19 +610,16 @@ label.amen:has(input:checked){border-color:var(--brand-line);background:var(--br
  </div>
 
  <div data-tab="outreach" class="stack" hidden>
-  <div class="row" style="justify-content:space-between">
-    <div class="filter" id="outFilter">
-      <button class="chip" data-k="all" aria-pressed="true">All</button>
-      <button class="chip" data-k="due" aria-pressed="false">Due</button>
-      <button class="chip" data-k="creator" aria-pressed="false">Creators</button>
-      <button class="chip" data-k="venue" aria-pressed="false">Venues</button>
-      <button class="chip" data-k="press" aria-pressed="false">Press</button>
-      <button class="chip" data-k="partner" aria-pressed="false">Partners</button>
+  <div class="out-layout">
+    <nav class="out-views" id="outViews" aria-label="Outreach views"></nav>
+    <div class="stack" style="min-width:0">
+      <div class="fbar" id="outBar"></div>
+      <div class="row" id="outActs"><button class="btn small" id="outAdd" type="button">Add a contact</button><button class="btn small" id="outImport" type="button">Import from places</button></div>
+      <div id="outNew"></div>
+      <div class="out-sel" id="outSel" hidden></div>
+      <div class="stack" id="outBody"><div class="empty">Loading outreach.</div></div>
     </div>
-    <button class="btn" id="outAdd" type="button">Add person</button>
   </div>
-  <div id="outNew"></div>
-  <div class="stack" id="outBody"><div class="empty">Loading outreach.</div></div>
  </div>
 
  <div data-tab="admin" class="stack" hidden>
@@ -943,7 +952,7 @@ label.amen:has(input:checked){border-color:var(--brand-line);background:var(--br
       .catch(function(e){state.errors.queue=errCopy(e,"Supabase");renderAct();renderOutreach()});
   }
     function act(action,args){
-    var allowed=["renewal_done","renewal_save","approve_review","reject_review","reply_ticket","set_ticket_status","note_ticket","user_report","location_report","outreach_save","outreach_log","outreach_delete"];
+    var allowed=["renewal_done","renewal_save","approve_review","reject_review","reply_ticket","set_ticket_status","note_ticket","user_report","location_report"];
     if(allowed.indexOf(action)<0)return Promise.reject({message:"Not an allowed action"});
     return api("action",{action:action,args:args}).then(function(r){return r.data});
   }
@@ -1003,83 +1012,14 @@ label.amen:has(input:checked){border-color:var(--brand-line);background:var(--br
   });
 
   // ---------- outreach ----------
-  var outFilter="all";
-  var today=new Date();today.setHours(0,0,0,0);
-  function dueClass(d){if(!d)return "";var t=new Date(d+"T00:00:00");return t<today?"over":(t.getTime()===today.getTime()?"today":"")}
-  function statusTag(s){var m={to_contact:"info",contacted:"info",replied:"warn",agreed:"ok",live:"ok",declined:"",parked:""};return '<span class="tag '+(m[s]||"")+'">'+esc(String(s).replace("_"," "))+'</span>'}
-  var STATUSES=["to_contact","contacted","replied","agreed","live","declined","parked"], KINDS=["creator","venue","press","partner","other"];
-  function opts(list,sel){return list.map(function(v){return '<option value="'+v+'"'+(v===sel?" selected":"")+'>'+v.replace("_"," ")+'</option>'}).join("")}
-  function form(o,idp){o=o||{};return '<div class="grid2">'+
-    '<label>Name<input type="text" id="'+idp+'name" value="'+esc(o.name||"")+'"></label>'+
-    '<label>Organisation<input type="text" id="'+idp+'org" value="'+esc(o.org||"")+'"></label>'+
-    '<label>Type<select id="'+idp+'kind">'+opts(KINDS,o.kind||"creator")+'</select></label>'+
-    '<label>Status<select id="'+idp+'status">'+opts(STATUSES,o.status||"to_contact")+'</select></label>'+
-    '<label>Handle<input type="text" id="'+idp+'handle" value="'+esc(o.handle||"")+'"></label>'+
-    '<label>Email<input type="email" id="'+idp+'email" value="'+esc(o.email||"")+'"></label>'+
-    '<label>Phone<input type="text" id="'+idp+'phone" value="'+esc(o.phone||"")+'"></label>'+
-    '<label>Next follow-up<input type="date" id="'+idp+'next_follow_up" value="'+esc(o.next_follow_up||"")+'"></label>'+
-    '</div><label class="note" for="'+idp+'next_action">Next action</label><input type="text" id="'+idp+'next_action" value="'+esc(o.next_action||"")+'">'+
-    '<label class="note" for="'+idp+'owed">What you owe them</label><input type="text" id="'+idp+'owed" value="'+esc(o.owed||"")+'">'+
-    '<label class="note" for="'+idp+'notes">Notes</label><textarea id="'+idp+'notes" style="min-height:70px">'+esc(o.notes||"")+'</textarea>'}
-  function readForm(idp){var o={};["name","org","kind","status","handle","email","phone","next_follow_up","next_action","owed","notes"].forEach(function(k){var el=document.getElementById(idp+k);o[k]=el?el.value.trim():""});return o}
-
+  // The tab itself is the HQOutreach script below; the queue only sets the tab's count
+  // (follow-ups due today or earlier that are still in play).
   function renderOutreach(){
-    var el=$("outBody"),q=state.queue;
-    if(state.errors.queue){el.innerHTML='<div class="empty">'+esc(state.errors.queue)+'</div>';return}
-    if(!q)return;
-    var all=q.outreach||[];
-    var due=all.filter(function(o){return o.next_follow_up&&dueClass(o.next_follow_up)!==""&&["declined","parked","live"].indexOf(o.status)<0});
-    var c=$("outCount");c.textContent=due.length;c.className="count"+(due.length?" hot":"");
-    var list=all.filter(function(o){return outFilter==="all"||(outFilter==="due"?due.indexOf(o)>=0:o.kind===outFilter)});
-    if(!list.length){el.innerHTML='<div class="empty">Nobody here yet.</div>';return}
-    el.innerHTML=list.map(function(o){
-      var idp="o-"+o.id+"-";
-      var log=(o.log||[]).map(function(g){return '<div class="prior">'+esc(when(g.at))+': '+esc(g.note)+'</div>'}).join("");
-      return '<details class="card" data-id="'+esc(o.id)+'"><summary><div><div class="title">'+esc(o.name)+(o.org&&o.org!==o.name?' <span class="note">'+esc(o.org)+'</span>':'')+'</div><div class="meta"><span class="tag">'+esc(o.kind)+'</span>'+statusTag(o.status)+(o.handle?'<span>'+esc(o.handle)+'</span>':'')+'</div>'+(o.next_action?'<div class="text" style="font-size:13.5px;margin-top:4px">'+esc(o.next_action)+'</div>':'')+(o.owed?'<div class="note" style="color:var(--warn)">You owe: '+esc(o.owed)+'</div>':'')+'</div><span class="due '+dueClass(o.next_follow_up)+'">'+esc(o.next_follow_up?day(o.next_follow_up):"no date")+'</span></summary>'+
-        '<div class="stack" style="margin-top:8px">'+
-        (o.email||o.phone?'<div class="meta">'+(o.email?'<span class="mono">'+esc(o.email)+'</span>':'')+(o.phone?'<span class="mono">'+esc(o.phone)+'</span>':'')+'</div>':'')+
-        (o.notes?'<div class="prior">'+esc(o.notes)+'</div>':'')+
-        '<div class="subhead"><h3 style="font-size:14px">Log a contact</h3></div>'+
-        '<input type="text" id="'+idp+'lognote" placeholder="What happened, e.g. Emailed, visited, they replied">'+
-        '<div class="grid2"><label>New status<select id="'+idp+'logstatus"><option value="">no change</option>'+opts(STATUSES,"")+'</select></label><label>Next follow-up<input type="date" id="'+idp+'logfu" value="'+esc(o.next_follow_up||"")+'"></label></div>'+
-        '<div class="row"><button class="btn primary small" data-do="log">Log it</button><button class="btn small" data-do="draft">Draft a message with Claude</button></div>'+
-        '<textarea id="'+idp+'draft" hidden></textarea>'+
-        (log?'<div class="subhead"><h3 style="font-size:14px">History</h3></div>'+log:'')+
-        '<details><summary class="note" style="cursor:pointer">Edit details</summary><div class="stack" style="margin-top:8px">'+form(o,idp)+'<div class="row"><button class="btn primary small" data-do="save">Save changes</button><button class="btn danger small" data-do="delete" data-confirm="Confirm remove">Remove</button></div></div></details>'+
-        '</div></details>';
-    }).join("");
+    var c=$("outCount"),q=state.queue;if(!c||!q)return;var t=new Date().toLocaleDateString("en-CA",{timeZone:"Europe/London"});
+    var n=(q.outreach||[]).filter(function(o){return o.next_follow_up&&o.next_follow_up<=t&&["declined","parked"].indexOf(o.status)<0}).length;
+    c.textContent=n;c.className="count"+(n?" hot":"");
+    if(window.HQOutreach&&HQOutreach.refreshIfOpen)HQOutreach.refreshIfOpen();
   }
-
-  $("outFilter").addEventListener("click",function(ev){var b=ev.target.closest("button[data-k]");if(!b)return;outFilter=b.dataset.k;this.querySelectorAll("button").forEach(function(x){x.setAttribute("aria-pressed",x===b?"true":"false")});renderOutreach()});
-  $("outAdd").addEventListener("click",function(){
-    var box=$("outNew");if(box.innerHTML){box.innerHTML="";return}
-    box.innerHTML='<div class="card" data-new="1"><div class="subhead"><h3>Add a person</h3></div>'+form({},"on-")+'<div class="row"><button class="btn primary small" data-do="create">Add</button><button class="btn small" data-do="cancel">Cancel</button></div></div>';
-  });
-  $("outNew").addEventListener("click",function(ev){
-    var b=ev.target.closest("button[data-do]");if(!b)return;var card=b.closest(".card");
-    if(b.dataset.do==="cancel"){$("outNew").innerHTML="";return}
-    var o=readForm("on-");if(!o.name){note(card,false,"A name is needed.");return}
-    b.disabled=true;act("outreach_save",o).then(function(r){note(card,r.ok,r.message);if(r.ok){setTimeout(function(){$("outNew").innerHTML="";loadQueue()},900)}else b.disabled=false}).catch(function(e){b.disabled=false;note(card,false,errCopy(e,"Supabase"))});
-  });
-  $("outBody").addEventListener("click",function(ev){
-    var b=ev.target.closest("button[data-do]");if(!b)return;ev.preventDefault();
-    var card=b.closest("details.card"),id=card.dataset.id,idp="o-"+id+"-",what=b.dataset.do;
-    var o=((state.queue&&state.queue.outreach)||[]).filter(function(x){return x.id===id})[0]||{};
-    if(what==="draft"){
-      var ta=document.getElementById(idp+"draft");ta.hidden=false;
-      b.disabled=true;ta.value="Drafting…";
-      api("draft_outreach",{id:id}).then(function(r){ta.value=r.text;if(r.metered===false)note(card,false,"Draft ready, but its cost was not recorded in api_usage.")}).catch(function(e){ta.value=(e&&e.message)||"No draft came back. Try again."}).then(function(){b.disabled=false});
-      return;
-    }
-    if(b.dataset.confirm&&!armed(b))return;
-    var call;
-    if(what==="log"){var nt=document.getElementById(idp+"lognote").value.trim();if(!nt){note(card,false,"Write what happened first.");return}
-      var args={id:id,note:nt};var st=document.getElementById(idp+"logstatus").value;if(st)args.status=st;args.next_follow_up=document.getElementById(idp+"logfu").value||"";call=act("outreach_log",args)}
-    else if(what==="save"){var f=readForm(idp);f.id=id;call=act("outreach_save",f)}
-    else if(what==="delete")call=act("outreach_delete",{id:id});
-    if(!call)return;b.disabled=true;
-    call.then(function(r){note(card,r.ok,r.message);setTimeout(function(){loadQueue().then(function(){var re=document.querySelector('details.card[data-id="'+id+'"]');if(re)re.open=true})},700)}).catch(function(e){b.disabled=false;note(card,false,errCopy(e,"Supabase"))});
-  });
 
   // ---------- shared with the Act and Users scripts ----------
   window.HQ={api:api,act:act,esc:esc,when:when,day:day,armed:armed,note:note,errCopy:errCopy,state:state,loadQueue:loadQueue,
@@ -1089,7 +1029,7 @@ label.amen:has(input:checked){border-color:var(--brand-line);background:var(--br
   function applyPerms(){
     var c=HQ.can, show=function(id,on){var e=$(id);if(e)e.hidden=!on};
     show("t-act",c("safety")||c("privacy")||c("reviews")||c("reports")||c("claims")||c("support_read")||c("places_moderate")||c("places_delete"));
-    show("t-users",c("users_view"));show("t-places",c("places_edit"));show("t-content",c("content"));show("t-comms",c("announce"));show("t-money",c("money"));show("t-insights",c("insights"));show("t-outreach",c("outreach"));show("t-admin",c("staff_manage")||c("audit_view")||c("trash_restore"));
+    show("t-users",c("users_view"));show("t-places",c("places_edit"));show("t-content",c("content"));show("t-comms",c("announce"));show("t-money",c("money"));show("t-insights",c("insights"));show("t-outreach",c("outreach_view"));show("t-admin",c("staff_manage")||c("audit_view")||c("trash_restore"));
     show("p-money",c("money"));show("p-costs",c("money"));show("p-renewals",c("renewals"));
 
     show("miniForm",c("ask_ralphy"));show("miniLinks",c("ask_ralphy"));
@@ -1110,6 +1050,7 @@ label.amen:has(input:checked){border-color:var(--brand-line);background:var(--br
     if(t==="content"&&window.HQContent)HQContent.show();
     if(t==="comms"&&window.HQComms)HQComms.show();
     if(t==="money"&&window.HQMoney)HQMoney.show();
+    if(t==="outreach"&&window.HQOutreach)HQOutreach.show();
     if(t==="insights"&&window.HQInsights)HQInsights.show();
     if(t==="admin"&&window.HQAdmin)HQAdmin.show();
   }
@@ -1143,7 +1084,7 @@ label.amen:has(input:checked){border-color:var(--brand-line);background:var(--br
     ["Support",function(){return HQ.can("support_read")},["What's waiting in support?","Has any customer replied and is waiting on me?","Draft a reply to the newest open ticket"]],
     ["Reviews and reports",function(){return HQ.can("reviews")||HQ.can("reports")},["Any reviews to moderate?","Any user or place reports to deal with?","What have people said in reviews this fortnight?"]],
     ["Places",function(){return HQ.can("places_edit")},["Any listing changes or place suggestions waiting?"]],
-    ["Outreach",function(){return HQ.can("outreach")},["Who's due a follow-up in outreach?","Draft a follow-up for the most overdue contact"]],
+    ["Outreach",function(){return HQ.can("outreach_view")},["Who's due a follow-up in outreach?","Draft a follow-up for the most overdue contact"]],
     ["Creators",function(){return HQ.can("creators")},["Any creator posts or applications to review?","How are the creator codes doing?"]],
     ["Growth",function(){return true},["How are sign-ups doing this week?","How many founding members so far?"]],
     ["Money",function(){return HQ.can("money")},["How are subscriptions doing this week?","Where is money going this month?","What do I owe creators this month?"]],
@@ -1456,6 +1397,7 @@ label.amen:has(input:checked){border-color:var(--brand-line);background:var(--br
   function openSheet(title,html){$("sheetBg").classList.remove("wide");$("sheetTitle").textContent=title;$("sheetBody").innerHTML=html;$("sheetBg").hidden=false;document.body.style.overflow="hidden"}
   function closeSheet(){stopHeartbeat();$("sheetBg").hidden=true;document.body.style.overflow=""}
   $("sheetClose").addEventListener("click",closeSheet);
+  HQ.openSheet=openSheet;HQ.closeSheet=closeSheet;HQ.deferOp=deferOp;
   $("sheetBg").addEventListener("click",function(ev){if(ev.target===this)closeSheet()});
   document.addEventListener("keydown",function(ev){if(ev.key==="Escape"&&!$("sheetBg").hidden)closeSheet()});
 
@@ -3263,6 +3205,161 @@ label.amen:has(input:checked){border-color:var(--brand-line);background:var(--br
     if(w==="restore"){if(!H.armed(b))return;var card=b.closest("[data-tr-card]");b.disabled=true;
       H.api("trash_restore",{id:b.dataset.id}).then(function(r){H.note(card,true,r.message||"Restored.");b.remove();setTimeout(trLoad,1800)}).catch(function(e){H.note(card,false,(e&&e.message)||"That did not work.");b.disabled=false;b.dataset.armed="";b.textContent=b.dataset.label||"Restore";b.classList.remove("confirm")})}});
   window.HQAudit={activity:activity,backlog:backlog,trash:trash};
+})();
+</script>
+<script>
+// ---------- Outreach: views, filters, paged list, detail, log, bulk tags, import from places ----------
+// Reads need outreach_view, writes outreach_edit, delete outreach_delete; the server checks each.
+(function(){
+  var $=function(id){return document.getElementById(id)}, H=window.HQ, esc=H.esc;
+  var VIEWS=[["to_contact","To contact"],["follow_up","Follow up due"],["waiting","Waiting on them"],["warm","Warm"],["shared","Shared"],["declined","Declined and parked"],["all","All"]];
+  var KINDS=[["creator","Creator"],["creator_prospect","Creator prospect"],["venue","Venue"],["press","Press"],["partner","Partner"],["community","Community"],["other","Other"]];
+  var STATUSES=[["to_contact","To contact"],["contacted","Contacted"],["replied","Replied"],["warm","Warm"],["agreed","Agreed"],["live","Live"],["shared","Shared"],["declined","Declined"],["parked","Parked"]];
+  var CHANNELS=[["email","Email"],["instagram_dm","Instagram DM"],["phone","Phone"],["in_person","In person"],["other","Other"]];
+  var CATS=["pub","cafe","restaurant","bar","hotel","shop","park","beach","attraction","campsite","holiday_let","vet","groomer","walk"];
+  var st={view:"to_contact",f:{},page:0,data:null,sel:{},loaded:false,qTimer:null};
+  var lab=function(list,v){var m=list.filter(function(x){return x[0]===v})[0];return m?m[1]:String(v||"").replace(/_/g," ")};
+  var opt=function(list,sel,blank){return (blank!=null?'<option value="">'+esc(blank)+'</option>':'')+list.map(function(x){var v=Array.isArray(x)?x[0]:x,l=Array.isArray(x)?x[1]:x;return '<option value="'+esc(v)+'"'+(String(v)===String(sel||"")?" selected":"")+'>'+esc(l)+'</option>'}).join("")};
+  var day=function(d){return d?new Date(String(d).length<=10?d+"T12:00:00":d).toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"}):""};
+  var STATUS_CLS={to_contact:"info",contacted:"info",replied:"warn",warm:"warn",agreed:"ok",live:"ok",shared:"ok",declined:"",parked:""};
+  var canEdit=function(){return H.can("outreach_edit")}, canDel=function(){return H.can("outreach_delete")};
+  var todayUK=function(){return new Date().toLocaleDateString("en-CA",{timeZone:"Europe/London"})};
+
+  function show(){$("outActs").hidden=!canEdit();if(!st.loaded){st.loaded=true;load()}else load()}
+  function load(){
+    var f=st.f, args={view:st.view,page:st.page};Object.keys(f).forEach(function(k){if(f[k]!==""&&f[k]!=null)args[k]=f[k]});
+    H.api("outreach_list",args).then(function(r){st.data=r.data;views();bar();list()}).catch(function(e){$("outBody").innerHTML='<div class="empty">'+esc((e&&e.message)||"That did not load.")+'</div>'});
+  }
+  function views(){var c=st.data.counts||{};$("outViews").innerHTML=VIEWS.map(function(v){return '<button type="button" data-ov="'+v[0]+'" aria-pressed="'+(st.view===v[0])+'"><span>'+esc(v[1])+'</span><span class="n">'+(c[v[0]]||0)+'</span></button>'}).join("")}
+  function bar(){
+    // Rebuilt each load so new areas and tags appear, except while someone is typing in it.
+    if($("outBar").contains(document.activeElement))return;var o=st.data.options||{},f=st.f;
+    $("outBar").innerHTML='<input type="search" class="pill-in" data-of="q" placeholder="Search names, organisations or areas" value="'+esc(f.q||"")+'" aria-label="Search">'+
+      '<select data-of="kind" aria-label="Kind">'+opt(KINDS,f.kind,"Every kind")+'</select>'+
+      '<select data-of="status" aria-label="Status">'+opt(STATUSES,f.status,"Every status")+'</select>'+
+      '<select data-of="area" aria-label="Area">'+opt(o.areas||[],f.area,"Every area")+'</select>'+
+      '<select data-of="owner" aria-label="Owner">'+opt([["none","No owner"]].concat((o.owners||[]).map(function(x){return [x.id,x.name]})),f.owner,"Every owner")+'</select>'+
+      '<select data-of="tag" aria-label="Tag">'+opt(o.tags||[],f.tag,"Every tag")+'</select>'+
+      '<select data-of="category" aria-label="Place category">'+opt((o.categories||[]).map(function(x){return [x,String(x).replace(/_/g," ")]}),f.category,"Any place category")+'</select>'+
+      '<select data-of="min_rating" aria-label="Minimum BarkFind rating">'+opt([["3","Rated 3+"],["3.5","Rated 3.5+"],["4","Rated 4+"],["4.5","Rated 4.5+"]],f.min_rating,"Any rating")+'</select>';
+  }
+  function list(){
+    var d=st.data,el=$("outBody"),from=d.page*d.page_size,ed=canEdit();
+    if(!d.rows.length){el.innerHTML='<div class="empty">Nobody in this view'+(Object.keys(st.f).some(function(k){return st.f[k]})?" with these filters":"")+'.</div>';selBar();return}
+    el.innerHTML='<div class="note">'+(from+1)+" to "+Math.min(from+d.page_size,d.total)+" of "+d.total+'</div>'+d.rows.map(function(x){
+      var venue=x.kind==="venue", sub=[lab(KINDS,x.kind)];if(x.area)sub.push(x.area);if(venue&&x.place_name&&x.place_name!==x.name)sub.push(x.place_name);
+      if(venue&&x.barkfind_rating!=null)sub.push("BarkFind "+Number(x.barkfind_rating).toFixed(1)+(x.review_count!=null?" ("+x.review_count+" review"+(x.review_count===1?"":"s")+")":""));
+      if(x.owner_name)sub.push("Owner "+x.owner_name);
+      return '<div class="out-row" data-oid="'+esc(x.id)+'">'+(ed?'<input type="checkbox" data-osel="'+esc(x.id)+'"'+(st.sel[x.id]?" checked":"")+' aria-label="Select '+esc(x.name)+'">':'<span></span>')+
+        '<div><div class="nm">'+esc(x.name)+(x.org&&x.org!==x.name?' <span class="note">'+esc(x.org)+'</span>':'')+'</div><div class="sub">'+esc(sub.join(" · "))+'</div>'+
+        (x.next_action?'<div class="sub">Next: '+esc(x.next_action)+'</div>':'')+
+        '<div class="meta" style="margin-top:6px"><span class="tag '+(STATUS_CLS[x.status]||"")+'">'+esc(lab(STATUSES,x.status))+'</span>'+(x.open_report?'<span class="tag crit">Open place report</span>':'')+(x.tags||[]).map(function(t){return '<span class="tag plain">'+esc(t)+'</span>'}).join("")+'</div></div>'+
+        '<div class="side">'+(x.last_contact_at?"Last touched "+esc(day(x.last_contact_at)):"Not contacted yet")+(x.next_follow_up?'<br><span'+(x.next_follow_up<=todayUK()&&["declined","parked"].indexOf(x.status)<0?' style="color:var(--warn);font-weight:700"':'')+'>Follow up '+esc(day(x.next_follow_up))+'</span>':'')+'</div></div>'}).join("")+
+      (d.total>d.page_size?'<div class="row" style="justify-content:flex-end">'+(d.page>0?'<button class="btn small" data-op="prev">Previous</button>':'')+(from+d.page_size<d.total?'<button class="btn small" data-op="next">Next</button>':'')+'</div>':'');
+    selBar();
+  }
+  function selIds(){return Object.keys(st.sel).filter(function(k){return st.sel[k]})}
+  function selBar(){var ids=selIds(),b=$("outSel");b.hidden=!ids.length;if(!ids.length){b.innerHTML="";return}
+    b.innerHTML='<b>'+ids.length+' selected</b><input type="text" class="pill-in" id="outTag" placeholder="Tag, for example bs23" maxlength="40" style="max-width:200px"><button class="btn small" data-op="tagadd">Add tag</button><button class="btn small" data-op="tagrm">Remove tag</button><button class="btn small" data-op="selclear">Clear selection</button>'}
+
+  // ---------- detail ----------
+  function contactForm(o,p){o=o||{};var h=o.handles||{},ow=(st.data&&st.data.options&&st.data.options.owners)||[];
+    return '<div class="grid2"><label>Name<input type="text" data-f="name" value="'+esc(o.name||"")+'" maxlength="200"></label><label>Organisation<input type="text" data-f="org" value="'+esc(o.org||"")+'"></label>'+
+      '<label>Kind<select data-f="kind">'+opt(KINDS,o.kind||"venue")+'</select></label><label>Status<select data-f="status">'+opt(STATUSES,o.status||"to_contact")+'</select></label>'+
+      '<label>Area<input type="text" data-f="area" value="'+esc(o.area||"")+'" placeholder="For example Weston-super-Mare"></label><label>Owner<select data-f="owner">'+opt(ow.map(function(x){return [x.id,x.name]}),o.owner,"No owner")+'</select></label>'+
+      '<label>Email<input type="email" data-f="email" value="'+esc(o.email||"")+'"></label><label>Phone<input type="text" data-f="phone" value="'+esc(o.phone||"")+'"></label>'+
+      '<label>Instagram<input type="text" data-h="instagram" value="'+esc(h.instagram||"")+'" placeholder="@name"></label><label>TikTok<input type="text" data-h="tiktok" value="'+esc(h.tiktok||"")+'" placeholder="@name"></label>'+
+      '<label>Facebook<input type="text" data-h="facebook" value="'+esc(h.facebook||"")+'"></label><label>YouTube<input type="text" data-h="youtube" value="'+esc(h.youtube||"")+'"></label>'+
+      '<label>Next follow-up<input type="date" data-f="next_follow_up" value="'+esc(o.next_follow_up||"")+'"></label><label>Tags (comma separated)<input type="text" data-f="tags" value="'+esc((o.tags||[]).join(", "))+'"></label></div>'+
+      '<label class="note">Next action</label><input type="text" data-f="next_action" value="'+esc(o.next_action||"")+'">'+
+      '<label class="note">What you owe them</label><input type="text" data-f="owed" value="'+esc(o.owed||"")+'">'+
+      '<label class="note">Notes</label><textarea data-f="notes" style="min-height:70px">'+esc(o.notes||"")+'</textarea>'}
+  function readForm(box){var o={};box.querySelectorAll("[data-f]").forEach(function(el){o[el.dataset.f]=el.value.trim()});
+    o.tags=o.tags?o.tags.split(",").map(function(t){return t.trim().toLowerCase()}).filter(Boolean):[];
+    var h={};box.querySelectorAll("[data-h]").forEach(function(el){if(el.value.trim())h[el.dataset.h]=el.value.trim()});o.handles=h;return o}
+  function open(id){
+    H.openSheet("Outreach",'<div class="empty">Loading.</div>');
+    H.api("outreach_get",{id:id}).then(function(r){var d=r.data,o=d.contact,pl=d.place,ed=canEdit();
+      $("sheetTitle").textContent=o.name;
+      var h=o.handles||{},links=Object.keys(h).map(function(k){return esc(lab([["instagram","Instagram"],["tiktok","TikTok"],["facebook","Facebook"],["youtube","YouTube"]],k))+": "+esc(h[k])});
+      var head='<div class="card"><div class="meta"><span class="tag">'+esc(lab(KINDS,o.kind))+'</span><span class="tag '+(STATUS_CLS[o.status]||"")+'">'+esc(lab(STATUSES,o.status))+'</span>'+(o.area?'<span>'+esc(o.area)+'</span>':'')+(o.owner_name?'<span>Owner '+esc(o.owner_name)+'</span>':'')+(o.source&&o.source!=="hq"?'<span>From '+esc(o.source)+'</span>':'')+'</div>'+
+        ((o.tags||[]).length?'<div class="meta">'+o.tags.map(function(t){return '<span class="tag plain">'+esc(t)+'</span>'}).join("")+'</div>':'')+
+        '<dl class="kvs">'+(o.org&&o.org!==o.name?'<dt>Organisation</dt><dd>'+esc(o.org)+'</dd>':'')+(o.email?'<dt>Email</dt><dd class="mono">'+esc(o.email)+'</dd>':'')+(o.phone?'<dt>Phone</dt><dd>'+esc(o.phone)+'</dd>':'')+
+        (links.length?'<dt>Social</dt><dd>'+links.join(" · ")+'</dd>':'')+(o.handle&&!links.length?'<dt>Handle</dt><dd>'+esc(o.handle)+'</dd>':'')+
+        '<dt>Last touched</dt><dd>'+(o.last_contact_at?esc(day(o.last_contact_at)):"Not contacted yet")+'</dd>'+(o.next_follow_up?'<dt>Follow up</dt><dd>'+esc(day(o.next_follow_up))+'</dd>':'')+
+        (o.next_action?'<dt>Next action</dt><dd>'+esc(o.next_action)+'</dd>':'')+(o.owed?'<dt>Owed</dt><dd>'+esc(o.owed)+'</dd>':'')+'</dl>'+(o.notes?'<div class="prior" style="white-space:pre-wrap">'+esc(o.notes)+'</div>':'')+'</div>';
+      var place=pl?'<div class="card"><div class="subhead"><h3 style="font-size:16px">The place</h3></div><div class="out-place">'+(pl.image_url&&/^https:\/\//.test(pl.image_url)?'<img src="'+esc(pl.image_url)+'" alt="">':'<div class="out-place-img" style="width:96px;height:96px;border-radius:12px;background:var(--well)"></div>')+
+        '<div><div class="title">'+esc(pl.name)+'</div><div class="note">'+esc(String(pl.category||"").replace(/_/g," "))+(pl.address?" · "+esc(pl.address):"")+'</div>'+
+        '<div class="note">BarkFind rating '+(pl.barkfind_rating!=null?esc(Number(pl.barkfind_rating).toFixed(1)):"none yet")+', '+(pl.review_count||0)+' review'+(pl.review_count===1?"":"s")+'</div>'+
+        (pl.open_reports?'<div class="note" style="color:var(--crit);font-weight:700">'+pl.open_reports+' open place report'+(pl.open_reports===1?"":"s")+'. Fix the listing before writing to them.</div>':'')+(pl.flagged?'<div class="note" style="color:var(--warn)">This place is hidden from the app.</div>':'')+
+        '<div class="row"><button class="btn small" data-od="place" data-pid="'+esc(pl.id)+'">Open in Places</button></div></div></div></div>':(o.kind==="venue"?'<div class="note">Not linked to a BarkFind place.</div>':'');
+      var logForm=ed?'<div class="card" data-ocard="log"><div class="subhead"><h3 style="font-size:16px">Log a contact</h3></div>'+
+        '<textarea data-l="note" placeholder="What happened, for example Sent a DM about their listing" style="min-height:60px"></textarea>'+
+        '<div class="grid2"><label>How<select data-l="channel">'+opt(CHANNELS,"","Choose")+'</select></label><label>Which way<select data-l="direction">'+opt([["out","We contacted them"],["in","They contacted us"]],"","Choose")+'</select></label>'+
+        '<label>New status<select data-l="status">'+opt(STATUSES,"","No change")+'</select></label><label>Next follow-up<input type="date" data-l="next_follow_up" value="'+esc(o.next_follow_up||"")+'"></label></div>'+
+        '<div class="row"><button class="btn primary small" data-od="log">Log it</button><button class="btn small" data-od="draft">Draft a message with Claude</button></div><textarea data-l="draft" hidden style="min-height:140px"></textarea></div>':'';
+      var hist='<div class="card"><div class="subhead"><h3 style="font-size:16px">History</h3><span>'+d.log.length+'</span></div>'+(d.log.length?d.log.map(function(g){
+          var bits=[esc(day(g.at))];if(g.channel)bits.push(esc(lab(CHANNELS,g.channel)));if(g.direction)bits.push(g.direction==="in"?"from them":"from us");if(g.by_name)bits.push("by "+esc(g.by_name));
+          return '<div class="out-log"><div class="meta">'+bits.join(" · ")+'</div><div style="white-space:pre-wrap">'+esc(g.note)+'</div>'+(g.body?'<details><summary class="note">Full message</summary><div style="white-space:pre-wrap">'+esc(g.body)+'</div></details>':'')+'</div>'}).join(""):'<div class="note">Nothing logged yet.</div>')+'</div>';
+      var edit=ed?'<details class="card" data-ocard="edit"><summary class="note" style="cursor:pointer">Edit details</summary><div class="stack" style="margin-top:8px">'+contactForm(o)+
+        '<div class="row"><button class="btn primary small" data-od="save">Save changes</button>'+(canDel()?'<button class="btn danger small" data-od="delete" data-confirm="Confirm delete">Delete</button>':'')+'</div></div></details>':'';
+      $("sheetBody").innerHTML='<div data-osheet="'+esc(o.id)+'" class="stack">'+head+place+logForm+hist+edit+'</div>';
+    }).catch(function(e){$("sheetBody").innerHTML='<div class="empty">'+esc((e&&e.message)||"That did not load.")+'</div>'});
+  }
+  function after(card,r,reopen){H.note(card,true,(r&&r.message)||"Done.");setTimeout(function(){load();if(reopen)open(reopen)},700)}
+  function fail(card,b){return function(e){H.note(card,false,(e&&e.message)||"That did not work.");if(b){b.disabled=false;if(b.dataset.label){b.textContent=b.dataset.label;b.dataset.armed="";b.classList.remove("confirm")}}}}
+
+  // ---------- events ----------
+  $("outViews").addEventListener("click",function(ev){var b=ev.target.closest("[data-ov]");if(!b)return;st.view=b.dataset.ov;st.page=0;load()});
+  $("outBar").addEventListener("change",function(ev){var k=ev.target.dataset.of;if(!k||k==="q")return;st.f[k]=ev.target.value;st.page=0;load()});
+  $("outBar").addEventListener("input",function(ev){if(ev.target.dataset.of!=="q")return;clearTimeout(st.qTimer);var v=ev.target.value.trim();st.qTimer=setTimeout(function(){st.f.q=v;st.page=0;load()},300)});
+  $("outBody").addEventListener("click",function(ev){
+    var cb=ev.target.closest("[data-osel]");if(cb){st.sel[cb.dataset.osel]=cb.checked;selBar();return}
+    var b=ev.target.closest("[data-op]");if(b){if(b.dataset.op==="prev")st.page--;else st.page++;load();return}
+    var row=ev.target.closest("[data-oid]");if(row)open(row.dataset.oid)});
+  $("outSel").addEventListener("click",function(ev){var b=ev.target.closest("[data-op]");if(!b)return;var w=b.dataset.op;
+    if(w==="selclear"){st.sel={};list();return}
+    var tag=($("outTag").value||"").trim().toLowerCase();if(!tag){H.note($("outSel"),false,"Type a tag first.");return}
+    var ids=selIds(),args={ids:ids};args[w==="tagadd"?"add":"remove"]=[tag];
+    H.deferOp((w==="tagadd"?"Adding":"Removing")+" the tag "+tag+" on "+ids.length+" contact"+(ids.length===1?"":"s"),function(){
+      H.api("outreach_tag",args).then(function(r){st.sel={};H.note($("outSel"),true,r.message);setTimeout(load,600)}).catch(fail($("outSel")))},function(){});
+  });
+  $("sheetBody").addEventListener("click",function(ev){
+    var b=ev.target.closest("[data-od]");if(!b)return;var sh=b.closest("[data-osheet]");if(!sh)return;var id=sh.dataset.osheet,w=b.dataset.od,card=b.closest(".card")||sh;
+    if(w==="place"){H.closeSheet();if(window.HQPlaces&&HQPlaces.open)HQPlaces.open(b.dataset.pid);return}
+    if(w==="draft"){var ta=card.querySelector('[data-l="draft"]');ta.hidden=false;ta.value="Drafting…";b.disabled=true;
+      H.api("draft_outreach",{id:id}).then(function(r){ta.value=r.text;if(r.metered===false)H.note(card,false,"Draft ready, but its cost was not recorded in api_usage.")}).catch(function(e){ta.value=(e&&e.message)||"No draft came back. Try again."}).then(function(){b.disabled=false});return}
+    if(w==="log"){var g=function(k){var el=card.querySelector('[data-l="'+k+'"]');return el?el.value.trim():""};if(!g("note")){H.note(card,false,"Write what happened first.");return}
+      var a={id:id,note:g("note"),next_follow_up:g("next_follow_up")};if(g("channel"))a.channel=g("channel");if(g("direction"))a.direction=g("direction");if(g("status"))a.status=g("status");
+      b.disabled=true;H.api("outreach_log",a).then(function(r){after(card,r,id)}).catch(fail(card,b));return}
+    if(w==="save"){var o=readForm(card);if(!o.name){H.note(card,false,"A name is needed.");return}o.id=id;b.disabled=true;H.api("outreach_save",o).then(function(r){after(card,r,id)}).catch(fail(card,b));return}
+    if(w==="delete"){if(!H.armed(b))return;var nm=$("sheetTitle").textContent;H.closeSheet();
+      H.deferOp("Deleting "+nm,function(){H.api("outreach_delete",{id:id}).then(function(){load()}).catch(function(e){alert((e&&e.message)||"That did not delete.")})},function(){});return}
+  });
+  // Add a contact, and Import from places (count and first twenty, then a second tap).
+  $("outAdd").addEventListener("click",function(){var box=$("outNew");if(box.dataset.mode==="add"){box.innerHTML="";box.dataset.mode="";return}
+    box.dataset.mode="add";box.innerHTML='<div class="card" data-ocard="new"><div class="subhead"><h3>Add a contact</h3></div>'+contactForm({kind:"venue",status:"to_contact"})+'<div class="row"><button class="btn primary small" data-on="create">Add</button><button class="btn small" data-on="cancel">Cancel</button></div></div>'});
+  $("outImport").addEventListener("click",function(){var box=$("outNew");if(box.dataset.mode==="import"){box.innerHTML="";box.dataset.mode="";return}
+    box.dataset.mode="import";box.innerHTML='<div class="card" data-ocard="import"><div class="subhead"><h3>Import from places</h3></div>'+
+      '<p class="note" style="margin:0">Adds BarkFind places as venues to contact. Places already in outreach, and hidden places, are skipped. Up to 200 at a time.</p>'+
+      '<div class="grid2"><label>Area (town or postcode start)<input type="text" data-i="area" placeholder="For example Weston-super-Mare or BS23" maxlength="60"></label>'+
+      '<label>Category<select data-i="category">'+opt(CATS.map(function(c){return [c,c.replace(/_/g," ")]}),"","Any category")+'</select></label>'+
+      '<label>Minimum BarkFind rating<select data-i="min_rating">'+opt([["3","3 or more"],["3.5","3.5 or more"],["4","4 or more"],["4.5","4.5 or more"]],"","Any rating")+'</select></label></div>'+
+      '<div class="row"><button class="btn small" data-on="check">Check</button><button class="btn small" data-on="cancel">Cancel</button></div><div data-i="out"></div></div>'});
+  $("outNew").addEventListener("click",function(ev){var b=ev.target.closest("[data-on]");if(!b)return;var card=b.closest(".card"),w=b.dataset.on;
+    if(w==="cancel"){$("outNew").innerHTML="";$("outNew").dataset.mode="";return}
+    if(w==="create"){var o=readForm(card);if(!o.name){H.note(card,false,"A name is needed.");return}b.disabled=true;
+      H.api("outreach_save",o).then(function(r){H.note(card,true,r.message);setTimeout(function(){$("outNew").innerHTML="";$("outNew").dataset.mode="";load();if(r.id)open(r.id)},700)}).catch(fail(card,b));return}
+    var g=function(k){return card.querySelector('[data-i="'+k+'"]').value.trim()},args={area:g("area")};if(g("category"))args.category=g("category");if(g("min_rating"))args.min_rating=g("min_rating");
+    if(args.area.length<2){H.note(card,false,"Type an area: a town or the start of a postcode.");return}
+    if(w==="check"){b.disabled=true;H.api("outreach_import_preview",args).then(function(r){var d=r.data,out=card.querySelector('[data-i="out"]');
+        out.innerHTML='<p class="note">'+d.count+' place'+(d.count===1?"":"s")+' match'+(d.count===1?"es":"")+(d.count>d.cap?". The first "+d.cap+", best rated first, will be added.":".")+'</p>'+
+          (d.first.length?'<div class="stack" style="gap:4px">'+d.first.map(function(x){return '<div class="note">'+esc(x.name)+' · '+esc(String(x.category||"").replace(/_/g," "))+(x.barkfind_rating!=null?' · '+Number(x.barkfind_rating).toFixed(1):'')+'</div>'}).join("")+(d.count>20?'<div class="note">and '+(d.count-20)+' more</div>':'')+'</div>':'')+
+          (d.will_import?'<div class="row"><button class="btn primary small" data-on="import" data-confirm="Confirm import">Import '+d.will_import+' venue'+(d.will_import===1?"":"s")+'</button></div>':'');
+      }).catch(fail(card)).then(function(){b.disabled=false});return}
+    if(w==="import"){if(!H.armed(b))return;b.disabled=true;H.api("outreach_import",args).then(function(r){H.note(card,true,r.message);st.view="to_contact";st.page=0;setTimeout(function(){$("outNew").innerHTML="";$("outNew").dataset.mode="";load()},900)}).catch(fail(card,b));return}
+  });
+  window.HQOutreach={show:show,refreshIfOpen:function(){var t=document.querySelector('[data-tab="outreach"]');if(st.loaded&&t&&!t.hidden)load()}};
 })();
 </script>
 </body>

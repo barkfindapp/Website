@@ -27,6 +27,7 @@ function storedWith(entity: string, related: any): string[] {
     moderation_log: ['moderation entry', 'moderation entries'], review_likes: ['review like', 'review likes'], mylo_backfill_queue: ['summary queue entry', 'summary queue entries'],
     geograph_requeue: ['photo queue entry', 'photo queue entries'], notification_links: ['notification link', 'notification links'], support_responses: ['reply', 'replies'],
     support_notes: ['note', 'notes'], notifications: ['person', 'people'], user_reports_unlinked: ['report link', 'report links'],
+    hq_outreach_log: ['log entry', 'log entries'],
   };
   const say = (o: Record<string, number>) => Object.entries(o).map(([k, n]) => `${n} ${(names[k] || [k.replace(/_/g, ' '), k.replace(/_/g, ' ')])[n === 1 ? 0 : 1]}`);
   if (entity === 'locations' && related.merged_into) {
