@@ -296,6 +296,20 @@ label.amen:has(input:checked){border-color:var(--brand-line);background:var(--br
 .sheet-bg[hidden]{display:none}
 .sheet{background:#fff;width:min(560px,100%);height:100%;overflow:auto;padding:18px 18px 40px;box-shadow:-10px 0 30px rgba(0,0,0,.12);display:flex;flex-direction:column;gap:14px}
 .sheet-bg.wide .sheet{width:min(1000px,100%)}
+.sheet.ralphy{width:max(50vw,480px);max-width:100%;padding-bottom:18px}
+.sheet.ralphy h3{display:flex;align-items:center;gap:10px;white-space:nowrap}.sheet.ralphy h3 .rav{width:30px;height:30px;font-size:16px}
+.rp-settings{border:1px solid var(--line);border-radius:14px;padding:10px 14px}.rp-settings[open]{display:flex;flex-direction:column;gap:10px}.rp-settings summary{cursor:pointer}
+.rp-set{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.rp-convo{display:flex;flex-direction:column;gap:12px;flex:1 0 auto}
+.rp-q{align-self:flex-end;max-width:85%;background:var(--well);border-radius:16px 16px 4px 16px;padding:10px 14px;font-size:15px;white-space:pre-wrap}
+.rp-a{border:1px solid var(--line);border-radius:16px 16px 16px 4px;padding:12px 14px;display:flex;flex-direction:column;gap:10px}
+.rp-a .who{display:flex;align-items:center;gap:8px;font:800 13px/1 var(--sans)}.rp-a .who .rav{width:24px;height:24px;font-size:14px}
+.rp-a .txt{white-space:pre-wrap;font-size:15px;line-height:1.6}
+.rp-groups{display:flex;flex-direction:column;gap:10px}.rp-groups .grp{display:flex;flex-direction:column;gap:6px}.rp-groups .grp b{font:800 11px/1 var(--sans);letter-spacing:.08em;text-transform:uppercase;color:var(--brand)}
+.rp-groups .chips{display:flex;flex-wrap:wrap;gap:6px}.rp-groups .chip{text-align:left}
+.rp-form{position:sticky;bottom:-18px;background:#fff;display:flex;gap:8px;align-items:flex-end;padding:10px 0 4px;border-top:1px solid var(--line)}
+.rp-form textarea{flex:1;min-height:46px;max-height:160px;resize:vertical}
+.mini-links .open-ralphy{font-weight:800}
 .ib-cols{display:grid;gap:14px;align-items:start}
 @media (min-width:900px){.sheet-bg.wide .ib-cols{grid-template-columns:1.5fr 1fr}}
 .sheet-head{display:flex;justify-content:space-between;align-items:center;gap:10px;position:sticky;top:-18px;background:#fff;padding:6px 0;z-index:1}
@@ -412,11 +426,7 @@ label.amen:has(input:checked){border-color:var(--brand-line);background:var(--br
         <button type="button" data-q="today">What's on today?</button>
         <button type="button" data-q="Anything urgent right now?">Anything urgent?</button>
         <button type="button" data-q="How are sign-ups and subscriptions doing this week?">This week's numbers</button>
-      </div>
-      <div class="mini-ans" id="miniAns" hidden aria-live="polite">
-        <div class="who"><span class="rav">R</span>Ralphy</div>
-        <div class="txt" id="miniTxt"></div>
-        <div class="speakrow"><button type="button" class="speak" data-for="miniTxt" aria-pressed="false">Read it to me</button><select class="voice" aria-label="Reading voice"></select></div>
+        <button type="button" id="openRalphy" class="open-ralphy">More questions and settings</button>
       </div>
     </div>
     <div class="countdown" id="countdown">
@@ -513,27 +523,6 @@ label.amen:has(input:checked){border-color:var(--brand-line);background:var(--br
       </article>
     </div>
   </section>
-
-  <section class="cta bleed" aria-labelledby="h-ask"><div class="inner">
-    <h2 class="sec" id="h-ask">Ask Ralphy</h2>
-    <div class="ask">
-      <form id="askForm">
-        <label for="askInput" class="note" style="flex-basis:100%">Ralphy answers from the live numbers on this page, and can read his answer aloud. For anything deeper, open a chat in the BarkFind project.</label>
-        <input id="askInput" name="q" autocomplete="off" placeholder="Hey Ralphy, what should I do before 9am?">
-        <button class="btn primary" id="askBtn" type="submit">Ask</button>
-      </form>
-      <div class="chips" id="chips">
-        <button type="button" class="chip" data-q="today">What's on today?</button>
-        <button type="button" class="chip">How are sign-ups and subscriptions doing this week?</button>
-        <button type="button" class="chip">What's waiting in support, reviews and reports?</button>
-        <button type="button" class="chip">Who's due a follow-up in outreach?</button>
-        <button type="button" class="chip">Is everything running? Any failed jobs or outages?</button>
-        <button type="button" class="chip">Where is money going this month?</button>
-        <button type="button" class="chip">What renewals or reminders are due this week?</button>
-      </div>
-      <div class="answer-wrap" id="answerWrap" hidden><div class="who"><span class="rav">R</span>Ralphy</div><div class="answer" id="answer" aria-live="polite"></div><div class="speakrow"><button type="button" class="speak" data-for="answer" aria-pressed="false">Read it to me</button><select class="voice" aria-label="Reading voice"></select></div></div>
-    </div>
-  </div></section>
 
   <section aria-labelledby="h-feed">
     <h2 class="sec" id="h-feed">Recent alerts</h2>
@@ -667,6 +656,18 @@ label.amen:has(input:checked){border-color:var(--brand-line);background:var(--br
 </main></main>
 </div>
 
+<div class="sheet-bg ralphy-bg" id="ralphyBg" hidden><div class="sheet ralphy" role="dialog" aria-modal="true" aria-labelledby="ralphyTitle">
+  <div class="sheet-head"><h3 id="ralphyTitle"><span class="rav" aria-hidden="true">R</span> Ask Ralphy</h3><div class="row"><button class="btn small" type="button" id="rpNew">New conversation</button><button class="btn small" type="button" id="rpClose">Close</button></div></div>
+  <details class="rp-settings"><summary class="note">Question settings</summary>
+    <div class="rp-set"><span class="note">Answers</span><div class="filter" id="rpLength"><button type="button" class="chip" data-len="short" aria-pressed="true">Short</button><button type="button" class="chip" data-len="detailed" aria-pressed="false">Detailed</button></div></div>
+    <label class="rp-set note"><input type="checkbox" id="rpAuto"> Read answers aloud automatically</label>
+    <div class="rp-set"><span class="note">Voice</span><select class="voice" aria-label="Reading voice"></select></div>
+    <p class="note" style="margin:0">Short is a quick spoken summary. Detailed is a fuller written answer, good for drafts. Ralphy remembers the last 3 questions in this conversation, so you can ask follow-ups. Settings are kept on this device.</p>
+  </details>
+  <div class="rp-convo" id="rpConvo" aria-live="polite"></div>
+  <div class="rp-groups" id="rpGroups"></div>
+  <form class="rp-form" id="rpForm" autocomplete="off"><label for="rpInput" class="sr">Ask Ralphy</label><textarea id="rpInput" rows="2" placeholder="Ask about tickets, reviews, outreach, creators, money or anything on HQ"></textarea><button class="btn primary" id="rpBtn" type="submit">Ask</button></form>
+</div></div>
 <div class="sheet-bg" id="sheetBg" hidden><div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle">
   <div class="sheet-head"><h3 id="sheetTitle">Details</h3><button class="btn small" type="button" id="sheetClose">Close</button></div>
   <div class="stack" id="sheetBody"></div>
@@ -1078,7 +1079,7 @@ label.amen:has(input:checked){border-color:var(--brand-line);background:var(--br
     show("t-act",c("safety")||c("privacy")||c("reviews")||c("reports")||c("claims")||c("support_read")||c("places_moderate")||c("places_delete"));
     show("t-users",c("users_view"));show("t-places",c("places_edit"));show("t-content",c("content"));show("t-comms",c("announce"));show("t-money",c("money"));show("t-insights",c("insights"));show("t-outreach",c("outreach"));show("t-admin",c("staff_manage")||c("audit_view")||c("trash_restore"));
     show("p-money",c("money"));show("p-costs",c("money"));show("p-renewals",c("renewals"));
-    var ask=document.querySelector("section.cta");if(ask)ask.hidden=!c("ask_ralphy");
+
     show("miniForm",c("ask_ralphy"));show("miniLinks",c("ask_ralphy"));
     if(window.HQAct)HQAct.init();
     if(window.HQContent)HQContent.init();
@@ -1120,20 +1121,46 @@ label.amen:has(input:checked){border-color:var(--brand-line);background:var(--br
   // Ask Ralphy (hero block and the band both use the ask op)
   var TODAY_Q="Hey Ralphy, what's on today? Give me a short rundown I could listen to: what needs me first, anything urgent, what is due this week, and one number worth knowing.";
   var busy=false;
-  function ask(q,outId){
+  // Ask Ralphy panel: one conversation, kept while the page is open. Settings live on this device.
+  var RP_KEY="hq-ralphy-settings", rp={convo:[],len:"short",auto:false,n:0};
+  try{var st=JSON.parse(localStorage.getItem(RP_KEY)||"{}");if(st.len==="detailed")rp.len="detailed";rp.auto=!!st.auto}catch(e){}
+  function rpSave(){try{localStorage.setItem(RP_KEY,JSON.stringify({len:rp.len,auto:rp.auto}))}catch(e){}}
+  // Prompt groups, each shown only with the access it needs. "today" is the spoken rundown.
+  var RP_GROUPS=[
+    ["Today",function(){return true},[["today","What's on today?"],"Anything urgent right now?","What should I deal with first?"]],
+    ["Support",function(){return HQ.can("support_read")},["What's waiting in support?","Has any customer replied and is waiting on me?","Draft a reply to the newest open ticket"]],
+    ["Reviews and reports",function(){return HQ.can("reviews")||HQ.can("reports")},["Any reviews to moderate?","Any user or place reports to deal with?","What have people said in reviews this fortnight?"]],
+    ["Places",function(){return HQ.can("places_edit")},["Any listing changes or place suggestions waiting?"]],
+    ["Outreach",function(){return HQ.can("outreach")},["Who's due a follow-up in outreach?","Draft a follow-up for the most overdue contact"]],
+    ["Creators",function(){return HQ.can("creators")},["Any creator posts or applications to review?","How are the creator codes doing?"]],
+    ["Growth",function(){return true},["How are sign-ups doing this week?","How many founding members so far?"]],
+    ["Money",function(){return HQ.can("money")},["How are subscriptions doing this week?","Where is money going this month?","What do I owe creators this month?"]],
+    ["Running",function(){return true},["Is everything running? Any failed jobs or outages?","What renewals or reminders are due this week?","How is the App Store release looking?"]]
+  ];
+  function rpGroups(){$("rpGroups").innerHTML=RP_GROUPS.filter(function(g){return g[1]()}).map(function(g){
+    return '<div class="grp"><b>'+esc(g[0])+'</b><div class="chips">'+g[2].map(function(x){var q=Array.isArray(x)?x[0]:x,l=Array.isArray(x)?x[1]:x;return '<button type="button" class="chip" data-q="'+esc(q)+'">'+esc(l)+'</button>'}).join("")+'</div></div>'}).join("")}
+  function rpSettings(){$("rpLength").querySelectorAll("[data-len]").forEach(function(b){b.setAttribute("aria-pressed",b.dataset.len===rp.len?"true":"false")});$("rpAuto").checked=rp.auto}
+  function openRalphy(){rpGroups();rpSettings();$("ralphyBg").hidden=false;document.body.style.overflow="hidden";setTimeout(function(){try{$("rpInput").focus({preventScroll:true})}catch(e){}},50)}
+  function closeRalphy(){stopSpeaking();$("ralphyBg").hidden=true;document.body.style.overflow=""}
+  function rpScroll(){var sh=$("ralphyBg").querySelector(".sheet");sh.scrollTop=sh.scrollHeight}
+  function ask(q,label){
     q=(q||"").trim();if(!q||busy)return;
-    if(q==="today")q=TODAY_Q;
-    var out=$(outId||"answer"), box=outId==="miniTxt"?$("miniAns"):$("answerWrap");
-    box.hidden=false;
+    var shown=label||q;if(q==="today")q=TODAY_Q;
+    if($("ralphyBg").hidden)openRalphy();
     stopSpeaking();
-    busy=true;$("askBtn").disabled=true;$("miniBtn").disabled=true;out.textContent="Ralphy is having a look…";
-    api("ask",{question:q})
-      .then(function(r){out.textContent=r.text+(r.truncated?"\n\n(Answer cut short.)":"")+(r.metered===false?"\n\n(The cost of this answer was not recorded in api_usage.)":"")})
-      .catch(function(e){out.textContent=(e&&e.message)||"No answer came back. Try again."})
-      .then(function(){busy=false;$("askBtn").disabled=false;$("miniBtn").disabled=false});
+    var id="rpA"+(++rp.n), wrap=document.createElement("div");
+    wrap.innerHTML='<div class="rp-q"></div><div class="rp-a"><div class="who"><span class="rav">R</span>Ralphy</div><div class="txt" id="'+id+'">Ralphy is having a look…</div><div class="speakrow"><button type="button" class="speak" data-for="'+id+'" aria-pressed="false">Read it to me</button><button type="button" class="speak" data-copy="'+id+'">Copy</button></div></div>';
+    wrap.querySelector(".rp-q").textContent=shown;wrap.style.display="contents";$("rpConvo").appendChild(wrap);$("rpInput").value="";rpScroll();
+    busy=true;$("rpBtn").disabled=true;$("miniBtn").disabled=true;
+    var hist=rp.convo.slice(-3);
+    api("ask",{question:q,length:rp.len,history:hist})
+      .then(function(r){var t=r.text+(r.truncated?"\n\n(Answer cut short.)":"")+(r.metered===false?"\n\n(The cost of this answer was not recorded in api_usage.)":"");$(id).textContent=t;
+        rp.convo.push({q:q.slice(0,1000),a:String(r.text||"").slice(0,4000)});if(rp.auto)speakFrom(wrap.querySelector('[data-for="'+id+'"]'))})
+      .catch(function(e){$(id).textContent=(e&&e.message)||"No answer came back. Try again."})
+      .then(function(){busy=false;$("rpBtn").disabled=false;$("miniBtn").disabled=false;rpScroll()});
   }
   // Read aloud with the phone's own voice, British English where available. No service, no cost.
-  function stopSpeaking(){try{if(window.speechSynthesis)speechSynthesis.cancel()}catch(e){}document.querySelectorAll(".speak").forEach(function(b){b.setAttribute("aria-pressed","false");b.textContent="Read it to me"})}
+  function stopSpeaking(){try{if(window.speechSynthesis)speechSynthesis.cancel()}catch(e){}document.querySelectorAll(".speak[data-for]").forEach(function(b){b.setAttribute("aria-pressed","false");b.textContent="Read it to me"})}
   // The chosen voice is remembered on this device only. "Automatic" prefers a British voice.
   var VOICE_KEY="hq-voice";
   function savedVoice(){try{return localStorage.getItem(VOICE_KEY)||""}catch(e){return ""}}
@@ -1160,7 +1187,10 @@ label.amen:has(input:checked){border-color:var(--brand-line);background:var(--br
     var u=new SpeechSynthesisUtterance("Hello, I'm Ralphy. This is how I'll read your answers.");u.lang="en-GB";var v=pickVoice();if(v)u.voice=v;speechSynthesis.speak(u);
   });
   document.addEventListener("click",function(ev){
-    var b=ev.target.closest(".speak");if(!b)return;
+    var c=ev.target.closest("[data-copy]");if(c){var tx=($(c.dataset.copy).textContent||"").trim();try{navigator.clipboard.writeText(tx).then(function(){c.textContent="Copied";setTimeout(function(){c.textContent="Copy"},1500)})}catch(e){}return}
+    var b=ev.target.closest(".speak[data-for]");if(b)speakFrom(b);
+  });
+  function speakFrom(b){
     if(!window.speechSynthesis||!window.SpeechSynthesisUtterance){b.textContent="Reading aloud is not available here";return}
     if(b.getAttribute("aria-pressed")==="true"){stopSpeaking();return}
     var t=($(b.dataset.for).textContent||"").trim();if(!t||/^Ralphy is having a look/.test(t))return;
@@ -1169,11 +1199,19 @@ label.amen:has(input:checked){border-color:var(--brand-line);background:var(--br
     u.onend=u.onerror=function(){b.setAttribute("aria-pressed","false");b.textContent="Read it to me"};
     b.setAttribute("aria-pressed","true");b.textContent="Stop";
     speechSynthesis.speak(u);
-  });
-  $("askForm").addEventListener("submit",function(ev){ev.preventDefault();ask($("askInput").value,"answer")});
-  $("chips").addEventListener("click",function(ev){var b=ev.target.closest(".chip");if(!b)return;$("askInput").value=b.textContent;ask(b.dataset.q||b.textContent,"answer")});
-  $("miniForm").addEventListener("submit",function(ev){ev.preventDefault();ask($("miniInput").value,"miniTxt")});
-  $("miniLinks").addEventListener("click",function(ev){var b=ev.target.closest("button[data-q]");if(!b)return;$("miniInput").value=b.textContent;ask(b.dataset.q,"miniTxt")});
+  }
+  // The top box and its quick links open the panel and ask there.
+  $("miniForm").addEventListener("submit",function(ev){ev.preventDefault();var v=$("miniInput").value;$("miniInput").value="";ask(v)});
+  $("miniLinks").addEventListener("click",function(ev){if(ev.target.closest("#openRalphy")){openRalphy();return}var b=ev.target.closest("button[data-q]");if(!b)return;ask(b.dataset.q,b.textContent)});
+  $("rpForm").addEventListener("submit",function(ev){ev.preventDefault();ask($("rpInput").value)});
+  $("rpInput").addEventListener("keydown",function(ev){if(ev.key==="Enter"&&!ev.shiftKey){ev.preventDefault();ask($("rpInput").value)}});
+  $("rpGroups").addEventListener("click",function(ev){var b=ev.target.closest("[data-q]");if(b)ask(b.dataset.q,b.textContent)});
+  $("rpLength").addEventListener("click",function(ev){var b=ev.target.closest("[data-len]");if(!b)return;rp.len=b.dataset.len;rpSave();rpSettings()});
+  $("rpAuto").addEventListener("change",function(){rp.auto=this.checked;rpSave()});
+  $("rpNew").addEventListener("click",function(){stopSpeaking();rp.convo=[];$("rpConvo").innerHTML="";$("rpInput").focus()});
+  $("rpClose").addEventListener("click",closeRalphy);
+  $("ralphyBg").addEventListener("click",function(ev){if(ev.target===this)closeRalphy()});
+  document.addEventListener("keydown",function(ev){if(ev.key==="Escape"&&!$("ralphyBg").hidden)closeRalphy()});
 
   // ---------- sign-in (same supabase-js email and password flow as admin.html) ----------
   var SUPA_URL="https://kwwnwniyijeuorpbyvmn.supabase.co";
