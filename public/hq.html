@@ -219,7 +219,7 @@ details.card summary::-webkit-details-marker{display:none}
 .speak:hover{color:var(--brand);border-color:var(--brand-line)}
 .speak[aria-pressed="true"]{background:var(--brand);border-color:var(--brand);color:#fff}
 .speakrow{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
-.voice{font:700 16px/1.2 var(--sans);border:1px solid var(--line-2);border-radius:999px;padding:6px 30px 6px 12px;background:#fff;color:var(--fg2);max-width:220px;min-width:0;-webkit-appearance:none;appearance:none;background-image:linear-gradient(45deg,transparent 50%,var(--fg2) 50%),linear-gradient(135deg,var(--fg2) 50%,transparent 50%);background-position:calc(100% - 16px) 55%,calc(100% - 11px) 55%;background-size:5px 5px;background-repeat:no-repeat}
+.voice{font:600 13px/1.2 var(--sans);border:1px solid var(--line-2);border-radius:999px;padding:6px 30px 6px 12px;background:#fff;color:var(--fg2);max-width:220px;min-width:0;-webkit-appearance:none;appearance:none;background-image:linear-gradient(45deg,transparent 50%,var(--fg2) 50%),linear-gradient(135deg,var(--fg2) 50%,transparent 50%);background-position:calc(100% - 16px) 55%,calc(100% - 11px) 55%;background-size:5px 5px;background-repeat:no-repeat}
 .voice[hidden]{display:none}
 section.cta .answer-wrap{background:#fff;border-radius:16px;padding:14px 16px;display:flex;flex-direction:column;gap:10px;color:var(--fg)}
 section.cta .answer-wrap[hidden]{display:none}
@@ -1161,12 +1161,13 @@ label.amen:has(input:checked){border-color:var(--brand-line);background:var(--br
   }
   // Read aloud with the phone's own voice, British English where available. No service, no cost.
   function stopSpeaking(){try{if(window.speechSynthesis)speechSynthesis.cancel()}catch(e){}document.querySelectorAll(".speak[data-for]").forEach(function(b){b.setAttribute("aria-pressed","false");b.textContent="Read it to me"})}
-  // The chosen voice is remembered on this device only. "Automatic" prefers a British voice.
+  // The chosen voice is remembered on this device only. "Default voice" is Google UK English Male where the browser has it.
   var VOICE_KEY="hq-voice";
   function savedVoice(){try{return localStorage.getItem(VOICE_KEY)||""}catch(e){return ""}}
   function pickVoice(){try{var v=speechSynthesis.getVoices()||[],id=savedVoice();
     if(id){var m=v.filter(function(x){return x.voiceURI===id})[0];if(m)return m}
-    return v.filter(function(x){return /en-GB/i.test(x.lang)&&/Daniel|Arthur|Oliver|Male/i.test(x.name)})[0]||v.filter(function(x){return /en-GB/i.test(x.lang)})[0]||null}catch(e){return null}}
+    // Default: Google UK English Male (Chrome), then another British male voice, then any British voice.
+    return v.filter(function(x){return x.name==="Google UK English Male"})[0]||v.filter(function(x){return /en-GB/i.test(x.lang)&&/Daniel|Arthur|Oliver|Male/i.test(x.name)})[0]||v.filter(function(x){return /en-GB/i.test(x.lang)})[0]||null}catch(e){return null}}
   function voiceList(){try{var v=speechSynthesis.getVoices()||[],gb=v.filter(function(x){return /en[-_]GB/i.test(x.lang)});
     var list=gb.length?gb:v.filter(function(x){return /^en/i.test(x.lang)});
     return list.slice().sort(function(a,b){return a.name.localeCompare(b.name)})}catch(e){return []}}
@@ -1174,7 +1175,7 @@ label.amen:has(input:checked){border-color:var(--brand-line);background:var(--br
     var sels=document.querySelectorAll("select.voice");
     if(!window.speechSynthesis){sels.forEach(function(s){s.hidden=true});return}
     var list=voiceList(),id=savedVoice();
-    var html='<option value="">Automatic voice</option>'+list.map(function(x){return '<option value="'+esc(x.voiceURI)+'">'+esc(x.name.replace(/\s*\(.*\)$/,""))+'</option>'}).join("");
+    var html='<option value="">Default voice</option>'+list.map(function(x){return '<option value="'+esc(x.voiceURI)+'">'+esc(x.name.replace(/\s*\(.*\)$/,""))+'</option>'}).join("");
     sels.forEach(function(s){s.innerHTML=html;s.value=list.some(function(x){return x.voiceURI===id})?id:"";s.hidden=!list.length});
   }
   if(window.speechSynthesis){fillVoices();try{speechSynthesis.addEventListener("voiceschanged",fillVoices)}catch(e){speechSynthesis.onvoiceschanged=fillVoices}setTimeout(fillVoices,800)}
