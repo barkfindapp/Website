@@ -23,6 +23,7 @@ import { auditOps } from './_lib/hq-audit.js';
 import { trashOps } from './_lib/hq-trash.js';
 import { resetOps } from './_lib/hq-reset.js';
 import { payoutOps } from './_lib/hq-payouts.js';
+import { outreachOps } from './_lib/hq-outreach.js';
 import { HttpError, bad, obj, only, uuid, str, oneOf, date, bool, scrubEmails, writeTx, toTrash } from './_lib/hq-core.js';
 
 const DB_URL = process.env.SUPABASE_DB_URL!;
@@ -47,8 +48,6 @@ export const maxDuration = 60;
 // ---------- hq_action: whitelist, argument shapes and the row each one touches ----------
 // Names must match the whitelist inside public.hq_action(). table and idKey say which
 // row to copy into admin_audit.before/after; the table names never come from the request.
-const KINDS = ['creator', 'venue', 'press', 'partner', 'other'] as const;
-const OUT_STATUSES = ['to_contact', 'contacted', 'replied', 'agreed', 'live', 'declined', 'parked'] as const;
 type ActionSpec = { perm: Perm; table: string; idKey: string; label: string; args: (a: Record<string, unknown>) => Record<string, unknown> };
 const ACTIONS: Record<string, ActionSpec> = {
   approve_review: { perm: 'reviews', table: 'reviews', idKey: 'id', label: 'Approved review', args: (a) => ({ id: uuid(only(a, ['id']).id) }) },
@@ -73,32 +72,6 @@ const ACTIONS: Record<string, ActionSpec> = {
     perm: 'reports', table: 'location_reports', idKey: 'id', label: 'Handled place report',
     args: (a) => (only(a, ['id', 'status']), { id: uuid(a.id), status: oneOf(a.status, ['actioned', 'dismissed']) }),
   },
-  outreach_save: {
-    perm: 'outreach', table: 'hq_outreach', idKey: 'id', label: 'Saved outreach contact',
-    args: (a) => {
-      only(a, ['id', 'name', 'org', 'kind', 'status', 'handle', 'email', 'phone', 'next_follow_up', 'next_action', 'owed', 'notes']);
-      const o: Record<string, unknown> = {
-        name: str(a.name, 200, { min: 1 }), org: str(a.org, 200, { optional: true }),
-        kind: oneOf(a.kind, KINDS, { optional: true }) || 'creator', status: oneOf(a.status, OUT_STATUSES, { optional: true }) || 'to_contact',
-        handle: str(a.handle, 200, { optional: true }), email: str(a.email, 200, { optional: true }), phone: str(a.phone, 60, { optional: true }),
-        next_follow_up: date(a.next_follow_up, { optional: true }), next_action: str(a.next_action, 500, { optional: true }),
-        owed: str(a.owed, 500, { optional: true }), notes: str(a.notes, 5000, { optional: true }),
-      };
-      if (a.id !== undefined && a.id !== '') o.id = uuid(a.id);
-      return o;
-    },
-  },
-  outreach_log: {
-    perm: 'outreach', table: 'hq_outreach', idKey: 'id', label: 'Logged outreach contact',
-    args: (a) => {
-      only(a, ['id', 'note', 'status', 'next_follow_up']);
-      const o: Record<string, unknown> = { id: uuid(a.id), note: str(a.note, 2000, { min: 1 }), next_follow_up: date(a.next_follow_up, { optional: true }) };
-      const st = oneOf(a.status, OUT_STATUSES, { optional: true });
-      if (st) o.status = st;
-      return o;
-    },
-  },
-  outreach_delete: { perm: 'outreach', table: 'hq_outreach', idKey: 'id', label: 'Removed outreach contact', args: (a) => ({ id: uuid(only(a, ['id']).id) }) },
   renewal_done: { perm: 'renewals', table: 'hq_renewals', idKey: 'id', label: 'Marked renewal done', args: (a) => ({ id: uuid(only(a, ['id']).id) }) },
   renewal_save: {
     perm: 'renewals', table: 'hq_renewals', idKey: 'id', label: 'Saved renewal date',
@@ -288,7 +261,6 @@ async function runAction(ctx: Ctx, action: string, rawArgs: unknown) {
     if (action === 'user_report' && id && r && r.ok) await c.query('update public.user_reports set handled_by = $2 where id = $1', [id, userId]);
     const newId = id || (r && typeof r.id === 'string' ? r.id : null);
     const after = newId ? await rowOf(c, spec.table, newId) : null;
-    if (action === 'outreach_delete' && id && before) await toTrash(c, userId, spec.table, id, before);
     // hq_action inserted its own audit row in this transaction (same now()); complete it. Its entity
     // is the first word of the action name ("set", "reply"), so set the real table name here.
     await c.query(
@@ -339,7 +311,7 @@ function queueFor(ctx: Ctx, q: any) {
   out.location_reports = has(ctx, 'reports') ? q.location_reports || [] : [];
   out.business_claims = has(ctx, 'claims') ? q.business_claims || [] : [];
   out.listing_submissions = has(ctx, 'places_edit') ? q.listing_submissions || [] : [];
-  out.outreach = has(ctx, 'outreach') ? q.outreach || [] : [];
+  out.outreach = has(ctx, 'outreach_view') ? q.outreach || [] : [];
   return out;
 }
 
@@ -474,11 +446,14 @@ const OPS: Record<string, Op | { perm: null; run: Op['run'] }> = {
       return voiced(claude('hq_draft_ticket', ticketPrompt(scrubEmails({ ...t, replies })), ctx.staff.userId));
     },
   },
+  // The contact and its latest log entries, read straight from the tables (the prompt is unchanged).
   draft_outreach: {
-    perm: 'outreach',
+    perm: 'outreach_edit',
     run: async (a, ctx) => {
       const id = uuid(only(a, ['id']).id);
-      const o = ((await queue())?.outreach || []).find((x: any) => String(x.id) === id);
+      const o = (await pool.query(
+        `select o.*, (select coalesce(jsonb_agg(jsonb_build_object('at', g.at, 'note', g.note) order by g.at desc), '[]') from public.hq_outreach_log g where g.outreach_id = o.id) as log
+           from public.hq_outreach o where o.id = $1`, [id])).rows[0];
       if (!o) throw new HttpError(404, 'That person is no longer in the list.');
       return voiced(claude('hq_draft_outreach', outreachPrompt(scrubEmails(o)), ctx.staff.userId));
     },
@@ -498,6 +473,7 @@ const OPS: Record<string, Op | { perm: null; run: Op['run'] }> = {
   ...trashOps(pool),
   ...resetOps(pool),
   ...payoutOps(pool),
+  ...outreachOps(pool),
 };
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {

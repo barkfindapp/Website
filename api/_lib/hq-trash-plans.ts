@@ -19,7 +19,7 @@ export type Step = { label: string; sql: string };
 export type Cols = Record<string, string[]>;
 export const TABLES = ['locations', 'reviews', 'rating_signals', 'moderation_log', 'review_likes', 'favorites', 'business_claims', 'location_reports',
   'location_restrictions', 'dog_policy_reviews', 'listing_change_requests', 'mylo_backfill_queue', 'geograph_requeue', 'notifications',
-  'support_tickets', 'support_responses', 'support_notes', 'content_pieces', 'hq_outreach'];
+  'support_tickets', 'support_responses', 'support_notes', 'content_pieces', 'hq_outreach', 'hq_outreach_log'];
 export const COLS_SQL = `select table_name, array_agg(column_name::text order by ordinal_position) as cols from information_schema.columns
   where table_schema = 'public' and table_name = any($1) and is_generated = 'NEVER' and not (is_identity = 'YES' and identity_generation = 'ALWAYS')
   group by table_name`;
@@ -49,6 +49,7 @@ const DEFAULTS: Record<string, Record<string, unknown>> = {
   support_responses: { direction: 'out' },
   listing_change_requests: { source: 'hq' },
   locations: { locked_fields: [], category_locked: false, google_verified: false, barkfind_verified: false, google_reviews: [] },
+  hq_outreach: { tags: [], source: 'hq', handles: {} },
 };
 const withDefaults = (table: string, json: string) => (DEFAULTS[table] ? `('${JSON.stringify(DEFAULTS[table])}'::jsonb || ${json})` : json);
 const withDefaultsEach = (table: string, arr: string) =>
@@ -170,13 +171,28 @@ function contentPlan(): Plan {
   };
 }
 
+// An outreach contact comes back with its whole log (kept under related.hq_outreach_log since
+// 19 Oct; older items have no log stored). A link to a member of staff, place or creator that has
+// gone since is left empty rather than failing the restore.
 function outreachPlan(): Plan {
+  const gone = (key: string, ref: string, col = 'id') =>
+    `case when ${ROW}->>'${key}' is not null and not exists (select 1 from ${ref} x where x.${col} = (${ROW}->>'${key}')::uuid) then '${key}' end`;
+  const contact = `(${withDefaults('hq_outreach', ROW)} - array_remove(array[${gone('owner', 'public.hq_staff', 'user_id')}, ${gone('location_id', 'public.locations')}, ${gone('creator_id', 'public.creators')}], null))`;
+  const c = colList('hq_outreach'), lc = colList('hq_outreach_log');
+  const log = `(select coalesce(jsonb_agg(case when e->>'by' is null or exists (select 1 from public.hq_staff s where s.user_id = (e->>'by')::uuid) then e else e - 'by' end), '[]'::jsonb)
+                  from jsonb_array_elements(${REL(`related->'hq_outreach_log'`)}) e)`;
   return {
     kind: 'hq_outreach',
-    checks: [already, idFree('hq_outreach', 'outreach contact')],
-    steps: [{ label: 'outreach contact', sql: insOne('hq_outreach') }],
+    checks: [already, idFree('hq_outreach', 'outreach contact'),
+      { label: 'place free', sql: `select case when exists (select 1 from public.hq_outreach o where o.location_id = (${ROW}->>'location_id')::uuid) then 'Another outreach contact is already linked to that place.' end` }],
+    steps: [
+      { label: 'outreach contact', sql: `insert into public.hq_outreach ${c.into} select ${c.pick} from jsonb_populate_record(null::public.hq_outreach, ${contact}) r` },
+      { label: 'log entries', sql: `insert into public.hq_outreach_log ${lc.into} select ${lc.pick} from jsonb_populate_recordset(null::public.hq_outreach_log, ${log}) r
+              where exists (select 1 from public.hq_outreach o where o.id = r.outreach_id) on conflict do nothing` },
+    ],
     after: [],
-    verify: `select jsonb_build_object('contact_back', exists (select 1 from public.hq_outreach where id = (${ROW}->>'id')::uuid))`,
+    verify: `select jsonb_build_object('contact_back', exists (select 1 from public.hq_outreach where id = (${ROW}->>'id')::uuid),
+        'log_back', (select count(*) from public.hq_outreach_log where outreach_id = (${ROW}->>'id')::uuid))`,
   };
 }
 
