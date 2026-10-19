@@ -7,6 +7,8 @@
 // transaction with its admin_audit row (see _lib/hq-core.ts).
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { Pool, type PoolClient } from 'pg';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { requireStaff, type Perm } from './_lib/hq-staff.js';
 import { actOps, type Op, type Ctx } from './_lib/hq-act.js';
 import { teamOps } from './_lib/hq-team.js';
@@ -217,12 +219,69 @@ function productionRevenue(snap: any) {
 // Ask Ralphy settings: Short (spoken summary, the default) or Detailed (a fuller written answer),
 // and up to 3 earlier exchanges so follow-up questions make sense.
 type AskOpts = { detailed: boolean; history: { q: string; a: string }[] };
-function askPrompt(ctx: unknown, q: string, opts: AskOpts = { detailed: false, history: [] }) {
+// HQ help: docs/hq-guide.md (master copy: Josh's Claude doc "HQ guide for Megan"), read once per
+// server instance and bundled with this function by vercel.json includeFiles. HTML comments in the
+// file are notes, not guide text. Capped at 12,000 characters; above that the rest is left out
+// and a warning logged.
+const GUIDE_CAP = 12000;
+let guideText: string | null = null;
+function hqGuide(): string {
+  if (guideText !== null) return guideText;
+  try {
+    let t = readFileSync(join(process.cwd(), 'docs', 'hq-guide.md'), 'utf8').replace(/<!--[\s\S]*?-->/g, '').trim();
+    if (t.length > GUIDE_CAP) { console.warn(`hq guide: ${t.length} characters, only the first ${GUIDE_CAP} go to Ralphy`); t = t.slice(0, GUIDE_CAP); }
+    guideText = t;
+  } catch (e: any) {
+    console.warn('hq guide: docs/hq-guide.md could not be read', e?.message);
+    guideText = '';
+  }
+  return guideText;
+}
+
+// Who is asking. Owners get Josh's wording exactly as before; anyone else is named by their first
+// name (or "A member of staff"), with their level and a reminder that some sections are hidden.
+type Asker = { owner: boolean; name: string; level: string };
+function askerOf(staff: { name: string; level: string }): Asker {
+  const first = String(staff.name || '').trim().split(/\s+/)[0] || '';
+  const name = first && !first.includes('@') ? first : 'A member of staff';
+  return { owner: staff.level === 'owner', name, level: staff.level };
+}
+
+function askPrompt(ctx: unknown, q: string, opts: AskOpts = { detailed: false, history: [] }, who: Asker = { owner: true, name: 'Josh', level: 'owner' }) {
+  const guide = hqGuide();
+  const guideBlock = "\n\nHQ GUIDE (how HQ works):\n" + (guide || "(No guide has been added yet.)") +
+    "\n\nFor questions about how to use HQ, answer only from the HQ guide above. If the guide does not cover it, say so" + (who.owner ? "." : " and suggest asking Josh.");
+  if (!who.owner) return staffAskPrompt(ctx, q, opts, who, guideBlock);
   return "You are Ralphy, Josh's spaniel, working as the operations assistant inside BarkFind HQ. BarkFind is a solo-founded UK iOS app for finding places that are genuinely good with dogs; its in-app guide is Mylo, Josh's Vizsla, so never call yourself Mylo. Speak in the first person as Ralphy: warm, quick and to the point, like a sharp colleague who happens to be a spaniel. At most one light touch of character per answer, never a pun, never barking noises. Answers may be read aloud, so write short sentences that sound natural spoken, lead with the answer and avoid tables. Always write numbers, money, dates and versions as digits and symbols (£46, 18 subscribers, 13 October, version 1.0.3), never spelled out in words; the voice reads them correctly. BarkFind launched on the UK App Store on Tuesday 13 October 2026 and is live now; the current version is 1.0.3. Talk about the app as live, never as upcoming. Use only the live data below and say plainly when it does not cover something (App Store reviews, crash rates, Starling bank balance and Lovable are not in it). The data has the summary snapshot plus the live work: work_queue (open tickets, reviews to moderate, user and place reports, claims, place suggestions, outreach due and recent alerts), recent_tickets (the last 30 days and anything still open, with the latest reply and who sent it), recent_reviews (last 14 days), pending_listing_changes, creators (status, code, redemptions, posts to review, guarantee), offer_codes (founding members and each code) and creator_payouts (this month and last). A section that is missing is one Josh's access does not cover. Be specific: name the ticket, place or person, and say what to do next. If asked about a particular ticket, review or contact, use its details from the data. Revenue from RevenueCat is production only; if it is missing, say real revenue is not available yet rather than guessing. Money in the data is in US dollars (fields ending usd), but Josh runs a UK business: always answer in pounds, converting at the rate in fx (pounds per dollar, with its date), to the nearest penny under 1,000 pounds and the nearest pound above. Do not mention dollars unless asked. If fx is missing, say the figures are in US dollars. Google spend comes from a view that already applies free allowances. UK English, no em dashes or en dashes, no exclamation marks, no emoji. If asked to draft a customer reply, write it plainly in Josh's voice, in the first person singular, and sign it Josh, not Ralphy and never 'the team'." +
     (opts.detailed ? " Josh has asked for a detailed answer: give the full picture in short paragraphs, using a few plain bullet points where they help, up to about 350 words. If he asks for a draft, write the whole draft." : " Josh has asked for a short answer: a few spoken sentences, under about 120 words, unless he asks for a draft.") +
+    guideBlock +
     "\n\nLIVE DATA (JSON):\n" + JSON.stringify(ctx) +
     (opts.history.length ? "\n\nEARLIER IN THIS CONVERSATION (oldest first, for context; answer the new question):\n" + opts.history.map((h) => "Josh: " + h.q + "\nRalphy: " + h.a).join("\n\n") : "") +
     "\n\nJOSH ASKS: " + q;
+}
+
+
+// The same prompt for a member of staff who is not an owner: the asker is named instead of Josh
+// where the line is about who is asking; lines about Josh himself (his business, his voice in
+// drafts) stay as they are.
+function staffAskPrompt(ctx: unknown, q: string, opts: AskOpts, who: Asker, guideBlock: string) {
+  const ownerText = askPrompt(ctx, '\u0000Q\u0000', opts, { owner: true, name: 'Josh', level: 'owner' });
+  const N = who.name, poss = N === 'A member of staff' ? "this member of staff's" : N + "'s";
+  let t = ownerText
+    .replace("A section that is missing is one Josh's access does not cover.", 'A section that is missing is one ' + poss + ' access does not cover.')
+    .replace(' Josh has asked for a detailed answer: ', ' ' + N + ' has asked for a detailed answer: ').replace('If he asks for a draft', 'If they ask for a draft')
+    .replace(' Josh has asked for a short answer: ', ' ' + N + ' has asked for a short answer: ').replace('unless he asks for a draft', 'unless they ask for a draft')
+    .split('\nJosh: ').join('\n' + N + ': ')
+    .replace('\n\nJOSH ASKS: \u0000Q\u0000', '\n\n' + N.toUpperCase() + ' ASKS: ' + q);
+  // The guide in the owner text ends ".": staff get "and suggest asking Josh."
+  t = t.replace(hqGuideOwnerTail(), guideBlock);
+  const who_line = '\n\nWHO IS ASKING: ' + (N === 'A member of staff' ? 'a member of staff' : N) + ', a member of BarkFind staff at ' + who.level +
+    ' level, not Josh. Some HQ sections are hidden by their permissions, and the live data only includes what they can see. If they ask about something their access does not cover, say it is not available to them, and do not guess.';
+  return t.replace('\n\nHQ GUIDE (how HQ works):', who_line + '\n\nHQ GUIDE (how HQ works):');
+}
+function hqGuideOwnerTail() {
+  const guide = hqGuide();
+  return "\n\nHQ GUIDE (how HQ works):\n" + (guide || "(No guide has been added yet.)") + "\n\nFor questions about how to use HQ, answer only from the HQ guide above. If the guide does not cover it, say so.";
 }
 
 function ticketPrompt(t: any) {
@@ -430,7 +489,7 @@ const OPS: Record<string, Op | { perm: null; run: Op['run'] }> = {
       let email: unknown = null;
       try { email = await emailMetrics(); } catch { email = null; }
       const rate = fx ? { gbp_per_usd: fx.rate, date: fx.date, stale: fx.stale } : null;
-      return claude('hq_ask', askPrompt({ snapshot: snap, email_30d: email, fx: rate, ...scrubEmails(more) }, q, { detailed, history: scrubEmails(history) }), ctx.staff.userId, detailed ? 2000 : MAX_TOKENS);
+      return claude('hq_ask', askPrompt({ snapshot: snap, email_30d: email, fx: rate, ...scrubEmails(more) }, q, { detailed, history: scrubEmails(history) }, askerOf(ctx.staff)), ctx.staff.userId, detailed ? 2000 : MAX_TOKENS);
     },
   },
 
