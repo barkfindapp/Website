@@ -296,19 +296,26 @@ label.amen:has(input:checked){border-color:var(--brand-line);background:var(--br
 .sheet-bg[hidden]{display:none}
 .sheet{background:#fff;width:min(560px,100%);height:100%;overflow:auto;padding:18px 18px 40px;box-shadow:-10px 0 30px rgba(0,0,0,.12);display:flex;flex-direction:column;gap:14px}
 .sheet-bg.wide .sheet{width:min(1000px,100%)}
-.sheet.ralphy{width:max(50vw,480px);max-width:100%;padding-bottom:18px}
+.sheet.ralphy{width:max(50vw,480px);max-width:100%;overflow:hidden;padding-bottom:12px}
+.rp-body{flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column;gap:16px;margin:0 -18px;padding:4px 18px}
 .sheet.ralphy h3{display:flex;align-items:center;gap:10px;white-space:nowrap}.sheet.ralphy h3 .rav{width:30px;height:30px;font-size:16px}
 .rp-settings{border:1px solid var(--line);border-radius:14px;padding:10px 14px}.rp-settings[open]{display:flex;flex-direction:column;gap:10px}.rp-settings summary{cursor:pointer}
 .rp-set{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
-.rp-convo{display:flex;flex-direction:column;gap:12px;flex:1 0 auto}
+.rp-convo{display:flex;flex-direction:column;gap:12px}.rp-convo:empty{display:none}
 .rp-q{align-self:flex-end;max-width:85%;background:var(--well);border-radius:16px 16px 4px 16px;padding:10px 14px;font-size:15px;white-space:pre-wrap}
 .rp-a{border:1px solid var(--line);border-radius:16px 16px 16px 4px;padding:12px 14px;display:flex;flex-direction:column;gap:10px}
 .rp-a .who{display:flex;align-items:center;gap:8px;font:800 13px/1 var(--sans)}.rp-a .who .rav{width:24px;height:24px;font-size:14px}
 .rp-a .txt{white-space:pre-wrap;font-size:15px;line-height:1.6}
-.rp-groups{display:flex;flex-direction:column;gap:10px}.rp-groups .grp{display:flex;flex-direction:column;gap:6px}.rp-groups .grp b{font:800 11px/1 var(--sans);letter-spacing:.08em;text-transform:uppercase;color:var(--brand)}
-.rp-groups .chips{display:flex;flex-wrap:wrap;gap:6px}.rp-groups .chip{text-align:left}
-.rp-form{position:sticky;bottom:-18px;background:#fff;display:flex;gap:8px;align-items:flex-end;padding:10px 0 4px;border-top:1px solid var(--line)}
-.rp-form textarea{flex:1;min-height:46px;max-height:160px;resize:vertical}
+.sheet.ralphy .sheet-head .row{flex-wrap:nowrap;gap:6px}
+.rp-intro{margin:0;font-size:15px;color:var(--fg2)}
+.rp-suggest{display:flex;flex-direction:column;gap:10px}.rp-suggest #rpGroups{display:flex;flex-direction:column;gap:10px}.rp-suggest #rpGroups[hidden]{display:none}
+.rp-topics{display:flex;flex-wrap:wrap;gap:6px}
+.rp-list{display:flex;flex-direction:column;border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.rp-list button{all:unset;box-sizing:border-box;display:flex;justify-content:space-between;align-items:center;gap:10px;padding:12px 14px;font:600 14.5px/1.35 var(--sans);color:var(--fg);cursor:pointer;border-top:1px solid var(--line)}
+.rp-list button:first-child{border-top:0}.rp-list button:hover,.rp-list button:focus-visible{background:var(--well)}.rp-list button::after{content:"›";color:var(--fg2);font-size:18px}
+.rp-more{all:unset;cursor:pointer;font:700 13px/1 var(--sans);color:var(--brand);align-self:flex-start;padding:4px 0}.rp-more[hidden]{display:none}
+.rp-form{flex:none;display:flex;gap:8px;align-items:flex-end;padding-top:12px;border-top:1px solid var(--line)}
+.rp-form textarea{flex:1;min-width:0;min-height:46px;max-height:140px;resize:none}.rp-form .btn{flex:none}
 .mini-links .open-ralphy{font-weight:800}
 .ib-cols{display:grid;gap:14px;align-items:start}
 @media (min-width:900px){.sheet-bg.wide .ib-cols{grid-template-columns:1.5fr 1fr}}
@@ -657,15 +664,20 @@ label.amen:has(input:checked){border-color:var(--brand-line);background:var(--br
 </div>
 
 <div class="sheet-bg ralphy-bg" id="ralphyBg" hidden><div class="sheet ralphy" role="dialog" aria-modal="true" aria-labelledby="ralphyTitle">
-  <div class="sheet-head"><h3 id="ralphyTitle"><span class="rav" aria-hidden="true">R</span> Ask Ralphy</h3><div class="row"><button class="btn small" type="button" id="rpNew">New conversation</button><button class="btn small" type="button" id="rpClose">Close</button></div></div>
+  <div class="sheet-head"><h3 id="ralphyTitle"><span class="rav" aria-hidden="true">R</span> Ask Ralphy</h3><div class="row"><button class="btn small" type="button" id="rpNew">New chat</button><button class="btn small" type="button" id="rpClose">Close</button></div></div>
   <details class="rp-settings"><summary class="note">Question settings</summary>
     <div class="rp-set"><span class="note">Answers</span><div class="filter" id="rpLength"><button type="button" class="chip" data-len="short" aria-pressed="true">Short</button><button type="button" class="chip" data-len="detailed" aria-pressed="false">Detailed</button></div></div>
     <label class="rp-set note"><input type="checkbox" id="rpAuto"> Read answers aloud automatically</label>
     <div class="rp-set"><span class="note">Voice</span><select class="voice" aria-label="Reading voice"></select></div>
     <p class="note" style="margin:0">Short is a quick spoken summary. Detailed is a fuller written answer, good for drafts. Ralphy remembers the last 3 questions in this conversation, so you can ask follow-ups. Settings are kept on this device.</p>
   </details>
-  <div class="rp-convo" id="rpConvo" aria-live="polite"></div>
-  <div class="rp-groups" id="rpGroups"></div>
+  <div class="rp-body" id="rpBody">
+    <div class="rp-convo" id="rpConvo" aria-live="polite"></div>
+    <div class="rp-suggest" id="rpSuggest">
+      <button type="button" class="rp-more" id="rpMore" hidden>Suggested questions</button>
+      <div id="rpGroups"><p class="rp-intro">Ask me anything on HQ, or pick a topic.</p><div class="rp-topics filter" id="rpTopics"></div><div class="rp-list" id="rpList"></div></div>
+    </div>
+  </div>
   <form class="rp-form" id="rpForm" autocomplete="off"><label for="rpInput" class="sr">Ask Ralphy</label><textarea id="rpInput" rows="2" placeholder="Ask about tickets, reviews, outreach, creators, money or anything on HQ"></textarea><button class="btn primary" id="rpBtn" type="submit">Ask</button></form>
 </div></div>
 <div class="sheet-bg" id="sheetBg" hidden><div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle">
@@ -1137,12 +1149,18 @@ label.amen:has(input:checked){border-color:var(--brand-line);background:var(--br
     ["Money",function(){return HQ.can("money")},["How are subscriptions doing this week?","Where is money going this month?","What do I owe creators this month?"]],
     ["Running",function(){return true},["Is everything running? Any failed jobs or outages?","What renewals or reminders are due this week?","How is the App Store release looking?"]]
   ];
-  function rpGroups(){$("rpGroups").innerHTML=RP_GROUPS.filter(function(g){return g[1]()}).map(function(g){
-    return '<div class="grp"><b>'+esc(g[0])+'</b><div class="chips">'+g[2].map(function(x){var q=Array.isArray(x)?x[0]:x,l=Array.isArray(x)?x[1]:x;return '<button type="button" class="chip" data-q="'+esc(q)+'">'+esc(l)+'</button>'}).join("")+'</div></div>'}).join("")}
+  // Topics as one row of chips; the chosen topic's questions as a short list underneath.
+  var rpTopic="Today";
+  function rpGroups(){var gs=RP_GROUPS.filter(function(g){return g[1]()});if(!gs.some(function(g){return g[0]===rpTopic}))rpTopic=gs[0][0];
+    $("rpTopics").innerHTML=gs.map(function(g){return '<button type="button" class="chip" data-topic="'+esc(g[0])+'" aria-pressed="'+(g[0]===rpTopic)+'">'+esc(g[0])+'</button>'}).join("");
+    var g=gs.filter(function(x){return x[0]===rpTopic})[0];
+    $("rpList").innerHTML=g[2].map(function(x){var q=Array.isArray(x)?x[0]:x,l=Array.isArray(x)?x[1]:x;return '<button type="button" data-q="'+esc(q)+'">'+esc(l)+'</button>'}).join("");
+    // Once a conversation has started, the suggestions fold away behind one link.
+    var talking=rp.convo.length>0||$("rpConvo").children.length>0;$("rpMore").hidden=!talking;if(talking&&!rp.showSuggest)$("rpGroups").hidden=true;else $("rpGroups").hidden=false;$("rpMore").textContent=$("rpGroups").hidden?"Suggested questions":"Hide suggestions"}
   function rpSettings(){$("rpLength").querySelectorAll("[data-len]").forEach(function(b){b.setAttribute("aria-pressed",b.dataset.len===rp.len?"true":"false")});$("rpAuto").checked=rp.auto}
   function openRalphy(){rpGroups();rpSettings();$("ralphyBg").hidden=false;document.body.style.overflow="hidden";setTimeout(function(){try{$("rpInput").focus({preventScroll:true})}catch(e){}},50)}
   function closeRalphy(){stopSpeaking();$("ralphyBg").hidden=true;document.body.style.overflow=""}
-  function rpScroll(){var sh=$("ralphyBg").querySelector(".sheet");sh.scrollTop=sh.scrollHeight}
+  function rpScroll(){var b=$("rpBody");b.scrollTop=b.scrollHeight}
   function ask(q,label){
     q=(q||"").trim();if(!q||busy)return;
     var shown=label||q;if(q==="today")q=TODAY_Q;
@@ -1150,7 +1168,7 @@ label.amen:has(input:checked){border-color:var(--brand-line);background:var(--br
     stopSpeaking();
     var id="rpA"+(++rp.n), wrap=document.createElement("div");
     wrap.innerHTML='<div class="rp-q"></div><div class="rp-a"><div class="who"><span class="rav">R</span>Ralphy</div><div class="txt" id="'+id+'">Ralphy is having a look…</div><div class="speakrow"><button type="button" class="speak" data-for="'+id+'" aria-pressed="false">Read it to me</button><button type="button" class="speak" data-copy="'+id+'">Copy</button></div></div>';
-    wrap.querySelector(".rp-q").textContent=shown;wrap.style.display="contents";$("rpConvo").appendChild(wrap);$("rpInput").value="";rpScroll();
+    wrap.querySelector(".rp-q").textContent=shown;wrap.style.display="contents";$("rpConvo").appendChild(wrap);$("rpInput").value="";rp.showSuggest=false;rpGroups();rpScroll();
     busy=true;$("rpBtn").disabled=true;$("miniBtn").disabled=true;
     var hist=rp.convo.slice(-3);
     api("ask",{question:q,length:rp.len,history:hist})
@@ -1206,10 +1224,11 @@ label.amen:has(input:checked){border-color:var(--brand-line);background:var(--br
   $("miniLinks").addEventListener("click",function(ev){if(ev.target.closest("#openRalphy")){openRalphy();return}var b=ev.target.closest("button[data-q]");if(!b)return;ask(b.dataset.q,b.textContent)});
   $("rpForm").addEventListener("submit",function(ev){ev.preventDefault();ask($("rpInput").value)});
   $("rpInput").addEventListener("keydown",function(ev){if(ev.key==="Enter"&&!ev.shiftKey){ev.preventDefault();ask($("rpInput").value)}});
-  $("rpGroups").addEventListener("click",function(ev){var b=ev.target.closest("[data-q]");if(b)ask(b.dataset.q,b.textContent)});
+  $("rpGroups").addEventListener("click",function(ev){var t=ev.target.closest("[data-topic]");if(t){rpTopic=t.dataset.topic;rpGroups();return}var b=ev.target.closest("[data-q]");if(b)ask(b.dataset.q,b.textContent)});
+  $("rpMore").addEventListener("click",function(){rp.showSuggest=$("rpGroups").hidden;rpGroups();if(rp.showSuggest)rpScroll()});
   $("rpLength").addEventListener("click",function(ev){var b=ev.target.closest("[data-len]");if(!b)return;rp.len=b.dataset.len;rpSave();rpSettings()});
   $("rpAuto").addEventListener("change",function(){rp.auto=this.checked;rpSave()});
-  $("rpNew").addEventListener("click",function(){stopSpeaking();rp.convo=[];$("rpConvo").innerHTML="";$("rpInput").focus()});
+  $("rpNew").addEventListener("click",function(){stopSpeaking();rp.convo=[];$("rpConvo").innerHTML="";rp.showSuggest=false;rpGroups();$("rpInput").focus()});
   $("rpClose").addEventListener("click",closeRalphy);
   $("ralphyBg").addEventListener("click",function(ev){if(ev.target===this)closeRalphy()});
   document.addEventListener("keydown",function(ev){if(ev.key==="Escape"&&!$("ralphyBg").hidden)closeRalphy()});
