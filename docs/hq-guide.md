@@ -95,7 +95,7 @@ Creators live in Act, Creators. Applications from the form on barkfind.com/creat
 
 Reply with an OK or exactly what to change. After the first two, there is no approval step.
 
-When someone you have been talking to applies, link their Outreach contact to their creator record, so the history stays together. Payment amounts and payouts stay with Josh.
+When someone you have been talking to applies, add a note on their Outreach contact saying they have applied, and set them to Agreed once they are approved, so the history stays together. Payment amounts and payouts stay with Josh.
 
 ## Asking Ralphy
 
