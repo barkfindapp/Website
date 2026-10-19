@@ -107,11 +107,12 @@ const ACTIONS: Record<string, ActionSpec> = {
 };
 
 // Anthropic list prices, USD per million tokens [input, output]. Checked by Josh
-// against Anthropic's model page on 28 September 2026. Keyed by model ID without
+// against Anthropic's model page on 15 October 2026. Keyed by model ID without
 // any date suffix. No prompt caching is used, so input and output are the only
 // token classes billed. A model missing here is refused rather than guessed at.
 const PRICES: Record<string, [number, number]> = {
   'claude-haiku-4-5': [1, 5],
+  'claude-haiku-5-5': [0.1, 0.5],
 };
 function priceFor(model: string) {
   return PRICES[model.replace(/-\d{8}$/, '')] || null;
@@ -181,7 +182,9 @@ async function claude(operation: string, prompt: string, userId: string) {
   const r = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: { 'x-api-key': ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
-    body: JSON.stringify({ model, max_tokens: MAX_TOKENS, messages: [{ role: 'user', content: prompt }] }),
+    // Thinking off: Haiku 5.5 thinks by default and would spend the whole token budget before
+    // answering. Valid on Haiku 4.5 too, so this changes nothing before the model switch.
+    body: JSON.stringify({ model, max_tokens: MAX_TOKENS, thinking: { type: 'disabled' }, messages: [{ role: 'user', content: prompt }] }),
   });
   const msg: any = await r.json().catch(() => null);
   if (r.status === 429) throw new HttpError(429, 'Too many questions in a short time. Try again in a minute.');
@@ -243,11 +246,11 @@ function askPrompt(ctx: unknown, q: string) {
 }
 
 function ticketPrompt(t: any) {
-  return "Draft a reply to this BarkFind customer support ticket. BarkFind is a UK iOS app for finding places that are genuinely good with dogs, built by one person, Josh. Write only the body: no greeting line and no sign-off, because the email adds 'Hi [name],' and signs it 'Josh, BarkFind' automatically. Plain, warm, specific, short. " + VOICE + " Facts you can rely on: monthly is £5.99, annual £39.99, 14-day free trial through Apple; founding members get their first year for £19.99; cancelling is done in iPhone Settings, Apple ID, Subscriptions; refunds are handled by Apple at reportaproblem.apple.com; if a subscription looks missing after switching accounts, Restore Purchases in the app usually fixes it; saved spots and your own reviews stay free if a subscription lapses. If you do not know something, say you will look into it rather than inventing it.\n\nTICKET\nSubject: " + (t.subject || "") + "\nCategory: " + (t.category || "") + "\nMessage:\n" + (t.message || "") + "\n\nEARLIER REPLIES\n" + ((t.replies || []).map(function (x: any) { return x.body }).join("\n---\n") || "none");
+  return "Draft a reply to this BarkFind customer support ticket. BarkFind is a UK iOS app for finding places that are genuinely good with dogs, built by one person, Josh. Write only the body: no greeting line and no sign-off, because the email adds 'Hi [name],' and signs it 'Josh, BarkFind' automatically. Plain, warm, specific, short. " + VOICE + " Facts you can rely on: monthly is £5.99, annual £39.99, 14-day free trial through Apple; founding members get their first year for £19.99; cancelling is done in iPhone Settings, Apple ID, Subscriptions; refunds are handled by Apple at reportaproblem.apple.com; if a subscription looks missing after switching accounts, Restore Purchases in the app usually fixes it; saved spots and your own reviews stay free if a subscription lapses. If you do not know something, say you will look into it rather than inventing it. Use only the facts in the ticket and its history: never describe reviews, ratings, photos, attachments, numbers or past contact that are not in it. No placeholders in brackets; leave out anything missing. Write as Josh in the first person singular, 'I', never 'we' or 'the team'.\n\nTICKET\nSubject: " + (t.subject || "") + "\nCategory: " + (t.category || "") + "\nMessage:\n" + (t.message || "") + "\n\nEARLIER REPLIES\n" + ((t.replies || []).map(function (x: any) { return x.body }).join("\n---\n") || "none");
 }
 
 function outreachPrompt(o: any) {
-  return "Draft a short message from Josh, the solo founder of BarkFind (a UK iOS app for finding places that are genuinely good with dogs, built around his reactive Vizsla, Mylo; launches on the App Store on 13 October 2026), to this contact. Use the next action as the purpose of the message. Write it so it reads as Josh wrote it himself: plain, warm, specific, short, no hype. " + VOICE + " No rhetorical questions, no dog puns. For a creator, treat them as an owner with an audience rather than as an influencer. For a venue, lead with something true and specific about them. For press, lead with the local story. Sign off 'Josh' on its own line, never 'the team'. If it is an email, give a subject line first.\n\nCONTACT (JSON):\n" + JSON.stringify({ name: o.name, org: o.org, type: o.kind, status: o.status, handle: o.handle, next_action: o.next_action, owed: o.owed, notes: o.notes, history: (o.log || []).slice(0, 5) });
+  return "Draft a short message from Josh, the solo founder of BarkFind (a UK iOS app for finding places that are genuinely good with dogs, built around his reactive Vizsla, Mylo; launches on the App Store on 13 October 2026), to this contact. Use the next action as the purpose of the message. Write it so it reads as Josh wrote it himself: plain, warm, specific, short, no hype. " + VOICE + " No rhetorical questions, no dog puns. For a creator, treat them as an owner with an audience rather than as an influencer. For a venue, lead with something true and specific about them from the record, or simply say why you are writing if the record has nothing. For press, lead with the local story. Sign off 'Josh' on its own line, never 'the team'. If it is an email, give a subject line first. Use only the facts in the contact record and its history: never describe reviews, ratings, photos, attachments, numbers or past contact that are not in it. No placeholders in brackets; leave out anything missing. Write as Josh in the first person singular, 'I', never 'we' or 'the team'.\n\nCONTACT (JSON):\n" + JSON.stringify({ name: o.name, org: o.org, type: o.kind, status: o.status, handle: o.handle, next_action: o.next_action, owed: o.owed, notes: o.notes, history: (o.log || []).slice(0, 5) });
 }
 
 // Reads one row as JSON from a table named in ACTIONS (never from the request).
