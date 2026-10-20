@@ -14,11 +14,12 @@
     },
     { "source": "/resources", "destination": "/discover", "permanent": true },
     { "source": "/resources/", "destination": "/discover", "permanent": true },
-    { "source": "/pricing", "destination": "/#pricing", "permanent": false }
+    { "source": "/pricing", "destination": "/#pricing", "permanent": false },
+    { "source": "/admin", "destination": "/hq", "permanent": false },
+    { "source": "/admin.html", "destination": "/hq", "permanent": false }
   ],
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api/$1" },
-    { "source": "/admin", "destination": "/admin.html" },
     { "source": "/hq", "destination": "/hq.html" },
     { "source": "/beta", "destination": "/beta.html" },
     { "source": "/beta-treats", "destination": "/beta-treats.html" },
