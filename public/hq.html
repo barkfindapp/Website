@@ -138,6 +138,11 @@ dd .flag{display:inline-block;margin-left:6px;font:800 10.5px/1 var(--sans);padd
 .flag.warn{color:var(--warn);background:var(--warn-soft)} .flag.crit{color:var(--crit);background:var(--crit-soft)} .flag.ok{color:var(--ok);background:var(--ok-soft)}
 .note{font-size:13px;color:var(--mute);line-height:1.5}
 .panel.off{opacity:.62}
+/* Apple Ads card: terracotta below the alert level, amber from it, red at the cap */
+.ads-head{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}.ads-head .v{font:400 34px/1 var(--serif)}.ads-head .u{color:var(--fg2)}
+.ads-bar{height:12px;border-radius:999px;background:var(--well);overflow:hidden}.ads-bar span{display:block;height:100%;border-radius:999px;background:var(--brand)}
+.ads-bar.warn span{background:var(--warn)}.ads-bar.crit span{background:var(--crit)}
+.ads-stale{color:var(--crit);font-weight:700}
 table.po{width:100%;border-collapse:collapse;min-width:640px;font-size:14px}table.po th{text-align:left;font:800 11px/1.2 var(--sans);letter-spacing:.06em;text-transform:uppercase;color:var(--fg2);padding:12px 14px;border-bottom:1px solid var(--line)}table.po td{padding:12px 14px;border-bottom:1px solid var(--line);vertical-align:top}table.po .num{text-align:right;white-space:nowrap}table.po tfoot td{border-bottom:0}table.po tbody td:first-child{min-width:150px}
 .out-layout{display:grid;grid-template-columns:210px minmax(0,1fr);gap:18px;align-items:start}
 .out-views{display:flex;flex-direction:column;gap:4px;position:sticky;top:12px}
@@ -608,6 +613,7 @@ label.amen:has(input:checked){border-color:var(--brand-line);background:var(--br
  </div>
 
  <div data-tab="money" class="stack" hidden>
+  <div class="stack" id="adsPane"></div>
   <div class="stack" id="mnPane"><div class="empty">Loading.</div></div>
   <div class="stack" id="poPane"></div>
  </div>
@@ -636,6 +642,7 @@ label.amen:has(input:checked){border-color:var(--brand-line);background:var(--br
     <button class="chip" data-sec="activity" data-perm="audit_view" aria-pressed="false">Activity</button>
     <button class="chip" data-sec="backlog" data-perm="audit_view" aria-pressed="false">Backlog</button>
     <button class="chip" data-sec="trash" data-perm="trash_restore" aria-pressed="false">Trash</button>
+    <button class="chip" data-sec="settings" data-perm="staff_admins" aria-pressed="false">Settings</button>
   </nav>
   <div class="stack" id="adminPane"><div class="empty">Loading.</div></div>
  </div>
@@ -823,6 +830,13 @@ label.amen:has(input:checked){border-color:var(--brand-line);background:var(--br
     if(od.length)items.push(["warn",od.length+" outreach follow-up"+(od.length>1?"s":"")+" due",od.slice(0,4).map(function(o){return o.name}).join(", ")+(od.length>4?" and more":"")+".","#outreach","Open outreach"]);
     var ow=(s.outreach&&s.outreach.owed)||[];
     if(ow.length)items.push(["info","You owe "+ow.length+" "+(ow.length>1?"people":"person")+" something",ow.map(function(o){return o.name+": "+o.owed}).join(". ")+".","#outreach","Open outreach"]);
+    var ad=state.ads;
+    if(ad&&ad.setup){var why=[],sev="warn",t=function(ts){return new Date(ts).toLocaleString("en-GB",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit",timeZone:"Europe/London"})};
+      if(ad.at_cap){why.push("Spend has reached the £"+ad.cap+" monthly cap.");sev="crit"}else if(ad.at_alert)why.push("Spend is at "+ad.pct+"% of the £"+ad.cap+" monthly cap.");
+      if(ad.paused_by_hq){why.push("HQ paused every campaign"+(ad.paused_at?" on "+t(ad.paused_at):"")+".");sev="crit"}
+      if(!ad.sync_ok){why.push(ad.last_sync?"Not checked since "+t(ad.last_sync)+".":"Spend has never been checked.");sev="crit"}
+      if(ad.budget_jump_24h)why.push("A campaign's daily budget jumped above £"+ad.settings.ads_max_daily_budget_gbp+" in the last 24 hours.");
+      if(why.length)items.push([sev,"Apple Ads: £"+Number(ad.month_spend).toFixed(2)+" of £"+ad.cap+" this month",why.join(" "),"#money","Open Ads"])}
     var order={crit:0,warn:1,info:2};items.sort(function(a,b){return order[a[0]]-order[b[0]]});
     return items;
   }
@@ -950,7 +964,9 @@ label.amen:has(input:checked){border-color:var(--brand-line);background:var(--br
     // Today card and the Act chip. Only owners (the creators permission) see it.
     var e=HQ.can("creators")?api("creators_counts").then(function(r){state.creatorApps=r.data.applied;state.creatorCounts=r.data}).catch(function(){state.creatorApps=0}):Promise.resolve();
     var o=api("offer_code_counts").then(function(r){state.offers=r.data;state.errors.offers=null}).catch(function(e){state.offers=null;state.errors.offers=errCopy(e,"Supabase")});
-    Promise.all([a,b,c,d,e,o]).then(function(){state.loadedAt=Date.now();render();renderFounders();if(window.HQAct)HQAct.onQueue(state.queue);$("refresh").disabled=false});
+    // Apple Ads is read live (spend syncs hourly; the snapshot is daily). Money permission only.
+    var ad=HQ.can("money")?api("ads_watch").then(function(r){state.ads=r.data}).catch(function(){state.ads=null}):Promise.resolve();
+    Promise.all([a,b,c,d,e,o,ad]).then(function(){state.loadedAt=Date.now();render();renderFounders();if(window.HQAct)HQAct.onQueue(state.queue);$("refresh").disabled=false});
   }
 
   // ---------- queue (Act and Outreach tabs) ----------
@@ -2282,7 +2298,7 @@ label.amen:has(input:checked){border-color:var(--brand-line);background:var(--br
     var nav=$("adminNav"),ok=[];nav.querySelectorAll("[data-sec]").forEach(function(b){var on=H.can(b.dataset.perm);b.hidden=!on;if(on)ok.push(b.dataset.sec)});
     if(ok.indexOf(sec)<0&&ok.length){sec=ok[0];nav.querySelectorAll("[data-sec]").forEach(function(x){x.setAttribute("aria-pressed",x.dataset.sec===sec?"true":"false")})}
     var el=$("adminPane");el.innerHTML='<div class="empty">Loading.</div>';
-    if(sec==="team")teamView(el);else if(sec==="signins")signins(el);else if(window.HQAudit&&HQAudit[sec])HQAudit[sec](el);
+    if(sec==="team")teamView(el);else if(sec==="signins")signins(el);else if(sec==="settings")settingsView(el);else if(window.HQAudit&&HQAudit[sec])HQAudit[sec](el);
   }
 
   function teamView(el){
@@ -2337,6 +2353,22 @@ label.amen:has(input:checked){border-color:var(--brand-line);background:var(--br
     else busy(b,H.api("team_"+what,args),card,refresh);
     pw.value="";
   });
+
+  // ---------- Settings (owners): Apple Ads ceiling ----------
+  function settingsView(el){
+    H.api("ads_watch").then(function(r){var s=r.data.settings;
+      el.innerHTML='<div class="card" id="adsSettings"><div class="subhead"><h3>Apple Ads</h3></div>'+
+        '<p class="note" style="margin:0">Apple Ads has no monthly limit of its own, so HQ is the limit. It checks spend every hour, warns at the alert level and, with auto-pause on, pauses every campaign before the cap is passed.</p>'+
+        '<div class="grid2"><label>Monthly cap (£)<input type="number" id="adsCap" min="0" max="1000" step="1" value="'+esc(s.ads_monthly_cap_gbp)+'"></label>'+
+        '<label>Warn at (% of the cap)<input type="number" id="adsPct" min="50" max="95" step="1" value="'+esc(s.ads_alert_pct)+'"></label>'+
+        '<label>Largest daily budget before a warning (£)<input type="number" id="adsMax" min="0" max="1000" step="0.5" value="'+esc(s.ads_max_daily_budget_gbp)+'"></label>'+
+        '<label>Auto-pause at the cap<select id="adsAuto"><option value="true"'+(s.ads_auto_pause?" selected":"")+'>On</option><option value="false"'+(s.ads_auto_pause?"":" selected")+'>Off</option></select></label></div>'+
+        '<p class="note" style="margin:0">The cap can be £0 to £1,000. The warning level can be 50% to 95%.</p>'+
+        '<div class="row"><button class="btn primary small" data-do="adsSave" data-confirm="Confirm save">Save</button></div></div>';
+    }).catch(function(e){fail(el,e)});
+  }
+  $("adminPane").addEventListener("click",function(ev){var b=ev.target.closest('[data-do="adsSave"]');if(!b)return;ev.stopPropagation();if(!H.armed(b))return;var card=b.closest(".card");
+    busy(b,H.api("ads_settings_save",{ads_monthly_cap_gbp:$("adsCap").value,ads_alert_pct:$("adsPct").value,ads_auto_pause:$("adsAuto").value==="true",ads_max_daily_budget_gbp:$("adsMax").value}),card,function(r){if(r&&r.ok!==false)setTimeout(show,1200)})},true);
 
   function signins(el){
     H.api("team_activity").then(function(r){
@@ -3097,8 +3129,34 @@ label.amen:has(input:checked){border-color:var(--brand-line);background:var(--br
       H.api("creator_payment_mark",o).then(function(r){H.note(cell,true,r.message||"Marked paid.");setTimeout(payouts,900)}).catch(function(e){H.note(cell,false,(e&&e.message)||"That did not save.");b.disabled=false;b.dataset.armed="";b.textContent=b.dataset.label||"Save as paid";b.classList.remove("confirm")})}
   });
 
+  // ---------- Apple Ads card: spend against HQ's monthly cap, by campaign, and Pause all / Resume (owners) ----------
+  function adsMoney(v){return v==null?"–":"£"+Number(v).toFixed(2)}
+  function adsTime(ts){var d=new Date(ts),today=new Date().toLocaleDateString("en-GB",{timeZone:"Europe/London"})===d.toLocaleDateString("en-GB",{timeZone:"Europe/London"});
+    return (today?"":d.toLocaleDateString("en-GB",{day:"numeric",month:"short",timeZone:"Europe/London"})+", ")+d.toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit",timeZone:"Europe/London"})}
+  function adsCard(){
+    var el=$("adsPane");el.innerHTML='<div class="card"><div class="empty">Loading Apple Ads.</div></div>';
+    H.api("ads_watch").then(function(r){var d=r.data;
+      if(!d.setup){el.innerHTML='<div class="card" id="ads"><div class="subhead"><h3>Apple Ads</h3></div><p class="note" style="margin:0">Apple Ads is not connected to HQ yet. This card fills in once the apple-ads-sync function has run. The monthly cap is £'+esc(d.settings.ads_monthly_cap_gbp)+'.</p></div>';return}
+      var lvl=d.at_cap?"crit":d.at_alert?"warn":"", w=Math.min(100,Math.max(0,d.pct));
+      var rows=d.by_campaign.map(function(c){return '<tr><td>'+esc(c.campaign_name)+(c.status&&c.status!=="ENABLED"?' <span class="tag" style="text-transform:none">'+esc(String(c.status).toLowerCase())+'</span>':'')+'</td><td class="num">'+adsMoney(c.spend)+'</td><td class="num">'+n(c.installs)+'</td><td class="num">'+n(c.trials)+'</td><td class="num">'+n(c.paid)+'</td><td class="num">'+adsMoney(c.cost_per_install)+'</td><td class="num">'+adsMoney(c.cost_per_trial)+'</td><td class="num">'+adsMoney(c.cost_per_paid)+'</td></tr>'}).join("");
+      el.innerHTML='<div class="card" id="ads"><div class="subhead"><h3>Apple Ads</h3><span>This month</span></div>'+
+        '<div class="ads-head"><span class="v">'+adsMoney(d.month_spend)+'</span><span class="u">of £'+esc(Number(d.cap).toLocaleString("en-GB"))+' cap</span></div>'+
+        '<div class="ads-bar '+lvl+'" role="img" aria-label="'+esc(d.pct)+'% of the monthly cap"><span style="width:'+w+'%"></span></div>'+
+        '<p class="note" style="margin:0">Running: '+adsMoney(d.running_daily_budget)+' a day across '+d.running_campaigns+' campaign'+(d.running_campaigns===1?"":"s")+'. '+
+          (d.last_sync?(d.sync_ok?'Last checked '+esc(adsTime(d.last_sync))+'.':'<span class="ads-stale">Not checked since '+esc(adsTime(d.last_sync))+'.</span>'):'<span class="ads-stale">Not checked yet.</span>')+'</p>'+
+        (d.paused_by_hq?'<p class="note" style="margin:0;color:var(--crit);font-weight:700">HQ paused every campaign'+(d.paused_at?' at '+esc(adsTime(d.paused_at)):'')+'.</p>':'')+
+        (d.budget_jump_24h?'<p class="note" style="margin:0;color:var(--warn);font-weight:700">A campaign\'s daily budget went above £'+esc(d.settings.ads_max_daily_budget_gbp)+' in the last 24 hours. Check it in Apple Ads.</p>':'')+
+        (rows?'<div style="overflow-x:auto"><table class="po"><thead><tr><th>Campaign</th><th class="num">Spend</th><th class="num">Installs</th><th class="num">Trials</th><th class="num">Paid</th><th class="num">Per install</th><th class="num">Per trial</th><th class="num">Per paid</th></tr></thead><tbody>'+rows+'</tbody></table></div>':'<p class="note" style="margin:0">No spend this month yet.</p>')+
+        '<p class="note" style="margin:0">Installs come from Apple. Trials and paid come from RevenueCat, so they only count people who reached the paywall.</p>'+
+        (d.can_act?'<div class="row">'+(d.paused_by_hq?'<button class="btn small" data-ads="resume" data-confirm="Resume the campaigns HQ paused?"'+(d.at_cap?' disabled title="This month\'s spend has reached the cap"':'')+'>Resume</button>':'')+
+          '<button class="btn danger small" data-ads="pause" data-confirm="Pause every Apple Ads campaign?">Pause all</button></div>':'')+'</div>';
+    }).catch(function(e){el.innerHTML='<div class="card"><div class="empty">'+esc((e&&e.message)||"Apple Ads did not load.")+'</div></div>'});
+  }
+  $("adsPane").addEventListener("click",function(ev){var b=ev.target.closest("[data-ads]");if(!b||!H.armed(b))return;var card=b.closest(".card");b.disabled=true;
+    H.api(b.dataset.ads==="pause"?"ads_pause_all":"ads_resume").then(function(r){H.note(card,true,r.message||"Done.");setTimeout(adsCard,2500)})
+      .catch(function(e){H.note(card,false,(e&&e.message)||"That did not work.");b.disabled=false;b.dataset.armed="";b.textContent=b.dataset.label||b.textContent;b.classList.remove("confirm")})});
   function moneyTab(){
-    payouts();
+    payouts();adsCard();
     var el=$("mnPane");el.innerHTML='<div class="empty">Loading.</div>';
     H.api("money").then(function(r){var d=r.data,fx=d.fx;
       function usd(v){return "$"+Number(v||0).toFixed(2)}
