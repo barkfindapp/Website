@@ -12,11 +12,29 @@ export const FONT_LINK = "https://fonts.googleapis.com/css2?family=DM+Serif+Disp
 export const esc = (s: unknown) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 const fill = (t: string, v: Record<string, string>, html: boolean) => t.replace(/\{\{(\w+)\}\}/g, (_, k) => (html ? esc(v[k] ?? '') : (v[k] ?? '')));
 
-// Templates may use these four fields and nothing else.
-export const TEMPLATE_FIELDS = ['name', 'place_name', 'place_url', 'area'] as const;
+// The fields a template may use, and nothing else. Place fields come from the contact's linked place.
+export const FIELD_INFO = [
+  { key: 'name', label: 'Contact name', group: 'Contact' },
+  { key: 'area', label: 'Area', group: 'Contact' },
+  { key: 'place_name', label: 'Place name', group: 'Place' },
+  { key: 'place_address', label: 'Address', group: 'Place' },
+  { key: 'place_category', label: 'Category', group: 'Place' },
+  { key: 'place_url', label: 'App link', group: 'Place' },
+  { key: 'website', label: 'Their website', group: 'Place' },
+  { key: 'barkfind_rating', label: 'BarkFind rating', group: 'Place' },
+  { key: 'review_count', label: 'Number of reviews', group: 'Place' },
+  { key: 'google_rating', label: 'Google rating', group: 'Place' },
+  { key: 'description', label: 'Description', group: 'Place' },
+  { key: 'mylo_verdict', label: 'Mylo verdict', group: 'Place' },
+  { key: 'mylo_best_for', label: 'Mylo: best for', group: 'Place' },
+  { key: 'opening_hours', label: 'Opening hours', group: 'Place' },
+  { key: 'latest_review', label: 'Latest review (text)', group: 'Place' },
+  { key: 'latest_review_paws', label: 'Latest review (paws)', group: 'Place' },
+] as const;
+export const TEMPLATE_FIELDS = FIELD_INFO.map((f) => f.key);
 export function templateFields(s: string): string[] { return [...new Set([...s.matchAll(/\{\{\s*([^}]*?)\s*\}\}/g)].map((m) => m[1]))]; }
 export function badFields(...parts: string[]): string[] {
-  return [...new Set(parts.flatMap(templateFields))].filter((f) => !(TEMPLATE_FIELDS as readonly string[]).includes(f));
+  return [...new Set(parts.flatMap(templateFields))].filter((f) => !(TEMPLATE_FIELDS as string[]).includes(f));
 }
 // Fill a template's fields; a field with no value is an error (named), never a blank.
 export function renderTemplate(s: string, v: Record<string, string | null | undefined>): { out: string; missing: string[] } {

@@ -308,6 +308,13 @@ label.amen:has(input:checked){border-color:var(--brand-line);background:var(--br
 .sheet-bg[hidden]{display:none}
 .sheet{background:#fff;width:min(560px,100%);height:100%;overflow:auto;padding:18px 18px 40px;box-shadow:-10px 0 30px rgba(0,0,0,.12);display:flex;flex-direction:column;gap:14px}
 .sheet-bg.wide .sheet{width:min(1000px,100%)}
+/* Panel size, chosen with the 1/3, 2/3, Full buttons and remembered on this device. 1/3 keeps each panel's own width. */
+.sheet-bg.sz-2 .sheet{width:max(66.6vw,560px);max-width:100%}.sheet-bg.sz-3 .sheet{width:100%;max-width:100%}
+.sheet-size{display:inline-flex;border:1px solid var(--line);border-radius:999px;overflow:hidden}
+.sheet-size button{all:unset;cursor:pointer;font:600 12px/1 inherit;padding:7px 10px;color:var(--fg2)}
+.sheet-size button[aria-pressed="true"]{background:var(--ink);color:#fff}
+.sheet-size button:focus-visible{outline:2px solid var(--accent,#B74217);outline-offset:-2px}
+@media (max-width:760px){.sheet-size{display:none}}
 .sheet.ralphy{width:max(50vw,480px);max-width:100%;overflow:hidden;padding-bottom:12px}
 .rp-body{flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column;gap:16px;margin:0 -18px;padding:4px 18px}
 .sheet.ralphy h3{display:flex;align-items:center;gap:10px;white-space:nowrap}.sheet.ralphy h3 .rav{width:30px;height:30px;font-size:16px}
@@ -690,7 +697,7 @@ label.amen:has(input:checked){border-color:var(--brand-line);background:var(--br
   <form class="rp-form" id="rpForm" autocomplete="off"><label for="rpInput" class="sr">Ask Ralphy</label><textarea id="rpInput" rows="2" placeholder="Ask about tickets, reviews, outreach, creators, money or anything on HQ"></textarea><button class="btn primary" id="rpBtn" type="submit">Ask</button></form>
 </div></div>
 <div class="sheet-bg" id="sheetBg" hidden><div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle">
-  <div class="sheet-head"><h3 id="sheetTitle">Details</h3><button class="btn small" type="button" id="sheetClose">Close</button></div>
+  <div class="sheet-head"><h3 id="sheetTitle">Details</h3><div class="row" style="flex-wrap:nowrap;gap:8px;align-items:center"><div class="sheet-size" role="group" aria-label="Panel size"><button type="button" data-sz="1" aria-label="One third of the screen">1/3</button><button type="button" data-sz="2" aria-label="Two thirds of the screen">2/3</button><button type="button" data-sz="3" aria-label="Full screen">Full</button></div><button class="btn small" type="button" id="sheetClose">Close</button></div></div>
   <div class="stack" id="sheetBody"></div>
 </div></div>
 <div class="undo" id="undoToast" hidden><span id="undoMsg"></span><button class="btn small" type="button" id="undoBtn">Undo</button></div>
@@ -1397,6 +1404,10 @@ label.amen:has(input:checked){border-color:var(--brand-line);background:var(--br
   function openSheet(title,html){$("sheetBg").classList.remove("wide");$("sheetTitle").textContent=title;$("sheetBody").innerHTML=html;$("sheetBg").hidden=false;document.body.style.overflow="hidden"}
   function closeSheet(){stopHeartbeat();$("sheetBg").hidden=true;document.body.style.overflow=""}
   $("sheetClose").addEventListener("click",closeSheet);
+  function sheetSize(n){var bg=$("sheetBg");bg.classList.remove("sz-2","sz-3");if(n>1)bg.classList.add("sz-"+n);
+    bg.querySelectorAll("[data-sz]").forEach(function(b){b.setAttribute("aria-pressed",String(+b.dataset.sz===n))})}
+  var sz=1;try{sz=+localStorage.getItem("hq-sheet-size")||1}catch(e){}sheetSize(sz);
+  $("sheetBg").addEventListener("click",function(ev){var b=ev.target.closest("[data-sz]");if(!b)return;sz=+b.dataset.sz;sheetSize(sz);try{localStorage.setItem("hq-sheet-size",String(sz))}catch(e){}});
   HQ.openSheet=openSheet;HQ.closeSheet=closeSheet;HQ.deferOp=deferOp;
   $("sheetBg").addEventListener("click",function(ev){if(ev.target===this)closeSheet()});
   document.addEventListener("keydown",function(ev){if(ev.key==="Escape"&&!$("sheetBg").hidden)closeSheet()});
@@ -3319,7 +3330,7 @@ label.amen:has(input:checked){border-color:var(--brand-line);background:var(--br
       var edit=ed?'<details class="card" data-ocard="edit"><summary class="note" style="cursor:pointer">Edit details</summary><div class="stack" style="margin-top:8px">'+contactForm(o,pl)+
         '<div class="row"><button class="btn primary small" data-od="save">Save changes</button>'+(canDel()?'<button class="btn danger small" data-od="delete" data-confirm="Confirm delete">Delete</button>':'')+'</div></div></details>':'';
       $("sheetBody").innerHTML='<div data-osheet="'+esc(o.id)+'" class="stack">'+head+place+sendCard(o)+logForm+hist+edit+'</div>';
-      if(H.can("outreach_send"))tplLoad().then(function(){var sel=$("sheetBody").querySelector('[data-s="tpl"]');if(sel)sel.innerHTML=tplOptions(o.kind)}).catch(function(){});
+      if(H.can("outreach_send"))tplLoad().then(function(){var sel=$("sheetBody").querySelector('[data-s="tpl"]');if(sel)sel.innerHTML=tplOptions(o.kind);$("sheetBody").querySelectorAll("[data-ins]").forEach(function(x){x.outerHTML=fieldPicker()})}).catch(function(){});
     }).catch(function(e){$("sheetBody").innerHTML='<div class="empty">'+esc((e&&e.message)||"That did not load.")+'</div>'});
   }
   // ---------- send an email (outreach_send): preview first, then two taps; one contact at a time ----------
@@ -3329,13 +3340,25 @@ label.amen:has(input:checked){border-color:var(--brand-line);background:var(--br
   function tplOptions(kind){var ts=(tpl&&tpl.templates)||[];var fit=ts.filter(function(t){return t.kind===kind||t.kind==="any"}),rest=ts.filter(function(t){return fit.indexOf(t)<0});
     var o=function(t){return '<option value="'+esc(t.id)+'">'+esc(t.name)+'</option>'};
     return '<option value="">Write your own</option>'+fit.map(o).join("")+(rest.length?'<optgroup label="Other kinds">'+rest.map(o).join("")+'</optgroup>':'')}
+  // Insert a field: a picker of every {{field}} HQ can fill, grouped Contact and Place. It drops the
+  // field in at the cursor of whichever subject or message box was used last (the message if neither).
+  function fieldPicker(){var fs=(tpl&&tpl.fields)||[],groups=[];fs.forEach(function(f){if(groups.indexOf(f.group)<0)groups.push(f.group)});
+    return '<select data-ins aria-label="Insert a field" style="max-width:220px"><option value="">Insert a field</option>'+groups.map(function(g){return '<optgroup label="'+esc(g)+'">'+fs.filter(function(f){return f.group===g}).map(function(f){return '<option value="'+esc(f.key)+'">'+esc(f.label)+'</option>'}).join("")+'</optgroup>'}).join("")+'</select>'}
+  var lastBox=null;
+  document.addEventListener("focusin",function(ev){var t=ev.target;if(t.matches&&t.matches('[data-s="subject"],[data-s="body"],[data-t="subject"],[data-t="body"]'))lastBox=t});
+  document.addEventListener("change",function(ev){var sel=ev.target;if(!sel.matches||!sel.matches("[data-ins]")||!sel.value)return;
+    var card=sel.closest('[data-ocard="send"],[data-tplid]');if(!card)return;
+    var box=lastBox&&card.contains(lastBox)?lastBox:card.querySelector('[data-s="body"],[data-t="body"]'),ins="{{"+sel.value+"}}";
+    var a=box.selectionStart!=null?box.selectionStart:box.value.length,b=box.selectionEnd!=null?box.selectionEnd:a;
+    box.value=box.value.slice(0,a)+ins+box.value.slice(b);box.focus();box.setSelectionRange(a+ins.length,a+ins.length);
+    box.dispatchEvent(new Event("input",{bubbles:true}));sel.value=""});
   function sendCard(o){if(!H.can("outreach_send"))return "";
     return '<div class="card" data-ocard="send"><div class="subhead"><h3 style="font-size:16px">Send an email</h3></div>'+
       (o.email?'':'<p class="note" style="margin:0">Add an email address in Edit details first.</p>')+
       '<label>Template<select data-s="tpl"><option value="">Write your own</option></select></label>'+
       '<label class="note">Subject</label><input type="text" data-s="subject" maxlength="200">'+
       '<label class="note">Message</label><textarea data-s="body" maxlength="5000" style="min-height:150px" placeholder="Hello,"></textarea>'+
-      '<p class="note" style="margin:0">You can use {{name}}, {{place_name}}, {{place_url}} and {{area}}. Your signature and the unsubscribe line are added for you.</p>'+
+      '<div class="row" style="align-items:center;gap:8px">'+fieldPicker()+'<span class="note">Adds it where your cursor is. Your signature and the unsubscribe line are added for you.</span></div>'+
       '<div class="row"><button class="btn small" data-od="preview">Preview</button></div><div data-s="preview"></div></div>'}
   function sendArgs(card,id){var g=function(k){return card.querySelector('[data-s="'+k+'"]').value},t=g("tpl"),a={id:id};
     var tt=t&&tpl?tpl.templates.filter(function(x){return x.id===t})[0]:null;
@@ -3346,7 +3369,7 @@ label.amen:has(input:checked){border-color:var(--brand-line);background:var(--br
       (p.html?'<iframe sandbox="" title="Email preview" data-s="frame" style="width:100%;height:460px;border:1px solid var(--line);border-radius:12px;background:#fff"></iframe>':'')+
       '<details><summary class="note">Plain-text version</summary><div class="prior" style="white-space:pre-wrap">'+esc(p.text)+'</div></details>'+
       (p.recent?'<label class="note" style="display:flex;gap:8px;align-items:center;color:var(--warn);font-weight:700"><input type="checkbox" data-s="force"> HQ emailed them on '+esc(day(p.last_at))+', less than 14 days ago. Send anyway (recorded)</label>':'')+
-      (blocked?'':'<div class="row"><button class="btn primary small" data-od="send" data-confirm="Confirm send to '+esc(p.to)+'">Send to '+esc(p.to)+'</button></div>')+'</div>'}
+      (blocked?'<p class="note" style="margin:0;font-weight:700">Send appears once '+(p.blockers.length===1?"this is":"these are")+' fixed.</p>':'<div class="row"><button class="btn primary small" data-od="send" data-confirm="Confirm send to '+esc(p.to)+'">Send to '+esc(p.to)+'</button></div>')+'</div>'}
   function after(card,r,reopen){H.note(card,true,(r&&r.message)||"Done.");setTimeout(function(){load();if(reopen)open(reopen)},700)}
   function fail(card,b){return function(e){H.note(card,false,(e&&e.message)||"That did not work.");if(b){b.disabled=false;if(b.dataset.label){b.textContent=b.dataset.label;b.dataset.armed="";b.classList.remove("confirm")}}}}
 
@@ -3430,10 +3453,11 @@ label.amen:has(input:checked){border-color:var(--brand-line);background:var(--br
   var T_KINDS=[["any","Any kind"]].concat(KINDS);
   function tplForm(t){t=t||{kind:"venue"};return '<div class="card" data-tplid="'+esc(t.id||"")+'"><div class="grid2"><label>Name<input type="text" data-t="name" maxlength="80" value="'+esc(t.name||"")+'"></label><label>For<select data-t="kind">'+opt(T_KINDS,t.kind)+'</select></label></div>'+
     '<label class="note">Subject</label><input type="text" data-t="subject" maxlength="200" value="'+esc(t.subject||"")+'"><label class="note">Message</label><textarea data-t="body" maxlength="5000" style="min-height:160px">'+esc(t.body||"")+'</textarea>'+
+    '<div class="row">'+fieldPicker()+'</div>'+
     (t.updated_at?'<div class="note">Last saved '+esc(day(t.updated_at))+(t.updated_by_name?' by '+esc(t.updated_by_name):'')+'</div>':'')+
     '<div class="row"><button class="btn small primary" data-ot="save">'+(t.id?"Save template":"Add template")+'</button></div></div>'}
   function tplView(){var box=$("outNew");box.innerHTML='<div class="empty">Loading templates.</div>';
-    tplLoad(true).then(function(d){box.innerHTML='<div class="card"><div class="subhead"><h3>Email templates</h3><span>'+d.templates.length+'</span></div><p class="note" style="margin:0">Only {{'+d.fields.join("}}, {{")+'}} can be used. The signature and unsubscribe line are added when it is sent.</p><div class="row"><button class="btn small" data-ot="new">New template</button><button class="btn small" data-ot="close">Close</button></div></div><div data-ot-new></div>'+d.templates.map(tplForm).join("")})
+    tplLoad(true).then(function(d){box.innerHTML='<div class="card"><div class="subhead"><h3>Email templates</h3><span>'+d.templates.length+'</span></div><p class="note" style="margin:0">Use Insert a field to add things HQ fills in for each contact, such as the place name, its rating or its latest review. If a contact has nothing for a field, HQ will not send it. The signature and unsubscribe line are added when it is sent.</p><div class="row"><button class="btn small" data-ot="new">New template</button><button class="btn small" data-ot="close">Close</button></div></div><div data-ot-new></div>'+d.templates.map(tplForm).join("")})
       .catch(function(e){box.innerHTML='<div class="empty">'+esc((e&&e.message)||"That did not load.")+'</div>'})}
   $("outTpl").addEventListener("click",function(){var box=$("outNew");if(box.dataset.mode==="templates"){box.innerHTML="";box.dataset.mode="";return}box.dataset.mode="templates";tplView()});
   $("outNew").addEventListener("click",function(ev){var b=ev.target.closest("[data-ot]");if(!b)return;var w=b.dataset.ot;
