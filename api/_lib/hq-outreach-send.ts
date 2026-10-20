@@ -8,7 +8,7 @@
 import type { Pool, PoolClient } from 'pg';
 import { HttpError, only, uuid, str, oneOf, bool, writeTx } from './hq-core.js';
 import type { Op } from './hq-act.js';
-import { badFields, renderTemplate, buildEmail, unsubUrl, FIELD_INFO } from './outreach-email.js';
+import { badFields, renderTemplate, buildEmail, unsubUrl, FIELD_INFO, UNSUB_BASE } from './outreach-email.js';
 
 const RESEND_KEY = process.env.RESEND_OUTREACH_API_KEY || '';
 const APP_STORE_URL = 'https://apps.apple.com/gb/app/id6782144377';
@@ -157,7 +157,9 @@ export function outreachSendOps(pool: Pool): Record<string, Op> {
       run: async (a, ctx) => {
         only(a, ['id', 'template_id', 'subject', 'body']);
         const p = await prepare(pool, ctx.staff.userId, a);
-        return { data: { to: p.email || null, from: p.from, reply_to: p.reply_to, subject: p.subject, html: p.html, text: p.text,
+        // The preview's unsubscribe link goes to a page that changes nothing; only the sent email carries the real one.
+        const inert = (x: string) => (p.unsubscribe ? x.split(p.unsubscribe).join(UNSUB_BASE + '?preview=1') : x);
+        return { data: { to: p.email || null, from: p.from, reply_to: p.reply_to, subject: p.subject, html: inert(p.html), text: inert(p.text),
           recent: p.recent, last_at: p.last_at, sent_today: p.sent_today, cap: p.cap, blockers: p.blockers } };
       },
     },

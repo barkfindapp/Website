@@ -35,6 +35,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Cache-Control', 'no-store');
   res.setHeader('X-Robots-Tag', 'noindex, nofollow');
   if (req.method !== 'GET' && req.method !== 'POST') return res.status(405).send('');
+  // The link in an HQ preview: nobody is unsubscribed.
+  if (req.query.preview) {
+    if (req.method === 'POST') return res.status(200).send('');
+    return res.status(200).setHeader('Content-Type', 'text/html; charset=utf-8').send(page('This is a preview link', 'It came from a preview in BarkFind HQ, so nothing was changed. In a sent email this link unsubscribes the person it was sent to.'));
+  }
   const c = String(req.query.c || ''), t = String(req.query.t || '');
   let result: 'ok' | 'bad';
   try { result = await unsubscribe(pool, c, t); } catch (e: any) {
