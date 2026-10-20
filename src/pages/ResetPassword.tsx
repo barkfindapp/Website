@@ -13,7 +13,7 @@ import PageShell from "../components/PageShell";
 import { useSeo } from "../lib/seo";
 import { LAUNCHED, APP_STORE_URL } from "../data/launch";
 
-// Public publishable key, the same one committed in public/admin.html. It is
+// Public publishable key, the same one committed in public/hq.html. It is
 // safe in the browser bundle: it grants only anon-level access, and the recovery
 // token in the URL is what authorises the password change.
 const SUPABASE_URL = "https://kwwnwniyijeuorpbyvmn.supabase.co";
