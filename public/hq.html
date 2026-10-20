@@ -308,6 +308,13 @@ label.amen:has(input:checked){border-color:var(--brand-line);background:var(--br
 .sheet-bg[hidden]{display:none}
 .sheet{background:#fff;width:min(560px,100%);height:100%;overflow:auto;padding:18px 18px 40px;box-shadow:-10px 0 30px rgba(0,0,0,.12);display:flex;flex-direction:column;gap:14px}
 .sheet-bg.wide .sheet{width:min(1000px,100%)}
+/* Panel size, chosen with the 1/3, 2/3, Full buttons and remembered on this device. 1/3 keeps each panel's own width. */
+.sheet-bg.sz-2 .sheet{width:max(66.6vw,560px);max-width:100%}.sheet-bg.sz-3 .sheet{width:100%;max-width:100%}
+.sheet-size{display:inline-flex;border:1px solid var(--line);border-radius:999px;overflow:hidden}
+.sheet-size button{all:unset;cursor:pointer;font:600 12px/1 inherit;padding:7px 10px;color:var(--fg2)}
+.sheet-size button[aria-pressed="true"]{background:var(--ink);color:#fff}
+.sheet-size button:focus-visible{outline:2px solid var(--accent,#B74217);outline-offset:-2px}
+@media (max-width:760px){.sheet-size{display:none}}
 .sheet.ralphy{width:max(50vw,480px);max-width:100%;overflow:hidden;padding-bottom:12px}
 .rp-body{flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column;gap:16px;margin:0 -18px;padding:4px 18px}
 .sheet.ralphy h3{display:flex;align-items:center;gap:10px;white-space:nowrap}.sheet.ralphy h3 .rav{width:30px;height:30px;font-size:16px}
@@ -690,7 +697,7 @@ label.amen:has(input:checked){border-color:var(--brand-line);background:var(--br
   <form class="rp-form" id="rpForm" autocomplete="off"><label for="rpInput" class="sr">Ask Ralphy</label><textarea id="rpInput" rows="2" placeholder="Ask about tickets, reviews, outreach, creators, money or anything on HQ"></textarea><button class="btn primary" id="rpBtn" type="submit">Ask</button></form>
 </div></div>
 <div class="sheet-bg" id="sheetBg" hidden><div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle">
-  <div class="sheet-head"><h3 id="sheetTitle">Details</h3><button class="btn small" type="button" id="sheetClose">Close</button></div>
+  <div class="sheet-head"><h3 id="sheetTitle">Details</h3><div class="row" style="flex-wrap:nowrap;gap:8px;align-items:center"><div class="sheet-size" role="group" aria-label="Panel size"><button type="button" data-sz="1" aria-label="One third of the screen">1/3</button><button type="button" data-sz="2" aria-label="Two thirds of the screen">2/3</button><button type="button" data-sz="3" aria-label="Full screen">Full</button></div><button class="btn small" type="button" id="sheetClose">Close</button></div></div>
   <div class="stack" id="sheetBody"></div>
 </div></div>
 <div class="undo" id="undoToast" hidden><span id="undoMsg"></span><button class="btn small" type="button" id="undoBtn">Undo</button></div>
@@ -1397,6 +1404,10 @@ label.amen:has(input:checked){border-color:var(--brand-line);background:var(--br
   function openSheet(title,html){$("sheetBg").classList.remove("wide");$("sheetTitle").textContent=title;$("sheetBody").innerHTML=html;$("sheetBg").hidden=false;document.body.style.overflow="hidden"}
   function closeSheet(){stopHeartbeat();$("sheetBg").hidden=true;document.body.style.overflow=""}
   $("sheetClose").addEventListener("click",closeSheet);
+  function sheetSize(n){var bg=$("sheetBg");bg.classList.remove("sz-2","sz-3");if(n>1)bg.classList.add("sz-"+n);
+    bg.querySelectorAll("[data-sz]").forEach(function(b){b.setAttribute("aria-pressed",String(+b.dataset.sz===n))})}
+  var sz=1;try{sz=+localStorage.getItem("hq-sheet-size")||1}catch(e){}sheetSize(sz);
+  $("sheetBg").addEventListener("click",function(ev){var b=ev.target.closest("[data-sz]");if(!b)return;sz=+b.dataset.sz;sheetSize(sz);try{localStorage.setItem("hq-sheet-size",String(sz))}catch(e){}});
   HQ.openSheet=openSheet;HQ.closeSheet=closeSheet;HQ.deferOp=deferOp;
   $("sheetBg").addEventListener("click",function(ev){if(ev.target===this)closeSheet()});
   document.addEventListener("keydown",function(ev){if(ev.key==="Escape"&&!$("sheetBg").hidden)closeSheet()});
