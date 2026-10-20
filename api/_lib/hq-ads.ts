@@ -1,5 +1,6 @@
 // Apple Ads watch: HQ is the monthly ceiling that Apple Ads does not have. The apple-ads-sync
-// edge function (built by the project chat) fetches spend every hour into ads_spend_daily,
+// edge function (built by the project chat) syncs every hour into ads_campaigns, ads_spend_daily
+// and ads_sync_state,
 // raises the alerts in ads_watch_events and does every Apple call, including pausing and
 // resuming. HQ never calls Apple: it reads those tables live (the daily snapshot is too old
 // for hourly spend), joins RevenueCat's attribution (ads_attribution) for cost per trial and
@@ -36,20 +37,27 @@ async function settings(q: Pool): Promise<AdsSettings> {
   return s;
 }
 
-// Everything the Ads card, the Today alert and Ralphy show. { setup: false } until the
-// project chat's tables exist.
+// Everything the Ads card, the Today alert and Ralphy show. Connected means apple-ads-sync
+// has completed a sync (ads_sync_state.last_ok), not that there is spend: campaigns come from
+// ads_campaigns, so a campaign that has not served yet still shows, at £0.
 export async function adsWatch(pool: Pool) {
   const ready = (await pool.query(
-    "select to_regclass('public.ads_spend_daily') is not null and to_regclass('public.ads_attribution') is not null and to_regclass('public.ads_watch_events') is not null as ok")).rows[0].ok;
+    `select to_regclass('public.ads_sync_state') is not null and to_regclass('public.ads_campaigns') is not null
+        and to_regclass('public.ads_spend_daily') is not null and to_regclass('public.ads_attribution') is not null
+        and to_regclass('public.ads_watch_events') is not null as ok`)).rows[0].ok;
   const cfg = await settings(pool);
   if (!ready) return { setup: false, settings: cfg };
-  const [month, latest, camps, attr, events] = await Promise.all([
-    pool.query(`select coalesce(sum(spend), 0)::float as spend, max(currency) as currency, max(synced_at) as last_sync from public.ads_spend_daily where day >= ${MONTH_START}`),
-    pool.query(`select distinct on (campaign_id) campaign_id, campaign_name, status, daily_budget::float as daily_budget, synced_at
-                  from public.ads_spend_daily order by campaign_id, day desc, synced_at desc`),
-    pool.query(`select campaign_id, max(campaign_name) as campaign_name, sum(spend)::float as spend, sum(impressions)::int as impressions,
-                       sum(taps)::int as taps, sum(installs)::int as installs
-                  from public.ads_spend_daily where day >= ${MONTH_START} group by campaign_id order by sum(spend) desc`),
+  const sync = (await pool.query('select last_attempt, last_ok, last_error from public.ads_sync_state order by id limit 1')).rows[0] || {};
+  if (!sync.last_ok) return { setup: false, settings: cfg, last_attempt: sync.last_attempt ?? null, last_error: sync.last_error ?? null };
+  const [month, camps, attr, events] = await Promise.all([
+    pool.query(`select coalesce(sum(coalesce(spend_gbp, spend)), 0)::float as spend from public.ads_spend_daily where day >= ${MONTH_START}`),
+    pool.query(`select c.campaign_id::text as campaign_id, c.name as campaign_name, c.status, c.serving_status, c.daily_budget_gbp::float as daily_budget,
+                       c.paused_by_hq, c.paused_at, coalesce(s.spend, 0)::float as spend, coalesce(s.impressions, 0)::int as impressions,
+                       coalesce(s.taps, 0)::int as taps, coalesce(s.installs, 0)::int as installs
+                  from public.ads_campaigns c
+                  left join (select campaign_id, sum(coalesce(spend_gbp, spend)) as spend, sum(impressions) as impressions, sum(taps) as taps, sum(installs) as installs
+                               from public.ads_spend_daily where day >= ${MONTH_START} group by campaign_id) s on s.campaign_id = c.campaign_id
+                 order by coalesce(s.spend, 0) desc, c.name`),
     pool.query(`select campaign_name,
                        count(*) filter (where trial_started_at >= ${MONTH_START})::int as trials,
                        count(*) filter (where converted_at >= ${MONTH_START})::int as paid,
@@ -58,35 +66,40 @@ export async function adsWatch(pool: Pool) {
     pool.query(`select kind, detail, created_at from public.ads_watch_events where created_at > now() - interval '35 days' order by created_at desc limit 40`),
   ]);
   const spend = r2(month.rows[0].spend) || 0;
-  const lastSync = (await pool.query('select max(synced_at) as at from public.ads_spend_daily')).rows[0].at as Date | null;
   const ev = events.rows as { kind: string; detail: any; created_at: Date }[];
-  const lastOf = (k: string) => ev.find((e) => e.kind === k) || null;
-  const paused = lastOf('paused'), resumed = lastOf('resumed'), failed = lastOf('sync_failed');
-  const pausedByHq = !!paused && (!resumed || new Date(paused.created_at) > new Date(resumed.created_at));
-  const running = latest.rows.filter((c: any) => c.status === 'ENABLED');
-  const byName: Record<string, any> = {};
-  for (const a of attr.rows) byName[a.campaign_name ?? ''] = a;
+  // RevenueCat may send the campaign's name or its id: match either, case and spacing aside.
+  const key = (v: unknown) => String(v ?? '').trim().toLowerCase();
+  const used = new Set<string>();
   const byCampaign = camps.rows.map((c: any) => {
-    const a = byName[c.campaign_name] || { trials: 0, paid: 0, revenue: 0 };
-    const st = latest.rows.find((l: any) => l.campaign_id === c.campaign_id);
+    const hits = attr.rows.filter((a: any) => a.campaign_name != null && (key(a.campaign_name) === key(c.campaign_name) || key(a.campaign_name) === key(c.campaign_id)));
+    hits.forEach((a: any) => used.add(a.campaign_name));
+    const trials = hits.reduce((t: number, a: any) => t + a.trials, 0), paid = hits.reduce((t: number, a: any) => t + a.paid, 0);
     return {
-      campaign_id: c.campaign_id, campaign_name: c.campaign_name, status: st?.status ?? null, daily_budget: r2(st?.daily_budget),
-      spend: r2(c.spend) || 0, impressions: c.impressions, taps: c.taps, installs: c.installs, trials: a.trials, paid: a.paid, revenue_gbp: r2(a.revenue),
-      cost_per_install: per(c.spend, c.installs), cost_per_trial: per(c.spend, a.trials), cost_per_paid: per(c.spend, a.paid),
+      campaign_id: c.campaign_id, campaign_name: c.campaign_name, status: c.status, serving_status: c.serving_status, daily_budget: r2(c.daily_budget),
+      paused_by_hq: !!c.paused_by_hq, spend: r2(c.spend) || 0, impressions: c.impressions, taps: c.taps, installs: c.installs, trials, paid,
+      revenue_gbp: r2(hits.reduce((t: number, a: any) => t + a.revenue, 0)),
+      cost_per_install: per(c.spend, c.installs), cost_per_trial: per(c.spend, trials), cost_per_paid: per(c.spend, paid),
     };
   });
-  const syncOk = !!lastSync && Date.now() - new Date(lastSync).getTime() < STALE_HOURS * 3600e3 && !(failed && new Date(failed.created_at) > new Date(lastSync));
+  const unmatched = attr.rows.filter((a: any) => !used.has(a.campaign_name) || a.campaign_name == null)
+    .reduce((t: any, a: any) => ({ trials: t.trials + a.trials, paid: t.paid + a.paid }), { trials: 0, paid: 0 });
+  const running = camps.rows.filter((c: any) => c.status === 'ENABLED');
+  const pausedRows = camps.rows.filter((c: any) => c.paused_by_hq);
+  const lastOk = new Date(sync.last_ok), failingNow = !!sync.last_attempt && new Date(sync.last_attempt) > lastOk;
+  const syncOk = Date.now() - lastOk.getTime() < STALE_HOURS * 3600e3 && !failingNow;
   const jump = ev.find((e) => e.kind === 'budget_jump' && Date.now() - new Date(e.created_at).getTime() < 24 * 3600e3) || null;
   const pct = cfg.ads_monthly_cap_gbp > 0 ? Math.round((spend / cfg.ads_monthly_cap_gbp) * 1000) / 10 : 100;
   return {
-    setup: true, settings: cfg, currency: month.rows[0].currency || 'GBP',
+    setup: true, settings: cfg, currency: 'GBP',
     month_spend: spend, cap: cfg.ads_monthly_cap_gbp, pct, remaining: r2(Math.max(0, cfg.ads_monthly_cap_gbp - spend)),
     alert_level: cfg.ads_alert_pct, at_alert: pct >= cfg.ads_alert_pct, at_cap: spend >= cfg.ads_monthly_cap_gbp,
     running_daily_budget: r2(running.reduce((t: number, c: any) => t + (Number(c.daily_budget) || 0), 0)), running_campaigns: running.length,
-    paused_by_hq: pausedByHq, paused_at: pausedByHq ? paused!.created_at : null,
-    last_sync: lastSync, sync_ok: syncOk, stale_hours: STALE_HOURS,
+    paused_by_hq: pausedRows.length > 0, paused_campaigns: pausedRows.length,
+    paused_at: pausedRows.length ? pausedRows.map((c: any) => c.paused_at).filter(Boolean).sort().pop() ?? null : null,
+    last_sync: sync.last_ok, last_attempt: sync.last_attempt, sync_error: failingNow ? (sync.last_error || 'The last check did not finish.') : null,
+    sync_ok: syncOk, stale_hours: STALE_HOURS,
     budget_jump_24h: jump ? { at: jump.created_at, detail: jump.detail } : null,
-    by_campaign: byCampaign,
+    by_campaign: byCampaign, unmatched_attribution: unmatched,
     events: ev.slice(0, 10).map((e) => ({ kind: e.kind, at: e.created_at, detail: e.detail })),
   };
 }
@@ -105,7 +118,7 @@ async function callSync(pool: Pool, body: Record<string, unknown>) {
   return reply;
 }
 const campaignsNow = async (pool: Pool) => (await pool.query(
-  `select distinct on (campaign_id) campaign_id, campaign_name, status, daily_budget from public.ads_spend_daily order by campaign_id, day desc, synced_at desc`)).rows;
+  'select campaign_id::text as campaign_id, name, status, serving_status, daily_budget_gbp, paused_by_hq, paused_at from public.ads_campaigns order by name')).rows;
 const ownerOnly = (ctx: any) => { if (ctx.staff.level !== 'owner') throw new HttpError(403, 'Only an owner can do this.'); };
 
 export function adsOps(pool: Pool): Record<string, Op> {
@@ -125,7 +138,7 @@ export function adsOps(pool: Pool): Record<string, Op> {
         const before = await campaignsNow(pool);
         const reply = await callSync(pool, { action: 'pause_all', source: 'hq', requested_by: ctx.staff.userId });
         return writeTx(pool, ctx.staff.userId, async (_c, audit) => {
-          await audit({ action: 'ads_pause_all', entity: 'ads_spend_daily', detail: `Paused every Apple Ads campaign from HQ (${w.month_spend.toFixed(2)} of ${w.cap} pounds this month)`,
+          await audit({ action: 'ads_pause_all', entity: 'ads_campaigns', detail: `Paused every Apple Ads campaign from HQ (${w.month_spend.toFixed(2)} of ${w.cap} pounds this month)`,
             before: { campaigns: before, month_spend: w.month_spend, cap: w.cap }, after: { reply } });
           return { ok: true, message: 'Every Apple Ads campaign is being paused. The card updates after the next check.' };
         });
@@ -144,7 +157,7 @@ export function adsOps(pool: Pool): Record<string, Op> {
         const before = await campaignsNow(pool);
         const reply = await callSync(pool, { action: 'resume_hq_paused', source: 'hq', requested_by: ctx.staff.userId });
         return writeTx(pool, ctx.staff.userId, async (_c, audit) => {
-          await audit({ action: 'ads_resume', entity: 'ads_spend_daily', detail: `Resumed the Apple Ads campaigns HQ paused (${w.month_spend.toFixed(2)} of ${w.cap} pounds this month)`,
+          await audit({ action: 'ads_resume', entity: 'ads_campaigns', detail: `Resumed the Apple Ads campaigns HQ paused (${w.month_spend.toFixed(2)} of ${w.cap} pounds this month)`,
             before: { campaigns: before, month_spend: w.month_spend, cap: w.cap }, after: { reply } });
           return { ok: true, message: 'The campaigns HQ paused are being resumed. The card updates after the next check.' };
         });

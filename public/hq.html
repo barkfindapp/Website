@@ -833,8 +833,8 @@ label.amen:has(input:checked){border-color:var(--brand-line);background:var(--br
     var ad=state.ads;
     if(ad&&ad.setup){var why=[],sev="warn",t=function(ts){return new Date(ts).toLocaleString("en-GB",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit",timeZone:"Europe/London"})};
       if(ad.at_cap){why.push("Spend has reached the £"+ad.cap+" monthly cap.");sev="crit"}else if(ad.at_alert)why.push("Spend is at "+ad.pct+"% of the £"+ad.cap+" monthly cap.");
-      if(ad.paused_by_hq){why.push("HQ paused every campaign"+(ad.paused_at?" on "+t(ad.paused_at):"")+".");sev="crit"}
-      if(!ad.sync_ok){why.push(ad.last_sync?"Not checked since "+t(ad.last_sync)+".":"Spend has never been checked.");sev="crit"}
+      if(ad.paused_by_hq){why.push("HQ paused "+(ad.paused_campaigns===(ad.by_campaign||[]).length?"every campaign":ad.paused_campaigns+" campaign"+(ad.paused_campaigns===1?"":"s"))+(ad.paused_at?" on "+t(ad.paused_at):"")+".");sev="crit"}
+      if(!ad.sync_ok){why.push(ad.sync_error?"The last check failed: "+ad.sync_error:ad.last_sync?"Not checked since "+t(ad.last_sync)+".":"Spend has never been checked.");sev="crit"}
       if(ad.budget_jump_24h)why.push("A campaign's daily budget jumped above £"+ad.settings.ads_max_daily_budget_gbp+" in the last 24 hours.");
       if(why.length)items.push([sev,"Apple Ads: £"+Number(ad.month_spend).toFixed(2)+" of £"+ad.cap+" this month",why.join(" "),"#money","Open Ads"])}
     var order={crit:0,warn:1,info:2};items.sort(function(a,b){return order[a[0]]-order[b[0]]});
@@ -3136,17 +3136,23 @@ label.amen:has(input:checked){border-color:var(--brand-line);background:var(--br
   function adsCard(){
     var el=$("adsPane");el.innerHTML='<div class="card"><div class="empty">Loading Apple Ads.</div></div>';
     H.api("ads_watch").then(function(r){var d=r.data;
-      if(!d.setup){el.innerHTML='<div class="card" id="ads"><div class="subhead"><h3>Apple Ads</h3></div><p class="note" style="margin:0">Apple Ads is not connected to HQ yet. This card fills in once the apple-ads-sync function has run. The monthly cap is £'+esc(d.settings.ads_monthly_cap_gbp)+'.</p></div>';return}
+      if(!d.setup){el.innerHTML='<div class="card" id="ads"><div class="subhead"><h3>Apple Ads</h3></div><p class="note" style="margin:0">Apple Ads is not connected to HQ yet. This card fills in once the apple-ads-sync function has completed a check. The monthly cap is £'+esc(d.settings.ads_monthly_cap_gbp)+'.</p>'+
+        (d.last_error?'<p class="note ads-stale" style="margin:0">Last attempt'+(d.last_attempt?' at '+esc(adsTime(d.last_attempt)):'')+' failed: '+esc(d.last_error)+'</p>':'')+'</div>';return}
+      var SERVE={NOT_RUNNING:"Not running yet",RUNNING:""};
       var lvl=d.at_cap?"crit":d.at_alert?"warn":"", w=Math.min(100,Math.max(0,d.pct));
-      var rows=d.by_campaign.map(function(c){return '<tr><td>'+esc(c.campaign_name)+(c.status&&c.status!=="ENABLED"?' <span class="tag" style="text-transform:none">'+esc(String(c.status).toLowerCase())+'</span>':'')+'</td><td class="num">'+adsMoney(c.spend)+'</td><td class="num">'+n(c.installs)+'</td><td class="num">'+n(c.trials)+'</td><td class="num">'+n(c.paid)+'</td><td class="num">'+adsMoney(c.cost_per_install)+'</td><td class="num">'+adsMoney(c.cost_per_trial)+'</td><td class="num">'+adsMoney(c.cost_per_paid)+'</td></tr>'}).join("");
+      var rows=d.by_campaign.map(function(c){return '<tr><td>'+esc(c.campaign_name)+(c.status&&c.status!=="ENABLED"?' <span class="tag" style="text-transform:none">'+esc(String(c.status).toLowerCase())+'</span>':'')+
+        (c.status==="ENABLED"&&c.serving_status&&SERVE[c.serving_status]!==""?' <span class="tag warn" style="text-transform:none">'+esc(SERVE[c.serving_status]||String(c.serving_status).replace(/_/g," ").toLowerCase())+'</span>':'')+
+        (c.paused_by_hq?' <span class="tag crit" style="text-transform:none">paused by HQ</span>':'')+'</td><td class="num">'+adsMoney(c.spend)+'</td><td class="num">'+n(c.installs)+'</td><td class="num">'+n(c.trials)+'</td><td class="num">'+n(c.paid)+'</td><td class="num">'+adsMoney(c.cost_per_install)+'</td><td class="num">'+adsMoney(c.cost_per_trial)+'</td><td class="num">'+adsMoney(c.cost_per_paid)+'</td></tr>'}).join("");
       el.innerHTML='<div class="card" id="ads"><div class="subhead"><h3>Apple Ads</h3><span>This month</span></div>'+
         '<div class="ads-head"><span class="v">'+adsMoney(d.month_spend)+'</span><span class="u">of £'+esc(Number(d.cap).toLocaleString("en-GB"))+' cap</span></div>'+
         '<div class="ads-bar '+lvl+'" role="img" aria-label="'+esc(d.pct)+'% of the monthly cap"><span style="width:'+w+'%"></span></div>'+
         '<p class="note" style="margin:0">Running: '+adsMoney(d.running_daily_budget)+' a day across '+d.running_campaigns+' campaign'+(d.running_campaigns===1?"":"s")+'. '+
           (d.last_sync?(d.sync_ok?'Last checked '+esc(adsTime(d.last_sync))+'.':'<span class="ads-stale">Not checked since '+esc(adsTime(d.last_sync))+'.</span>'):'<span class="ads-stale">Not checked yet.</span>')+'</p>'+
-        (d.paused_by_hq?'<p class="note" style="margin:0;color:var(--crit);font-weight:700">HQ paused every campaign'+(d.paused_at?' at '+esc(adsTime(d.paused_at)):'')+'.</p>':'')+
+        (d.sync_error?'<p class="note ads-stale" style="margin:0">The check at '+esc(adsTime(d.last_attempt))+' failed: '+esc(d.sync_error)+'</p>':'')+
+        (d.paused_by_hq?'<p class="note" style="margin:0;color:var(--crit);font-weight:700">HQ paused '+(d.paused_campaigns===d.by_campaign.length?"every campaign":d.paused_campaigns+" campaign"+(d.paused_campaigns===1?"":"s"))+(d.paused_at?' at '+esc(adsTime(d.paused_at)):'')+'.</p>':'')+
         (d.budget_jump_24h?'<p class="note" style="margin:0;color:var(--warn);font-weight:700">A campaign\'s daily budget went above £'+esc(d.settings.ads_max_daily_budget_gbp)+' in the last 24 hours. Check it in Apple Ads.</p>':'')+
         (rows?'<div style="overflow-x:auto"><table class="po"><thead><tr><th>Campaign</th><th class="num">Spend</th><th class="num">Installs</th><th class="num">Trials</th><th class="num">Paid</th><th class="num">Per install</th><th class="num">Per trial</th><th class="num">Per paid</th></tr></thead><tbody>'+rows+'</tbody></table></div>':'<p class="note" style="margin:0">No spend this month yet.</p>')+
+        (d.unmatched_attribution&&(d.unmatched_attribution.trials||d.unmatched_attribution.paid)?'<p class="note" style="margin:0">Not matched to a campaign this month: '+n(d.unmatched_attribution.trials)+' trial'+(d.unmatched_attribution.trials===1?"":"s")+', '+n(d.unmatched_attribution.paid)+' paid. RevenueCat sent no campaign name or id for these.</p>':'')+
         '<p class="note" style="margin:0">Installs come from Apple. Trials and paid come from RevenueCat, so they only count people who reached the paywall.</p>'+
         (d.can_act?'<div class="row">'+(d.paused_by_hq?'<button class="btn small" data-ads="resume" data-confirm="Resume the campaigns HQ paused?"'+(d.at_cap?' disabled title="This month\'s spend has reached the cap"':'')+'>Resume</button>':'')+
           '<button class="btn danger small" data-ads="pause" data-confirm="Pause every Apple Ads campaign?">Pause all</button></div>':'')+'</div>';
