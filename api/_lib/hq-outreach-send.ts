@@ -8,7 +8,7 @@
 import type { Pool, PoolClient } from 'pg';
 import { HttpError, only, uuid, str, oneOf, bool, writeTx } from './hq-core.js';
 import type { Op } from './hq-act.js';
-import { badFields, renderTemplate, buildEmail, unsubUrl, TEMPLATE_FIELDS } from './outreach-email.js';
+import { badFields, renderTemplate, buildEmail, unsubUrl, FIELD_INFO } from './outreach-email.js';
 
 const RESEND_KEY = process.env.RESEND_OUTREACH_API_KEY || '';
 const APP_STORE_URL = 'https://apps.apple.com/gb/app/id6782144377';
@@ -25,12 +25,41 @@ async function secret(q: Pool | PoolClient, name: string) {
   return (await q.query('select value from public.app_secrets where name = $1', [name])).rows[0]?.value ?? null;
 }
 
+// What each template field becomes for this contact. Nothing (null) means the field is missing
+// and the send is blocked, rather than a gap in the sentence.
+const plain = (v: unknown) => String(v ?? '').replace(/[\u2009\u202f\u00a0]/g, ' ').replace(/\s*[\u2013\u2014]\s*/g, ' to ').trim() || null;
+function clip(v: unknown, n: number) { const t = plain(v); if (!t || t.length <= n) return t; return t.slice(0, t.lastIndexOf(' ', n) > n * 0.6 ? t.lastIndexOf(' ', n) : n).replace(/[\s,.;:]+$/, '') + '...'; }
+function fieldValues(c: any): Record<string, string | null> {
+  const n = c.review_count == null ? 0 : Number(c.review_count);
+  const hours = Array.isArray(c.opening_hours) ? c.opening_hours.map(plain).filter(Boolean).join('\n') : null;
+  return {
+    name: c.name, area: c.area,
+    place_name: c.place_name, place_address: c.place_address,
+    place_category: c.place_category ? String(c.place_category).replace(/_/g, ' ') : null,
+    place_url: c.place_name ? APP_STORE_URL : null, website: c.website || null,
+    barkfind_rating: c.barkfind_rating != null ? Number(c.barkfind_rating).toFixed(1) : null,
+    review_count: n > 0 ? `${n} review${n === 1 ? '' : 's'}` : null,
+    google_rating: c.google_rating != null ? Number(c.google_rating).toFixed(1) : null,
+    description: plain(c.description), mylo_verdict: plain(c.mylo_verdict), mylo_best_for: plain(c.mylo_best_for),
+    opening_hours: hours || null,
+    // Reviews are quoted as written (apart from spacing), cut at a word near 300 characters.
+    latest_review: c.latest_review ? clip(String(c.latest_review).replace(/\s+/g, ' '), 300) : null,
+    latest_review_paws: c.latest_review_paws != null ? `${c.latest_review_paws} paw${Number(c.latest_review_paws) === 1 ? '' : 's'}` : null,
+  };
+}
+
 // Everything a send needs, read the same way for the preview and the send itself.
 async function prepare(q: Pool | PoolClient, userId: string, a: Record<string, unknown>) {
   const id = uuid(a.id);
   const c = (await q.query(
-    `select o.id, o.name, o.kind, o.area, o.email, o.status, l.name as place_name
-       from public.hq_outreach o left join public.locations l on l.id = o.location_id where o.id = $1`, [id])).rows[0];
+    `select o.id, o.name, o.kind, o.area, o.email, o.status, l.name as place_name, l.address as place_address,
+            coalesce(l.categories[1], l.category) as place_category, l.website, l.barkfind_rating, l.review_count, l.google_rating,
+            l.description, l.mylo_verdict, l.mylo_best_for, l.opening_hours, rv.review_text as latest_review, rv.paw_rating as latest_review_paws
+       from public.hq_outreach o left join public.locations l on l.id = o.location_id
+       left join lateral (select r.review_text, r.paw_rating from public.reviews r
+                           where r.location_id = l.id and r.status = 'approved' and coalesce(btrim(r.review_text), '') <> ''
+                           order by r.created_at desc limit 1) rv on true
+      where o.id = $1`, [id])).rows[0];
   if (!c) throw new HttpError(404, 'That contact no longer exists.');
   let subject: string, body: string, templateId: string | null = null;
   if (a.template_id) {
@@ -42,9 +71,10 @@ async function prepare(q: Pool | PoolClient, userId: string, a: Record<string, u
     subject = str(a.subject, 200, { min: 1 }); body = str(a.body, 5000, { min: 1 });
   }
   const bad = badFields(subject, body);
-  if (bad.length) throw new HttpError(400, `Only {{${TEMPLATE_FIELDS.join('}}, {{')}}} can be used. Remove {{${bad.join('}}, {{')}}}.`);
-  const values = { name: c.name, place_name: c.place_name, place_url: c.place_name ? APP_STORE_URL : null, area: c.area };
+  if (bad.length) throw new HttpError(400, `HQ cannot fill {{${bad.join('}}, {{')}}}. Use Insert a field to pick one it knows.`);
+  const values = fieldValues(c);
   const s = renderTemplate(subject, values), b = renderTemplate(body, values);
+  s.out = s.out.replace(/\s*\n\s*/g, ', ');   // a subject is one line, even with opening hours in it
   const missing = [...new Set([...s.missing, ...b.missing])];
 
   const me = (await q.query(`select display_name, outreach_from_name, outreach_from_email, outreach_reply_to, outreach_title from public.hq_staff where user_id = $1`, [userId])).rows[0] || {};
@@ -68,7 +98,11 @@ async function prepare(q: Pool | PoolClient, userId: string, a: Record<string, u
   if (!email) blockers.push('This contact has no email address. Add one in Edit details.');
   if (supp.rows[0]) blockers.push(`This address must not be emailed: it ${supp.rows[0].reason === 'manual' ? 'was added to the do-not-email list' : supp.rows[0].reason === 'unsubscribed' ? 'unsubscribed' : supp.rows[0].reason === 'bounced' ? 'bounced' : 'marked an email as spam'}.`);
   if (!senderReady) blockers.push('Your outreach sender is not set. Ask an owner to add your From name, From address and reply-to in Admin, Team.');
-  if (missing.length) blockers.push(`This contact has nothing for {{${missing.join('}}, {{')}}}. ${missing.includes('place_name') || missing.includes('place_url') ? 'Link a place in Edit details, or ' : ''}use a template without it.`);
+  if (missing.length) {
+    const label = (k: string) => FIELD_INFO.find((f) => f.key === k)?.label.toLowerCase() || k;
+    const place = missing.some((k) => FIELD_INFO.find((f) => f.key === k)?.group === 'Place');
+    blockers.push(`Nothing to fill in for ${missing.map(label).join(', ')}. ${place && !c.place_name ? 'This contact has no linked place: link one in Edit details, or ' : 'Take that field out, or '}use a template without it.`);
+  }
   if (!key) blockers.push('The unsubscribe key is not set up yet (the hq_outreach_send migration).');
   if (!RESEND_KEY) blockers.push('Sending is not set up on the server (RESEND_OUTREACH_API_KEY).');
   if (today.rows[0].n >= cap) blockers.push(`You have sent ${today.rows[0].n} of ${cap} outreach emails today. The limit resets at midnight.`);
@@ -90,7 +124,7 @@ export function outreachSendOps(pool: Pool): Record<string, Op> {
         only(a, []);
         const r = await pool.query(`select t.id, t.kind, t.name, t.subject, t.body, t.updated_at, coalesce(s.display_name, s.email) as updated_by_name
                                       from public.outreach_templates t left join public.hq_staff s on s.user_id = t.updated_by order by t.kind, t.name`);
-        return { data: { templates: r.rows, fields: TEMPLATE_FIELDS } };
+        return { data: { templates: r.rows, fields: FIELD_INFO } };
       },
     },
     outreach_template_save: {
@@ -101,7 +135,7 @@ export function outreachSendOps(pool: Pool): Record<string, Op> {
         const kind = oneOf(a.kind, T_KINDS);
         const name = str(a.name, 80, { min: 1 }), subject = str(a.subject, 200, { min: 1 }), body = str(a.body, 5000, { min: 1 });
         const bad = badFields(subject, body);
-        if (bad.length) throw new HttpError(400, `Only {{${TEMPLATE_FIELDS.join('}}, {{')}}} can be used. Remove {{${bad.join('}}, {{')}}}.`);
+        if (bad.length) throw new HttpError(400, `HQ cannot fill {{${bad.join('}}, {{')}}}. Use Insert a field to pick one it knows.`);
         return writeTx(pool, ctx.staff.userId, async (c, audit) => {
           const before = id ? (await c.query('select to_jsonb(t) as r from public.outreach_templates t where id = $1', [id])).rows[0]?.r ?? null : null;
           if (id && !before) throw new HttpError(404, 'That template no longer exists.');

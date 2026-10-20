@@ -71,7 +71,7 @@ Tap a contact to open its panel. For a venue it shows the place: photo, category
 
 **Send an email** in a contact's panel sends one email, from you, through HQ. There is no bulk send.
 
-1. Pick a template, or write your own subject and message. Only {{name}}, {{place_name}}, {{place_url}} and {{area}} can be filled in for you. Your signature, the company footer and an unsubscribe link are added automatically.
+1. Pick a template, or write your own subject and message. **Insert a field** adds things HQ fills in for each contact where your cursor is: their name and area, and from the linked place its name, address, category, website, BarkFind and Google ratings, number of reviews, description, Mylo's verdict and best for, opening hours, and the latest review with its paws. If the contact has nothing for a field (no linked place, say), HQ tells you and will not send. Your signature, the company footer and an unsubscribe link are added automatically.
 2. Tap **Preview**. It shows exactly what will go: who it is to, your From name and address, where replies go, and how many of your 15 for today you have used.
 3. Tap **Send**, then tap again to confirm.
 
