@@ -27,6 +27,7 @@ import { trashOps } from './_lib/hq-trash.js';
 import { resetOps } from './_lib/hq-reset.js';
 import { payoutOps } from './_lib/hq-payouts.js';
 import { outreachOps } from './_lib/hq-outreach.js';
+import { outreachSendOps } from './_lib/hq-outreach-send.js';
 import { HttpError, bad, obj, only, uuid, str, oneOf, date, bool, scrubEmails, writeTx, toTrash } from './_lib/hq-core.js';
 
 const DB_URL = process.env.SUPABASE_DB_URL!;
@@ -534,6 +535,7 @@ const OPS: Record<string, Op | { perm: null; run: Op['run'] }> = {
   ...resetOps(pool),
   ...payoutOps(pool),
   ...outreachOps(pool),
+  ...outreachSendOps(pool),
 };
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {

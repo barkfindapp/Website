@@ -614,7 +614,7 @@ label.amen:has(input:checked){border-color:var(--brand-line);background:var(--br
     <nav class="out-views" id="outViews" aria-label="Outreach views"></nav>
     <div class="stack" style="min-width:0">
       <div class="fbar" id="outBar"></div>
-      <div class="row" id="outActs"><button class="btn small" id="outAdd" type="button">Add a contact</button><button class="btn small" id="outImport" type="button">Import from places</button></div>
+      <div class="row" id="outActs"><button class="btn small" id="outAdd" type="button">Add a contact</button><button class="btn small" id="outImport" type="button">Import from places</button><button class="btn small" id="outTpl" type="button">Email templates</button></div>
       <div id="outNew"></div>
       <div class="out-sel" id="outSel" hidden></div>
       <div class="stack" id="outBody"><div class="empty">Loading outreach.</div></div>
@@ -2292,6 +2292,14 @@ label.amen:has(input:checked){border-color:var(--brand-line);background:var(--br
       '<dl class="kvs"><dt>Email</dt><dd>'+esc(s.email||"")+'</dd><dt>Last seen</dt><dd>'+esc(dt(s.last_seen_at))+'</dd><dt>Invited</dt><dd>'+esc(s.invited_at?dt(s.invited_at):"–")+(s.invited_by_name?" by "+esc(s.invited_by_name):"")+'</dd>'+
       (s.accepted_at?'<dt>Accepted</dt><dd>'+esc(dt(s.accepted_at))+'</dd>':'')+'<dt>Alerts</dt><dd>email '+(s.alert_email?"on":"off")+', push '+(s.alert_push?"on":"off")+' <span class="note">(set by Josh for now)</span></dd></dl>'+
       (extra?'<div class="chips-sm">'+extra+'</div>':'');
+    // Who outreach email goes out as. Owners only, yourself included; nothing sends until name, address and reply-to are set.
+    if(d.can_grants&&s.status!=="removed"){var ready=s.outreach_from_name&&s.outreach_from_email&&s.outreach_reply_to;
+      h+='<details data-sender><summary class="note">Outreach sender: '+(ready?esc(s.outreach_from_name)+' &lt;'+esc(s.outreach_from_email)+'&gt;':'not set, so they cannot send')+'</summary><div class="grid2" style="margin-top:8px">'+
+        '<label>From name<input type="text" data-sf="from_name" maxlength="80" placeholder="Megan at BarkFind" value="'+esc(s.outreach_from_name||"")+'"></label>'+
+        '<label>From address<input type="email" data-sf="from_email" maxlength="200" placeholder="megan@hello.barkfind.com" value="'+esc(s.outreach_from_email||"")+'"></label>'+
+        '<label>Reply-to<input type="email" data-sf="reply_to" maxlength="200" placeholder="megan@barkfind.com" value="'+esc(s.outreach_reply_to||"")+'"></label>'+
+        '<label>Title in the signature<input type="text" data-sf="title" maxlength="60" placeholder="Partnerships" value="'+esc(s.outreach_title||"")+'"></label></div>'+
+        '<p class="note" style="margin:0">The From address must be on hello.barkfind.com. Replies go to the reply-to address.</p><div class="row"><button class="btn small" data-do="sender" data-confirm="Confirm save">Save sender</button></div></details>'}
     if(locked){return h+(self?'<p class="note" style="margin:0">Change your own details in My account.</p>':'')+'</div>'}
     if(s.status==="invited")return h+'<div class="row"><button class="btn small" data-do="resend">Resend invite</button><button class="btn danger small" data-do="cancel" data-confirm="Confirm cancel">Cancel invite</button></div></div>';
     var perms=d.can_grants?'<details><summary class="note">Add or remove single permissions</summary><div class="grid2">'+d.permissions.map(function(p){var v=(s.grants||[]).indexOf(p)>=0?"grant":(s.denies||[]).indexOf(p)>=0?"deny":"";return '<label>'+esc(p)+'<select data-perm="'+p+'"><option value=""'+(v===""?" selected":"")+'>as level</option><option value="grant"'+(v==="grant"?" selected":"")+'>add</option><option value="deny"'+(v==="deny"?" selected":"")+'>remove</option></select></label>'}).join("")+'</div><div class="row"><button class="btn small" data-do="perms" data-confirm="Confirm save">Save permissions</button></div></details>':'';
@@ -2308,6 +2316,7 @@ label.amen:has(input:checked){border-color:var(--brand-line);background:var(--br
     var uid=card.dataset.uid, pw=card.querySelector("[data-pw]");
     if(b.dataset.confirm&&!H.armed(b))return;
     var refresh=function(r){if(r&&r.ok!==false)setTimeout(show,1200)};
+    if(what==="sender"){var sa={user_id:uid};card.querySelectorAll("[data-sf]").forEach(function(i){sa[i.dataset.sf]=i.value.trim()});busy(b,H.api("team_set_sender",sa),card,refresh);return}
     if(what==="resend"){busy(b,H.api("team_resend",{user_id:uid}),card,refresh);return}
     if(what==="cancel"){busy(b,H.api("team_cancel",{user_id:uid}),card,refresh);return}
     if(!pw||!pw.value){H.note(card,false,"Enter your password first.");b.dataset.armed="";b.textContent=b.dataset.label||b.textContent;b.classList.remove("confirm");return}
@@ -3309,9 +3318,35 @@ label.amen:has(input:checked){border-color:var(--brand-line);background:var(--br
           return '<div class="out-log"><div class="meta">'+bits.join(" · ")+'</div><div style="white-space:pre-wrap">'+esc(g.note)+'</div>'+(g.body?'<details><summary class="note">Full message</summary><div style="white-space:pre-wrap">'+esc(g.body)+'</div></details>':'')+'</div>'}).join(""):'<div class="note">Nothing logged yet.</div>')+'</div>';
       var edit=ed?'<details class="card" data-ocard="edit"><summary class="note" style="cursor:pointer">Edit details</summary><div class="stack" style="margin-top:8px">'+contactForm(o,pl)+
         '<div class="row"><button class="btn primary small" data-od="save">Save changes</button>'+(canDel()?'<button class="btn danger small" data-od="delete" data-confirm="Confirm delete">Delete</button>':'')+'</div></div></details>':'';
-      $("sheetBody").innerHTML='<div data-osheet="'+esc(o.id)+'" class="stack">'+head+place+logForm+hist+edit+'</div>';
+      $("sheetBody").innerHTML='<div data-osheet="'+esc(o.id)+'" class="stack">'+head+place+sendCard(o)+logForm+hist+edit+'</div>';
+      if(H.can("outreach_send"))tplLoad().then(function(){var sel=$("sheetBody").querySelector('[data-s="tpl"]');if(sel)sel.innerHTML=tplOptions(o.kind)}).catch(function(){});
     }).catch(function(e){$("sheetBody").innerHTML='<div class="empty">'+esc((e&&e.message)||"That did not load.")+'</div>'});
   }
+  // ---------- send an email (outreach_send): preview first, then two taps; one contact at a time ----------
+  // The preview is exactly what the server will send. Changing anything clears it.
+  var tpl=null;
+  function tplLoad(force){if(tpl&&!force)return Promise.resolve(tpl);return H.api("outreach_templates").then(function(r){tpl=r.data;return tpl})}
+  function tplOptions(kind){var ts=(tpl&&tpl.templates)||[];var fit=ts.filter(function(t){return t.kind===kind||t.kind==="any"}),rest=ts.filter(function(t){return fit.indexOf(t)<0});
+    var o=function(t){return '<option value="'+esc(t.id)+'">'+esc(t.name)+'</option>'};
+    return '<option value="">Write your own</option>'+fit.map(o).join("")+(rest.length?'<optgroup label="Other kinds">'+rest.map(o).join("")+'</optgroup>':'')}
+  function sendCard(o){if(!H.can("outreach_send"))return "";
+    return '<div class="card" data-ocard="send"><div class="subhead"><h3 style="font-size:16px">Send an email</h3></div>'+
+      (o.email?'':'<p class="note" style="margin:0">Add an email address in Edit details first.</p>')+
+      '<label>Template<select data-s="tpl"><option value="">Write your own</option></select></label>'+
+      '<label class="note">Subject</label><input type="text" data-s="subject" maxlength="200">'+
+      '<label class="note">Message</label><textarea data-s="body" maxlength="5000" style="min-height:150px" placeholder="Hello,"></textarea>'+
+      '<p class="note" style="margin:0">You can use {{name}}, {{place_name}}, {{place_url}} and {{area}}. Your signature and the unsubscribe line are added for you.</p>'+
+      '<div class="row"><button class="btn small" data-od="preview">Preview</button></div><div data-s="preview"></div></div>'}
+  function sendArgs(card,id){var g=function(k){return card.querySelector('[data-s="'+k+'"]').value},t=g("tpl"),a={id:id};
+    var tt=t&&tpl?tpl.templates.filter(function(x){return x.id===t})[0]:null;
+    if(tt&&g("subject")===tt.subject&&g("body")===tt.body)a.template_id=t;else{a.subject=g("subject").trim();a.body=g("body").trim()}return a}
+  function previewHtml(p){var blocked=p.blockers.length;
+    return '<div class="stack" style="margin-top:10px;gap:8px"><dl class="kvs"><dt>To</dt><dd class="mono">'+esc(p.to||"none")+'</dd><dt>From</dt><dd>'+esc(p.from||"not set")+'</dd><dt>Reply-to</dt><dd class="mono">'+esc(p.reply_to||"not set")+'</dd><dt>Subject</dt><dd>'+esc(p.subject)+'</dd><dt>Today</dt><dd>'+p.sent_today+' of '+p.cap+' sent</dd></dl>'+
+      (blocked?'<div class="stack" style="gap:4px">'+p.blockers.map(function(b){return '<div class="note" style="color:var(--crit);font-weight:700">'+esc(b)+'</div>'}).join("")+'</div>':'')+
+      (p.html?'<iframe sandbox="" title="Email preview" data-s="frame" style="width:100%;height:460px;border:1px solid var(--line);border-radius:12px;background:#fff"></iframe>':'')+
+      '<details><summary class="note">Plain-text version</summary><div class="prior" style="white-space:pre-wrap">'+esc(p.text)+'</div></details>'+
+      (p.recent?'<label class="note" style="display:flex;gap:8px;align-items:center;color:var(--warn);font-weight:700"><input type="checkbox" data-s="force"> HQ emailed them on '+esc(day(p.last_at))+', less than 14 days ago. Send anyway (recorded)</label>':'')+
+      (blocked?'':'<div class="row"><button class="btn primary small" data-od="send" data-confirm="Confirm send to '+esc(p.to)+'">Send to '+esc(p.to)+'</button></div>')+'</div>'}
   function after(card,r,reopen){H.note(card,true,(r&&r.message)||"Done.");setTimeout(function(){load();if(reopen)open(reopen)},700)}
   function fail(card,b){return function(e){H.note(card,false,(e&&e.message)||"That did not work.");if(b){b.disabled=false;if(b.dataset.label){b.textContent=b.dataset.label;b.dataset.armed="";b.classList.remove("confirm")}}}}
 
@@ -3332,6 +3367,11 @@ label.amen:has(input:checked){border-color:var(--brand-line);background:var(--br
   });
   $("sheetBody").addEventListener("click",function(ev){
     var b=ev.target.closest("[data-od]");if(!b)return;var sh=b.closest("[data-osheet]");if(!sh)return;var id=sh.dataset.osheet,w=b.dataset.od,card=b.closest(".card")||sh;
+    if(w==="preview"){var a=sendArgs(card,id);if(!a.template_id&&(!a.subject||!a.body)){H.note(card,false,"Add a subject and a message, or choose a template.");return}
+      var out=card.querySelector('[data-s="preview"]');b.disabled=true;out.innerHTML='<div class="note">Building the preview.</div>';
+      H.api("outreach_send_preview",a).then(function(r){out.innerHTML=previewHtml(r.data);var f=out.querySelector('[data-s="frame"]');if(f)f.srcdoc=r.data.html;out.dataset.args=JSON.stringify(a)}).catch(function(e){out.innerHTML="";H.note(card,false,(e&&e.message)||"That did not preview.")}).then(function(){b.disabled=false});return}
+    if(w==="send"){if(!H.armed(b))return;var out2=card.querySelector('[data-s="preview"]'),sa=JSON.parse(out2.dataset.args||"{}"),fc=out2.querySelector('[data-s="force"]');if(fc&&fc.checked)sa.force=true;b.disabled=true;
+      H.api("outreach_send",sa).then(function(r){out2.innerHTML="";after(card,r,id)}).catch(fail(card,b));return}
     if(w==="place"){H.closeSheet();if(window.HQPlaces&&HQPlaces.open)HQPlaces.open(b.dataset.pid);return}
     if(w==="draft"){var ta=card.querySelector('[data-l="draft"]');ta.hidden=false;ta.value="Drafting…";b.disabled=true;
       H.api("draft_outreach",{id:id}).then(function(r){ta.value=r.text;if(r.metered===false)H.note(card,false,"Draft ready, but its cost was not recorded in api_usage.")}).catch(function(e){ta.value=(e&&e.message)||"No draft came back. Try again."}).then(function(){b.disabled=false});return}
@@ -3380,6 +3420,28 @@ label.amen:has(input:checked){border-color:var(--brand-line);background:var(--br
   function linkInput(ev){var q=ev.target.closest("[data-ol-q]");if(!q)return;var box=q.closest("[data-link]");clearTimeout(linkTimer);linkTimer=setTimeout(function(){linkSearch(box,q.value.trim())},300)}
   $("sheetBody").addEventListener("click",function(ev){if(ev.target.closest("[data-osheet]"))linkClick(ev)});
   $("sheetBody").addEventListener("input",linkInput);
+  function sendChanged(ev){var card=ev.target.closest('[data-ocard="send"]');if(!card||!ev.target.dataset.s||ev.target.dataset.s==="force")return;
+    if(ev.type==="change"&&ev.target.dataset.s==="tpl"){var t=tpl&&tpl.templates.filter(function(x){return x.id===ev.target.value})[0];card.querySelector('[data-s="subject"]').value=t?t.subject:"";card.querySelector('[data-s="body"]').value=t?t.body:""}
+    var out=card.querySelector('[data-s="preview"]');if(out.innerHTML){out.innerHTML="";out.dataset.args=""}}
+  $("sheetBody").addEventListener("input",sendChanged);
+  $("sheetBody").addEventListener("change",sendChanged);
+
+  // ---------- email templates (outreach_edit) ----------
+  var T_KINDS=[["any","Any kind"]].concat(KINDS);
+  function tplForm(t){t=t||{kind:"venue"};return '<div class="card" data-tplid="'+esc(t.id||"")+'"><div class="grid2"><label>Name<input type="text" data-t="name" maxlength="80" value="'+esc(t.name||"")+'"></label><label>For<select data-t="kind">'+opt(T_KINDS,t.kind)+'</select></label></div>'+
+    '<label class="note">Subject</label><input type="text" data-t="subject" maxlength="200" value="'+esc(t.subject||"")+'"><label class="note">Message</label><textarea data-t="body" maxlength="5000" style="min-height:160px">'+esc(t.body||"")+'</textarea>'+
+    (t.updated_at?'<div class="note">Last saved '+esc(day(t.updated_at))+(t.updated_by_name?' by '+esc(t.updated_by_name):'')+'</div>':'')+
+    '<div class="row"><button class="btn small primary" data-ot="save">'+(t.id?"Save template":"Add template")+'</button></div></div>'}
+  function tplView(){var box=$("outNew");box.innerHTML='<div class="empty">Loading templates.</div>';
+    tplLoad(true).then(function(d){box.innerHTML='<div class="card"><div class="subhead"><h3>Email templates</h3><span>'+d.templates.length+'</span></div><p class="note" style="margin:0">Only {{'+d.fields.join("}}, {{")+'}} can be used. The signature and unsubscribe line are added when it is sent.</p><div class="row"><button class="btn small" data-ot="new">New template</button><button class="btn small" data-ot="close">Close</button></div></div><div data-ot-new></div>'+d.templates.map(tplForm).join("")})
+      .catch(function(e){box.innerHTML='<div class="empty">'+esc((e&&e.message)||"That did not load.")+'</div>'})}
+  $("outTpl").addEventListener("click",function(){var box=$("outNew");if(box.dataset.mode==="templates"){box.innerHTML="";box.dataset.mode="";return}box.dataset.mode="templates";tplView()});
+  $("outNew").addEventListener("click",function(ev){var b=ev.target.closest("[data-ot]");if(!b)return;var w=b.dataset.ot;
+    if(w==="close"){$("outNew").innerHTML="";$("outNew").dataset.mode="";return}
+    if(w==="new"){$("outNew").querySelector("[data-ot-new]").innerHTML=tplForm();return}
+    var card=b.closest("[data-tplid]"),a={};card.querySelectorAll("[data-t]").forEach(function(el){a[el.dataset.t]=el.value.trim()});if(card.dataset.tplid)a.id=card.dataset.tplid;
+    if(!a.name||!a.subject||!a.body){H.note(card,false,"A name, subject and message are all needed.");return}
+    b.disabled=true;H.api("outreach_template_save",a).then(function(r){H.note(card,true,r.message);setTimeout(tplView,800)}).catch(fail(card,b))});
   $("outNew").addEventListener("click",linkClick);
   $("outNew").addEventListener("input",linkInput);
 
