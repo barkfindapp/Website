@@ -4,6 +4,7 @@ import EarlyAccessForm from "../components/EarlyAccessForm";
 import { APP_STORE_URL } from "../data/launch";
 import { track } from "../lib/analytics";
 import { fetchFounderOpen } from "../lib/founderDb";
+import BonfireBanner from "../components/BonfireBanner"; // TEMPORARY: remove after 10 Nov 2026
 
 // ─── Nav ─────────────────────────────────────────────────────────────────────
 
@@ -1386,6 +1387,7 @@ export default function LandingPage() {
       <FAQ />
       <DownloadCTA />
       <Footer />
+      <BonfireBanner /> {/* TEMPORARY: seasonal, self-hides after 10 Nov 2026 */}
     </div>
   );
 }

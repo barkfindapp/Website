@@ -242,7 +242,9 @@ function DiscoverHub() {
     image: DISCOVER_IMAGE,
   });
   const [type, setType] = useState<HubType>(typeFromUrl);
-  const [query, setQuery] = useState("");
+  // The search term lives in the URL (/discover?q=bonfire) so a view can be
+  // shared or linked to, the same way the type chip does.
+  const [query, setQuery] = useState(() => readParam("q"));
   const filters = useGuideFilters();
   const chips = CHIPS.filter((c) => c.type === "all" || COUNTS[c.type] > 0);
   const featured = useMemo(featuredItems, []);
@@ -269,7 +271,7 @@ function DiscoverHub() {
 
       {COUNTS.all > 0 && (
         <div className="rounded-[22px] border border-[#EDE6D6] bg-[#F5F1E9] p-4 md:p-5">
-          <TownSearch value={query} onChange={setQuery} label="Search town guides, events and news" placeholder="Search towns, events and news" />
+          <TownSearch value={query} onChange={(v) => { setQuery(v); writeParam("q", v); }} label="Search town guides, events and news" placeholder="Search towns, events and news" />
           {chips.length > 2 && (
             <div role="group" aria-label="Show" className="mt-3 flex flex-wrap gap-2">
               {chips.map((c) => (
