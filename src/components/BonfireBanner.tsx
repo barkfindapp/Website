@@ -7,7 +7,7 @@ import { useEffect, useState } from "react";
 // <BonfireBanner /> mount from LandingPage.tsx.
 const HIDE_FROM = new Date(2026, 10, 11).getTime(); // local midnight, 11 Nov 2026
 const DISMISS_KEY = "bf-bonfire-2026";
-const NEWS_URL = "/discover?q=bonfire";
+const NEWS_URL = "/discover?q=fireworks";
 
 export default function BonfireBanner() {
   // Mounted controls presence in the DOM; shown drives the slide-in transition.
