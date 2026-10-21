@@ -128,12 +128,16 @@ export function matchesTown(g: GuideSummary, query: string) {
 const q = (s: string | null | undefined, query: string) => Boolean(s && s.toLowerCase().includes(query));
 
 export function searchAll(query: string) {
-  const t = query.trim().toLowerCase();
-  if (!t) return { guides: [], events: [], news: [] };
+  // Split on whitespace so several words act as "any of these", for example
+  // /discover?q=bonfire fireworks returns items about either. A single word
+  // behaves exactly as before.
+  const terms = query.trim().toLowerCase().split(/\s+/).filter(Boolean);
+  if (!terms.length) return { guides: [], events: [], news: [] };
+  const any = (s: string | null | undefined) => terms.some((t) => q(s, t));
   return {
-    guides: searchManifest.guides.filter((g) => q(g.town, t) || q(g.county, t)),
-    events: searchManifest.events.filter((e) => q(e.title, t) || q(e.town, t) || q(e.venueName, t)),
-    news: searchManifest.news.filter((n) => q(n.title, t) || q(n.summary, t)),
+    guides: searchManifest.guides.filter((g) => any(g.town) || any(g.county)),
+    events: searchManifest.events.filter((e) => any(e.title) || any(e.town) || any(e.venueName)),
+    news: searchManifest.news.filter((n) => any(n.title) || any(n.summary)),
   };
 }
 
