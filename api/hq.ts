@@ -453,7 +453,7 @@ async function ralphyContext(ctx: Ctx) {
 // Ralphy's answer to one question, for the ask op and the Siri route (api/hq-siri.ts) alike: the
 // same live data, filtered by the asker's permissions, and the same prompt. Siri adds a line asking
 // for a short spoken answer, tags the api_usage row with source siri, and gives up after timeoutMs.
-const SIRI_LINE = "This answer will be read aloud by Siri. Reply in at most three short sentences and 60 words. No lists, no headings, no markdown, no links, no emoji. Say amounts the way a person would say them aloud, for example 'about forty pounds'.";
+const SIRI_LINE = "This answer will be read aloud by Siri. Reply in at most three short sentences and 60 words. No lists, no headings, no markdown, no links, no emoji.";
 export async function ralphyAnswer(ctx: Ctx, q: string, o: { detailed?: boolean; history?: { q: string; a: string }[]; siri?: { tokenId: string; timeoutMs: number } } = {}) {
   const [raw, fx, more] = await Promise.all([snapshot(), usdToGbp(pool), ralphyContext(ctx)]);
   const snap = scrubEmails(productionRevenue(snapshotFor(ctx, raw)));
