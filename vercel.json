@@ -2,7 +2,7 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "cleanUrls": true,
-  "functions": { "api/hq.ts": { "includeFiles": "docs/hq-guide.md" } },
+  "functions": { "api/hq.ts": { "includeFiles": "docs/hq-guide.md" }, "api/hq-siri.ts": { "includeFiles": "docs/hq-guide.md" } },
   "trailingSlash": false,
   "redirects": [
     { "source": "/", "has": [{ "type": "host", "value": "hq.barkfind.com" }], "destination": "/hq", "permanent": false },

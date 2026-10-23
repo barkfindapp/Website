@@ -29,6 +29,8 @@ import { payoutOps } from './_lib/hq-payouts.js';
 import { outreachOps } from './_lib/hq-outreach.js';
 import { outreachSendOps } from './_lib/hq-outreach-send.js';
 import { adsOps, adsWatch } from './_lib/hq-ads.js';
+import { siriTokenOps } from './_lib/hq-siri-tokens.js';
+import { publishOps } from './_lib/hq-publish.js';
 import { HttpError, bad, obj, only, uuid, str, oneOf, date, bool, scrubEmails, writeTx, toTrash } from './_lib/hq-core.js';
 
 const DB_URL = process.env.SUPABASE_DB_URL!;
@@ -151,7 +153,9 @@ async function emailMetrics() {
   return j.totals;
 }
 
-async function claude(operation: string, prompt: string, userId: string, maxTokens = MAX_TOKENS) {
+// opts.meta is merged into the api_usage row (the Siri route adds source); opts.timeoutMs aborts
+// a slow answer so the caller can say so rather than hang.
+async function claude(operation: string, prompt: string, userId: string, maxTokens = MAX_TOKENS, opts: { meta?: Record<string, unknown>; timeoutMs?: number } = {}) {
   if (!ANTHROPIC_API_KEY) throw new HttpError(503, 'Claude is not configured on the server.');
   const model = await claudeModel();
   const price = priceFor(model);
@@ -163,6 +167,7 @@ async function claude(operation: string, prompt: string, userId: string, maxToke
     // Thinking off: Haiku 5.5 thinks by default and would spend the whole token budget before
     // answering. Valid on Haiku 4.5 too, so this changes nothing before the model switch.
     body: JSON.stringify({ model, max_tokens: maxTokens, thinking: { type: 'disabled' }, messages: [{ role: 'user', content: prompt }] }),
+    ...(opts.timeoutMs ? { signal: AbortSignal.timeout(opts.timeoutMs) } : {}),
   });
   const msg: any = await r.json().catch(() => null);
   if (r.status === 429) throw new HttpError(429, 'Too many questions in a short time. Try again in a minute.');
@@ -178,7 +183,7 @@ async function claude(operation: string, prompt: string, userId: string, maxToke
   try {
     await pool.query(
       "insert into public.api_usage (provider, operation, units, cost_usd, meta, user_id) values ('anthropic', $1, 1, $2, $3::jsonb, $4)",
-      [operation, cost.toFixed(6), JSON.stringify({ model: msg.model, input_tokens: inTok, output_tokens: outTok }), userId],
+      [operation, cost.toFixed(6), JSON.stringify({ model: msg.model, input_tokens: inTok, output_tokens: outTok, ...(opts.meta || {}) }), userId],
     );
   } catch (e: any) {
     metered = false;
@@ -445,6 +450,23 @@ async function ralphyContext(ctx: Ctx) {
   return { work_queue: work, recent_tickets: tickets, recent_reviews: reviews, pending_listing_changes: changes, creators, offer_codes: offers, creator_payouts: payouts, ads };
 }
 
+// Ralphy's answer to one question, for the ask op and the Siri route (api/hq-siri.ts) alike: the
+// same live data, filtered by the asker's permissions, and the same prompt. Siri adds a line asking
+// for a short spoken answer, tags the api_usage row with source siri, and gives up after timeoutMs.
+const SIRI_LINE = "This answer will be read aloud by Siri. Reply in at most three short sentences and 60 words. No lists, no headings, no markdown, no links, no emoji. Say amounts the way a person would say them aloud, for example 'about forty pounds'.";
+export async function ralphyAnswer(ctx: Ctx, q: string, o: { detailed?: boolean; history?: { q: string; a: string }[]; siri?: { tokenId: string; timeoutMs: number } } = {}) {
+  const [raw, fx, more] = await Promise.all([snapshot(), usdToGbp(pool), ralphyContext(ctx)]);
+  const snap = scrubEmails(productionRevenue(snapshotFor(ctx, raw)));
+  let email: unknown = null;
+  try { email = await emailMetrics(); } catch { email = null; }
+  const rate = fx ? { gbp_per_usd: fx.rate, date: fx.date, stale: fx.stale } : null;
+  const detailed = !!o.detailed && !o.siri;
+  let prompt = askPrompt({ snapshot: snap, email_30d: email, fx: rate, ...scrubEmails(more) }, q, { detailed, history: scrubEmails(o.history || []) }, askerOf(ctx.staff));
+  if (o.siri) prompt += '\n\nHOW TO ANSWER THIS ONE: ' + SIRI_LINE;
+  return claude('hq_ask', prompt, ctx.staff.userId, detailed ? 2000 : MAX_TOKENS,
+    o.siri ? { meta: { source: 'siri', token_id: o.siri.tokenId }, timeoutMs: o.siri.timeoutMs } : {});
+}
+
 const OPS: Record<string, Op | { perm: null; run: Op['run'] }> = {
   // Who am I and what can I see: any active member of staff.
   me: { perm: null, run: async (a, ctx) => (noArgs(a), { data: { id: ctx.staff.userId, name: ctx.staff.name, email: ctx.staff.email, level: ctx.staff.level, perms: [...ctx.staff.perms] } }) },
@@ -488,12 +510,7 @@ const OPS: Record<string, Op | { perm: null; run: Op['run'] }> = {
         if (!Array.isArray(a.history) || a.history.length > 3) throw bad();
         for (const h of a.history) { const o = obj(h); history.push({ q: str(o.q, 1000, { min: 1 }), a: str(o.a, 4000, { optional: true }) }); }
       }
-      const [raw, fx, more] = await Promise.all([snapshot(), usdToGbp(pool), ralphyContext(ctx)]);
-      const snap = scrubEmails(productionRevenue(snapshotFor(ctx, raw)));
-      let email: unknown = null;
-      try { email = await emailMetrics(); } catch { email = null; }
-      const rate = fx ? { gbp_per_usd: fx.rate, date: fx.date, stale: fx.stale } : null;
-      return claude('hq_ask', askPrompt({ snapshot: snap, email_30d: email, fx: rate, ...scrubEmails(more) }, q, { detailed, history: scrubEmails(history) }, askerOf(ctx.staff)), ctx.staff.userId, detailed ? 2000 : MAX_TOKENS);
+      return ralphyAnswer(ctx, q, { detailed, history });
     },
   },
 
@@ -539,6 +556,8 @@ const OPS: Record<string, Op | { perm: null; run: Op['run'] }> = {
   ...outreachOps(pool),
   ...outreachSendOps(pool),
   ...adsOps(pool),
+  ...siriTokenOps(pool),
+  ...publishOps(pool),
 };
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {

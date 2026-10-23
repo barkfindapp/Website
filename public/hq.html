@@ -598,6 +598,7 @@ label.amen:has(input:checked){border-color:var(--brand-line);background:var(--br
 
  <div data-tab="content" class="stack" hidden>
   <p class="note" style="margin:0">Website pieces that are approved go live on barkfind.com at the next website deploy, and leave it if moved back to needs edit or deleted. Nothing here posts to social media: Exported only records that a person has posted it.</p>
+  <div class="card" id="pubBar" hidden></div>
   <div class="tiles" id="ceTiles"></div>
   <nav class="filter subnav" id="ceNav" aria-label="Content sections">
     <button class="chip" data-sec="queue" aria-pressed="true">Queue</button>
@@ -824,12 +825,14 @@ label.amen:has(input:checked){border-color:var(--brand-line);background:var(--br
     if(co.content_drafts>0)items.push(["info",co.content_drafts+" content draft(s) waiting for review","From generate-content. Nothing publishes until you approve it.","#content/queue","Review drafts"]);
     var up=s.uptime||{};Object.keys(up).forEach(function(k){if(up[k]&&up[k].ok===false)items.push(["crit","Uptime check failing: "+k,"Last answer "+(up[k].status||"none")+". 24-hour availability "+(up[k].availability_24h==null?"–":up[k].availability_24h+"%")+".","https://supabase.com/dashboard/project/"+PROJECT,"Investigate"])});
     var rn=s.renewals||{};
-    (rn.upcoming||[]).forEach(function(r){if(r.days<0)items.push(["crit","Overdue: "+r.item,"Was due "+day(r.due_date)+".",r.url||"#today","Open"]);else if(r.days<=14)items.push([r.days<=7?"warn":"info",(r.days===0?"Due today: ":"Due in "+r.days+" day"+(r.days===1?"":"s")+": ")+r.item,day(r.due_date)+". "+(r.notes||""),r.url||"#today","Open"])});
+    (rn.upcoming||[]).forEach(function(r){if(r.days<0)items.push(["crit","Overdue: "+r.item,"Was due "+day(r.due_date)+".",r.url||"",r.url?"Open":""]);else if(r.days<=14)items.push([r.days<=7?"warn":"info",(r.days===0?"Due today: ":"Due in "+r.days+" day"+(r.days===1?"":"s")+": ")+r.item,day(r.due_date)+". "+(r.notes||""),r.url||"",r.url?"Open":""])});
     if((rn.needs_date||[]).length)items.push(["info",rn.needs_date.length+" renewal date"+(rn.needs_date.length>1?"s":"")+" still to find",rn.needs_date.map(function(x){return x.item}).join(", ")+". Add them in the Renewals panel so reminders can fire.","#today","Add dates"]);
     var od=(s.outreach&&s.outreach.due)||[];
     if(od.length)items.push(["warn",od.length+" outreach follow-up"+(od.length>1?"s":"")+" due",od.slice(0,4).map(function(o){return o.name}).join(", ")+(od.length>4?" and more":"")+".","#outreach","Open outreach"]);
     var ow=(s.outreach&&s.outreach.owed)||[];
     if(ow.length)items.push(["info","You owe "+ow.length+" "+(ow.length>1?"people":"person")+" something",ow.map(function(o){return o.name+": "+o.owed}).join(". ")+".","#outreach","Open outreach"]);
+    var pub=state.publish;
+    if(pub&&pub.approved_since>0)items.push(["info","Approved posts waiting to go on the website",pub.approved_since+" approved since "+(pub.last_published_at?"the last publish, "+when(pub.last_published_at):"the website was last published from HQ")+". Publish from Content.","#content","Open Content"]);
     var ad=state.ads;
     if(ad&&ad.setup){var why=[],sev="warn",t=function(ts){return new Date(ts).toLocaleString("en-GB",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit",timeZone:"Europe/London"})};
       if(ad.at_cap){why.push("Spend has reached the £"+ad.cap+" monthly cap.");sev="crit"}else if(ad.at_alert)why.push("Spend is at "+ad.pct+"% of the £"+ad.cap+" monthly cap.");
@@ -851,7 +854,7 @@ label.amen:has(input:checked){border-color:var(--brand-line);background:var(--br
       pill.className="pill "+(crit?"crit":warn?"warn":"ok");
       txt.textContent=crit?crit+" urgent, "+warn+" to do":warn?warn+" to do":"All clear";
       var ul=$("attn");
-      ul.innerHTML=items.length?items.map(function(i){return '<li class="'+i[0]+'"><span class="stripe"></span><div class="body"><div class="t">'+esc(i[1])+'</div><div class="d">'+esc(i[2])+'</div>'+cronErrs(i[5])+'</div><a class="go" href="'+esc(i[3])+'"'+(i[3].charAt(0)==="#"?"":' target="_blank" rel="noopener"')+'>'+esc(i[4])+' →</a></li>'}).join(""):'<li class="ok"><span class="stripe"></span><div class="body"><div class="t">Nothing is waiting on you</div><div class="d">Queues are empty and every scheduled job ran cleanly in the last 24 hours.</div></div></li>';
+      ul.innerHTML=items.length?items.map(function(i){return '<li class="'+i[0]+'"><span class="stripe"></span><div class="body"><div class="t">'+esc(i[1])+'</div><div class="d">'+esc(i[2])+'</div>'+cronErrs(i[5])+'</div>'+(i[3]?'<a class="go" href="'+esc(i[3])+'"'+(i[3].charAt(0)==="#"?"":' target="_blank" rel="noopener"')+'>'+esc(i[4])+' →</a>':'')+'</li>'}).join(""):'<li class="ok"><span class="stripe"></span><div class="body"><div class="t">Nothing is waiting on you</div><div class="d">Queues are empty and every scheduled job ran cleanly in the last 24 hours.</div></div></li>';
     }
     if(state.errors.snap){
       $("attn").innerHTML='<li class="warn"><span class="stripe"></span><div class="body"><div class="t">Live data is not loading</div><div class="d">'+esc(state.errors.snap)+'</div></div></li>';
@@ -965,8 +968,9 @@ label.amen:has(input:checked){border-color:var(--brand-line);background:var(--br
     var e=HQ.can("creators")?api("creators_counts").then(function(r){state.creatorApps=r.data.applied;state.creatorCounts=r.data}).catch(function(){state.creatorApps=0}):Promise.resolve();
     var o=api("offer_code_counts").then(function(r){state.offers=r.data;state.errors.offers=null}).catch(function(e){state.offers=null;state.errors.offers=errCopy(e,"Supabase")});
     // Apple Ads is read live (spend syncs hourly; the snapshot is daily). Money permission only.
+    var pb=HQ.can("content")?api("site_publish_status").then(function(r){state.publish=r.data}).catch(function(){state.publish=null}):Promise.resolve();
     var ad=HQ.can("money")?api("ads_watch").then(function(r){state.ads=r.data}).catch(function(){state.ads=null}):Promise.resolve();
-    Promise.all([a,b,c,d,e,o,ad]).then(function(){state.loadedAt=Date.now();render();renderFounders();if(window.HQAct)HQAct.onQueue(state.queue);$("refresh").disabled=false});
+    Promise.all([a,b,c,d,e,o,ad,pb]).then(function(){state.loadedAt=Date.now();render();renderFounders();if(window.HQAct)HQAct.onQueue(state.queue);$("refresh").disabled=false});
   }
 
   // ---------- queue (Act and Outreach tabs) ----------
@@ -1071,6 +1075,7 @@ label.amen:has(input:checked){border-color:var(--brand-line);background:var(--br
     if(t==="users"&&window.HQUsers)HQUsers.show();
     if(t==="places"&&window.HQPlaces)HQPlaces.show();
     if(t==="content"&&window.HQContent)HQContent.show();
+    if(t==="content"&&window.HQPublish)HQPublish.show();
     if(t==="comms"&&window.HQComms)HQComms.show();
     if(t==="money"&&window.HQMoney)HQMoney.show();
     if(t==="outreach"&&window.HQOutreach)HQOutreach.show();
@@ -2391,14 +2396,39 @@ label.amen:has(input:checked){border-color:var(--brand-line);background:var(--br
           '<details><summary class="note">Set up again on a new phone</summary><div class="stack" style="margin-top:8px"><label class="note">Your password</label><input type="password" class="pill-in" id="accMfaPw" autocomplete="current-password"><label class="note">A current 6-digit code from your old phone</label><input type="text" class="pill-in" id="accMfaCode" inputmode="numeric" autocomplete="one-time-code" maxlength="6"><div class="row"><button class="btn small" data-do="mfa" data-confirm="Confirm new phone">Remove old and set up new</button></div><p class="note" style="margin:0">Lost the old phone? Ask an owner to remove your authenticator in the Supabase dashboard instead.</p></div></details></div>'+
         '<div class="card" data-acc="out"><div class="subhead"><h3 style="font-size:18px">Sign out everywhere</h3></div><p class="note" style="margin:0">Signs you out on every phone and computer, including this one.</p><div class="row"><button class="btn danger small" data-do="signout_all" data-confirm="Confirm sign out">Sign out everywhere</button></div></div>'+
         '<div class="card"><div class="subhead"><h3 style="font-size:18px">Alerts</h3></div><div class="note">Email '+(d.alert_email?"on":"off")+', push '+(d.alert_push?"on":"off")+'. Instant alerts and the morning brief go to Josh only for now.</div></div>'+
+        (H.can("ask_ralphy")?'<div class="card" data-acc="siri" id="accSiri"><div class="subhead"><h3 style="font-size:18px">Siri access</h3></div><div class="note">Loading.</div></div>':'')+
         '<div class="card"><div class="subhead"><h3 style="font-size:18px">Your recent HQ activity</h3></div>'+(d.activity.length?d.activity.map(function(a){return '<div class="prior">'+esc(H.when(a.created_at))+': '+esc(a.detail||a.action)+'</div>'}).join(""):'<div class="note">Nothing yet.</div>')+'</div>';
+      if(H.can("ask_ralphy"))siriCard();
     }).catch(function(e){$("sheetBody").innerHTML='<div class="empty">'+esc(e.message||"That did not load.")+'</div>'});
+  }
+  // ---------- Siri access: a personal token that can only ask Ralphy (api/hq-siri) ----------
+  // The token is shown once, straight after it is made, and never again.
+  var SIRI_STEPS='<ol class="note" style="margin:0;padding-left:20px;line-height:1.6">'+
+    '<li>In Shortcuts, make a new shortcut named <b>Ask Ralphy</b>.</li>'+
+    '<li>Add <b>Dictate Text</b>.</li>'+
+    '<li>Add <b>Get Contents of URL</b>. URL: <span class="mono">https://www.barkfind.com/api/hq-siri</span>. Method: POST. Headers: <span class="mono">Authorization</span> = <span class="mono">Bearer </span> followed by your token, and <span class="mono">Content-Type</span> = <span class="mono">application/json</span>. Request Body: JSON, with key <span class="mono">question</span> = Dictated Text.</li>'+
+    '<li>Add <b>Get Dictionary Value</b>: Value for <span class="mono">answer</span>.</li>'+
+    '<li>Add <b>Speak Text</b> with that value.</li>'+
+    '<li>Say "Hey Siri, Ask Ralphy".</li></ol>';
+  function siriCard(fresh){
+    var el=$("accSiri");if(!el)return;
+    H.api("siri_token_get").then(function(r){var t=r.data.token;
+      el.innerHTML='<div class="subhead"><h3 style="font-size:18px">Siri access</h3></div>'+
+        '<p class="note" style="margin:0">Ask Ralphy out loud from your iPhone with a Siri Shortcut. The token only lets the shortcut ask Ralphy, as you, and can be revoked at any time.</p>'+
+        (fresh?'<div class="card" style="background:var(--well);gap:8px"><div class="mono" id="siriTok" style="word-break:break-all;user-select:all">'+esc(fresh)+'</div><div class="row"><button class="btn primary small" data-do="siri_copy">Copy</button></div><p class="note" style="margin:0;font-weight:700">Copy this now. HQ won\'t show it again.</p></div>':'')+
+        (t?'<dl class="kvs"><dt>Token</dt><dd class="mono">bfr_…'+esc(t.hint)+'</dd><dt>Made</dt><dd>'+esc(H.when(t.created_at))+'</dd><dt>Last used</dt><dd>'+(t.last_used_at?esc(H.when(t.last_used_at)):"never")+'</dd><dt>Uses</dt><dd>'+esc(t.use_count||0)+'</dd></dl>':'<p class="note" style="margin:0">You have no Siri token.</p>')+
+        '<div class="row">'+(t?'<button class="btn small" data-do="siri_create" data-confirm="Replace it? The old one stops working">Make a new token</button><button class="btn danger small" data-do="siri_revoke" data-confirm="Confirm revoke">Revoke</button>':'<button class="btn primary small" data-do="siri_create">Create Siri token</button>')+'</div>'+
+        '<details'+(fresh?' open':'')+'><summary class="note">Set up the shortcut</summary><div style="margin-top:8px">'+SIRI_STEPS+'</div></details>';
+    }).catch(function(e){el.innerHTML='<div class="subhead"><h3 style="font-size:18px">Siri access</h3></div><div class="note">'+esc((e&&e.message)||"That did not load.")+'</div>'});
   }
   $("accountBtn").addEventListener("click",account);$("footAccount").addEventListener("click",account);
   $("sheetBody").addEventListener("click",function(ev){
     var b=ev.target.closest("button[data-do]");if(!b)return;var card=b.closest("[data-acc]");if(!card)return;var what=b.dataset.do;
     if(b.dataset.confirm&&!H.armed(b))return;
     if(what==="name"){busy(b,H.api("account_name",{name:$("accName").value.trim()}),card);return}
+    if(what==="siri_copy"){var tk=$("siriTok");if(!tk)return;(navigator.clipboard?navigator.clipboard.writeText(tk.textContent):Promise.reject()).then(function(){H.note(card,true,"Copied.")}).catch(function(){var rg=document.createRange();rg.selectNodeContents(tk);var sl=getSelection();sl.removeAllRanges();sl.addRange(rg);H.note(card,true,"Selected. Copy it now.")});return}
+    if(what==="siri_create"){b.disabled=true;H.api("siri_token_create").then(function(r){siriCard(r.token)}).catch(function(e){H.note(card,false,(e&&e.message)||"That did not work.");b.disabled=false});return}
+    if(what==="siri_revoke"){b.disabled=true;H.api("siri_token_revoke").then(function(r){siriCard();setTimeout(function(){var c=$("accSiri");if(c)H.note(c,true,r.message)},400)}).catch(function(e){H.note(card,false,(e&&e.message)||"That did not work.");b.disabled=false});return}
     if(what==="password"){var n1=$("accNew").value,n2=$("accNew2").value;if(n1.length<12){H.note(card,false,"Use at least 12 characters.");return}if(n1!==n2){H.note(card,false,"The two new passwords do not match.");return}
       busy(b,H.api("account_password",{current:$("accCur").value,next:n1}),card,function(){$("accCur").value=$("accNew").value=$("accNew2").value=""});return}
     if(what==="signout_all"){busy(b,H.api("account_signout_all"),card,function(){setTimeout(function(){H.sb.auth.signOut().catch(function(){}).then(function(){location.replace("/hq")})},900)});return}
@@ -2414,6 +2444,25 @@ label.amen:has(input:checked){border-color:var(--brand-line);background:var(--br
         .catch(function(e){H.note(card,false,(e&&e.message)||"That did not work.")}).then(function(){b.disabled=false});
     }
   });
+})();
+</script>
+<script>
+// ---------- Publish to website (top of Content): rebuild barkfind.com so approved pieces go live ----------
+// Owners only, two taps; the server holds the Vercel deploy hook and allows one publish per 10 minutes.
+(function(){
+  var $=function(id){return document.getElementById(id)}, H=window.HQ, esc=H.esc;
+  function show(){var el=$("pubBar");
+    H.api("site_publish_status").then(function(r){var d=r.data;H.state.publish=d;el.hidden=false;
+      el.innerHTML='<div class="row" style="justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap"><div><div class="title" style="font-size:16px">Website</div>'+
+        '<div class="note">'+(d.last_published_at?'Last published '+esc(H.when(d.last_published_at))+(d.last_published_by?' by '+esc(d.last_published_by):''):'Not published from HQ yet')+'. '+
+        (d.approved_since?'<b>'+d.approved_since+' approved since then.</b>':'Nothing new approved since then.')+'</div></div>'+
+        (d.can_publish?'<button class="btn primary small" data-pub="go" data-confirm="Rebuild barkfind.com with everything approved?">Publish to website</button>':'')+'</div>';
+    }).catch(function(e){el.hidden=false;el.innerHTML='<div class="note">'+esc((e&&e.message)||"That did not load.")+'</div>'});
+  }
+  $("pubBar").addEventListener("click",function(ev){var b=ev.target.closest("[data-pub]");if(!b||!H.armed(b))return;var el=$("pubBar");b.disabled=true;
+    H.api("site_publish").then(function(r){H.note(el,true,r.message||"Started. The site updates in about 2 minutes.");setTimeout(show,3000)})
+      .catch(function(e){H.note(el,false,(e&&e.message)||"That did not work.");b.disabled=false;b.dataset.armed="";b.textContent=b.dataset.label||"Publish to website";b.classList.remove("confirm")})});
+  window.HQPublish={show:show};
 })();
 </script>
 <script>
