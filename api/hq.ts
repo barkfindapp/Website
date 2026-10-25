@@ -31,6 +31,7 @@ import { outreachSendOps } from './_lib/hq-outreach-send.js';
 import { adsOps, adsWatch } from './_lib/hq-ads.js';
 import { siriTokenOps } from './_lib/hq-siri-tokens.js';
 import { publishOps } from './_lib/hq-publish.js';
+import { restrictionOps } from './_lib/hq-restrictions.js';
 import { HttpError, bad, obj, only, uuid, str, oneOf, date, bool, scrubEmails, writeTx, toTrash } from './_lib/hq-core.js';
 
 const DB_URL = process.env.SUPABASE_DB_URL!;
@@ -558,6 +559,7 @@ const OPS: Record<string, Op | { perm: null; run: Op['run'] }> = {
   ...adsOps(pool),
   ...siriTokenOps(pool),
   ...publishOps(pool),
+  ...restrictionOps(pool),
 };
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {

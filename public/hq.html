@@ -197,6 +197,9 @@ textarea{min-height:110px;resize:vertical;line-height:1.55}
 .subhead h3{margin:0;font:400 22px/1.2 var(--serif);color:var(--fg)}
 .subhead span{font-size:12.5px;color:var(--mute)}
 .tag{font:800 11px/1 var(--sans);padding:5px 9px;border-radius:999px;background:var(--well);color:var(--fg2);text-transform:capitalize}
+.rs-place{border-top:1px solid var(--line);padding-top:12px}.rs-rule{display:grid;grid-template-columns:22px 1fr;gap:10px;align-items:start}
+.rs-quote{margin:0;padding:8px 12px;border-left:3px solid var(--line);background:var(--well);border-radius:0 10px 10px 0;font-size:14px;line-height:1.5;color:var(--text);white-space:pre-wrap}
+.rs-flags .tag,.rs-rule .tag{text-transform:none}.rs-bulk{position:sticky;bottom:12px;z-index:5;display:flex;gap:8px;flex-wrap:wrap;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:10px 12px;box-shadow:var(--shadow)}
 .tag.warn{background:var(--warn-soft);color:var(--warn)} .tag.crit{background:var(--crit-soft);color:var(--crit)} .tag.ok{background:var(--teal-soft);color:var(--teal-dark)} .tag.info{background:var(--info-soft);color:var(--info)}
 .fbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
 .fbar>input[type=search]{flex:1 1 220px}
@@ -831,6 +834,8 @@ label.amen:has(input:checked){border-color:var(--brand-line);background:var(--br
     if(od.length)items.push(["warn",od.length+" outreach follow-up"+(od.length>1?"s":"")+" due",od.slice(0,4).map(function(o){return o.name}).join(", ")+(od.length>4?" and more":"")+".","#outreach","Open outreach"]);
     var ow=(s.outreach&&s.outreach.owed)||[];
     if(ow.length)items.push(["info","You owe "+ow.length+" "+(ow.length>1?"people":"person")+" something",ow.map(function(o){return o.name+": "+o.owed}).join(". ")+".","#outreach","Open outreach"]);
+    var rr=state.restr;
+    if(rr&&(rr.pending>20||(rr.oldest_days!=null&&rr.oldest_days>14)))items.push(["warn",rr.pending+" beach rule"+(rr.pending===1?"":"s")+" waiting for review","The oldest has waited "+rr.oldest_days+" day"+(rr.oldest_days===1?"":"s")+". Approved rules show in the app and feed Mylo's verdict.","#act/restrictions","Review rules"]);
     var pub=state.publish;
     if(pub&&pub.approved_since>0)items.push(["info","Approved posts waiting to go on the website",pub.approved_since+" approved since "+(pub.last_published_at?"the last publish, "+when(pub.last_published_at):"the website was last published from HQ")+". Publish from Content.","#content","Open Content"]);
     var ad=state.ads;
@@ -968,9 +973,10 @@ label.amen:has(input:checked){border-color:var(--brand-line);background:var(--br
     var e=HQ.can("creators")?api("creators_counts").then(function(r){state.creatorApps=r.data.applied;state.creatorCounts=r.data}).catch(function(){state.creatorApps=0}):Promise.resolve();
     var o=api("offer_code_counts").then(function(r){state.offers=r.data;state.errors.offers=null}).catch(function(e){state.offers=null;state.errors.offers=errCopy(e,"Supabase")});
     // Apple Ads is read live (spend syncs hourly; the snapshot is daily). Money permission only.
+    var rs=HQ.can("restrictions_review")?api("restrictions_counts").then(function(r){state.restr=r.data}).catch(function(){state.restr=null}):Promise.resolve();
     var pb=HQ.can("content")?api("site_publish_status").then(function(r){state.publish=r.data}).catch(function(){state.publish=null}):Promise.resolve();
     var ad=HQ.can("money")?api("ads_watch").then(function(r){state.ads=r.data}).catch(function(){state.ads=null}):Promise.resolve();
-    Promise.all([a,b,c,d,e,o,ad,pb]).then(function(){state.loadedAt=Date.now();render();renderFounders();if(window.HQAct)HQAct.onQueue(state.queue);$("refresh").disabled=false});
+    Promise.all([a,b,c,d,e,o,ad,pb,rs]).then(function(){state.loadedAt=Date.now();render();renderFounders();if(window.HQAct)HQAct.onQueue(state.queue);$("refresh").disabled=false});
   }
 
   // ---------- queue (Act and Outreach tabs) ----------
@@ -1055,7 +1061,7 @@ label.amen:has(input:checked){border-color:var(--brand-line);background:var(--br
   // Tabs and panels follow the signed-in person's permissions. The server enforces them regardless.
   function applyPerms(){
     var c=HQ.can, show=function(id,on){var e=$(id);if(e)e.hidden=!on};
-    show("t-act",c("safety")||c("privacy")||c("reviews")||c("reports")||c("claims")||c("support_read")||c("places_moderate")||c("places_delete"));
+    show("t-act",c("restrictions_review")||c("safety")||c("privacy")||c("reviews")||c("reports")||c("claims")||c("support_read")||c("places_moderate")||c("places_delete"));
     show("t-users",c("users_view"));show("t-places",c("places_edit"));show("t-content",c("content"));show("t-comms",c("announce"));show("t-money",c("money"));show("t-insights",c("insights"));show("t-outreach",c("outreach_view"));show("t-admin",c("staff_manage")||c("audit_view")||c("trash_restore"));
     show("p-money",c("money"));show("p-costs",c("money"));show("p-renewals",c("renewals"));
 
@@ -1449,7 +1455,8 @@ label.amen:has(input:checked){border-color:var(--brand-line);background:var(--br
     {k:"reports",label:"Reports",ok:function(){return H.can("reports")}},
     {k:"claims",label:"Claims",ok:function(){return H.can("claims")}},
     {k:"suggestions",label:"Suggestions",ok:function(){return H.can("places_edit")}},
-    {k:"creators",label:"Creators",ok:function(){return H.can("creators")}}
+    {k:"creators",label:"Creators",ok:function(){return H.can("creators")}},
+    {k:"restrictions",label:"Restrictions",ok:function(){return H.can("restrictions_review")}}
   ];
   var cur=null, st={reviewPeriod:"all",ticketStatus:"",ticketPeriod:"all",reportPeriod:"all"};
   function counts(){
@@ -1457,7 +1464,7 @@ label.amen:has(input:checked){border-color:var(--brand-line);background:var(--br
     return {safety:(H.can("safety")?(sq.csae_escalations||0):0)+(H.can("privacy")?(sq.privacy_open||0):0),
       reviews:(q.reviews||[]).length,inbox:(q.tickets||[]).length,reports:(q.user_reports||[]).length+(q.location_reports||[]).length,claims:(q.business_claims||[]).length,
       suggestions:(sq.listing_submissions_pending||0),
-      creators:(H.state.creatorApps||0)};
+      creators:(H.state.creatorApps||0),restrictions:((H.state.restr&&H.state.restr.pending)||0)};
   }
   function nav(){
     var c=counts();
@@ -1465,7 +1472,7 @@ label.amen:has(input:checked){border-color:var(--brand-line);background:var(--br
       var n=c[s.k]||0;return '<button class="chip'+(s.k==="safety"&&n?" crit":"")+'" data-sec="'+s.k+'" aria-pressed="'+(s.k===cur)+'">'+s.label+(n?'<span class="count">'+n+'</span>':'')+'</button>'}).join("");
   }
   $("actNav").addEventListener("click",function(ev){var b=ev.target.closest("button[data-sec]");if(!b)return;cur=b.dataset.sec;nav();load()});
-  function load(){var el=$("actPane");el.innerHTML='<div class="empty">Loading.</div>';({safety:safety,inbox:inboxSection,reviews:reviews,flags:flagsSection,reports:reports,claims:claims,suggestions:suggestions,creators:creators})[cur](el)}
+  function load(){var el=$("actPane");el.innerHTML='<div class="empty">Loading.</div>';({safety:safety,inbox:inboxSection,reviews:reviews,flags:flagsSection,reports:reports,claims:claims,suggestions:suggestions,creators:creators,restrictions:function(x){window.HQRestrictions.render(x)}})[cur](el)}
   window.HQAct={
     init:function(){var ok=SECTIONS.filter(function(s){return s.ok()});cur=ok.length?ok[0].k:null;nav()},
     onQueue:function(){nav()},
@@ -2444,6 +2451,100 @@ label.amen:has(input:checked){border-color:var(--brand-line);background:var(--br
         .catch(function(e){H.note(card,false,(e&&e.message)||"That did not work.")}).then(function(){b.disabled=false});
     }
   });
+})();
+</script>
+<script>
+// ---------- Act, Restrictions: review the beach dog rules from the weekly sweep ----------
+// Grouped by authority, then place. Flags point at likely mistakes but never block. Approving
+// refreshes Mylo's verdict for each affected place (restrictions_refresh, five places a call).
+(function(){
+  var H=window.HQ, esc=H.esc;
+  var TYPE={dogs_banned:["No dogs","crit"],lead_required:["Dogs on lead","warn"],dogs_allowed:["Dogs allowed","ok"],hazard:["Hazard","warn"],other:["Other",""]};
+  var FLAG={end_before_start:"End before start",dates_not_in_quote:"Dates not in quote",close_control:"Close control ≠ lead",same_quote:"Same quote on several places",name_mismatch:"Name mismatch",possible_duplicate:"Possible duplicate"};
+  var FLAG_TIP={end_before_start:"The date range runs over the new year, which is usually a mistake.",dates_not_in_quote:"Neither date appears in the source quote.",close_control:"The quote says close control or under control, but the type is dogs on lead.",same_quote:"The same quote is on 3 or more places from this authority, which suggests general advice.",name_mismatch:"The place name shares no word with the area or the quote.",possible_duplicate:"An approved rule of the same type is already on this place."};
+  var REASON={wrong_place:"Wrong place",wrong_type:"Wrong type",not_a_rule:"Not a rule",duplicate:"Duplicate",general_advice:"General advice",other:"Other"};
+  var MON=["January","February","March","April","May","June","July","August","September","October","November","December"];
+  var st={status:"pending",data:null,sel:{},el:null};
+  function d(iso){var p=String(iso).split("-");return Number(p[2])+" "+MON[Number(p[1])-1]}
+  function t(hm){var p=String(hm).split(":"),h=Number(p[0]),m=p[1];var ap=h>=12?"pm":"am";h=h%12||12;return h+(m&&m!=="00"?"."+m:"")+ap}
+  function when(r){var s=r.starts_on&&r.ends_on?d(r.starts_on)+" to "+d(r.ends_on):"All year";if(r.starts_time&&r.ends_time)s+=", "+t(r.starts_time)+" to "+t(r.ends_time);if(r.starts_on&&!r.applies_annually)s+=" (this year only)";return s}
+  function maps(r){return r.latitude!=null&&r.longitude!=null?"https://www.google.com/maps/search/?api=1&query="+r.latitude+","+r.longitude:"https://www.google.com/maps/search/?api=1&query="+encodeURIComponent(r.place_name+" "+(r.place_address||""))}
+  function ruleCard(r){var ty=TYPE[r.restriction_type]||[r.restriction_type,""],pend=st.status==="pending";
+    return '<div class="card rs-rule" data-rid="'+esc(r.id)+'" style="box-shadow:none">'+(pend?'<input type="checkbox" data-rsel="'+esc(r.id)+'"'+(st.sel[r.id]?" checked":"")+' aria-label="Select this rule">':'<span></span>')+'<div class="stack" style="gap:8px;min-width:0">'+
+      '<div class="meta"><span class="tag '+ty[1]+'">'+esc(ty[0])+'</span><span>'+esc(when(r))+'</span></div>'+
+      '<div><b>'+esc(r.summary)+'</b>'+(r.area_description?'<div class="note">Where: '+esc(r.area_description)+'</div>':'')+'</div>'+
+      (r.source_quote?'<blockquote class="rs-quote">'+esc(r.source_quote)+'</blockquote>':'<div class="note">No source quote.</div>')+
+      '<div class="note"><a href="'+esc(r.source_url)+'" target="_blank" rel="noopener">Source</a></div>'+
+      (r.flags&&r.flags.length?'<div class="meta rs-flags">'+r.flags.map(function(f){return '<span class="tag warn" title="'+esc(FLAG_TIP[f]||"")+'">'+esc(FLAG[f]||f)+'</span>'}).join("")+'</div>':'')+
+      (r.last_hold?'<div class="note">Held '+esc(H.when(r.last_hold.at))+(r.last_hold.by?' by '+esc(r.last_hold.by):'')+(r.last_hold.note?': '+esc(r.last_hold.note):'')+'</div>':'')+
+      (pend?'<div class="row"><button class="btn primary small" data-rs="approve" data-confirm="Confirm approve">Approve</button><button class="btn small" data-rs="edit">Edit then approve</button>'+
+        '<select data-rs-reason aria-label="Reason to reject" style="width:auto"><option value="">Reject because…</option>'+Object.keys(REASON).map(function(k){return '<option value="'+k+'">'+REASON[k]+'</option>'}).join("")+'</select>'+
+        '<input type="text" data-rs-other placeholder="Say why" maxlength="200" hidden style="width:auto;flex:1 1 140px">'+
+        '<button class="btn danger small" data-rs="reject" data-confirm="Confirm reject">Reject</button><button class="btn small" data-rs="hold">Hold</button></div><div data-rs-form></div>'
+       :'<div class="row"><button class="btn small" data-rs="spotlight" data-confirm="Draft a spotlight post?">Draft spotlight post</button></div>')+'</div></div>'}
+  function editForm(r){var opt=Object.keys(TYPE).map(function(k){return '<option value="'+k+'"'+(k===r.restriction_type?" selected":"")+'>'+TYPE[k][0]+'</option>'}).join("");
+    return '<div class="card" style="background:var(--well);box-shadow:none;gap:8px"><div class="grid2"><label>Type<select data-e="restriction_type">'+opt+'</select></label><label>Where<input type="text" data-e="area_description" maxlength="300" value="'+esc(r.area_description||"")+'"></label>'+
+      '<label>From<input type="date" data-e="starts_on" value="'+esc(r.starts_on||"")+'"></label><label>To<input type="date" data-e="ends_on" value="'+esc(r.ends_on||"")+'"></label>'+
+      '<label>From time<input type="time" data-e="starts_time" value="'+esc(r.starts_time||"")+'"></label><label>To time<input type="time" data-e="ends_time" value="'+esc(r.ends_time||"")+'"></label></div>'+
+      '<label class="note">Summary</label><textarea data-e="summary" maxlength="500" style="min-height:60px">'+esc(r.summary)+'</textarea>'+
+      '<div class="row"><button class="btn primary small" data-rs="edit_save" data-confirm="Confirm edit and approve">Save and approve</button><button class="btn small" data-rs="edit_cancel">Cancel</button></div></div>'}
+  function draw(){var el=st.el,d=st.data;if(!el)return;var rules=d.rules,c=d.counts;
+    var groups={};rules.forEach(function(r){var a=r.authority||"No authority";(groups[a]=groups[a]||{}),(groups[a][r.location_id]=groups[a][r.location_id]||[]).push(r)});
+    var head='<div class="row" style="justify-content:space-between;align-items:center"><nav class="filter subnav" aria-label="Which rules"><button class="chip" data-rs-tab="pending" aria-pressed="'+(st.status==="pending")+'">Pending<span class="count">'+c.pending+'</span></button><button class="chip" data-rs-tab="approved" aria-pressed="'+(st.status==="approved")+'">Approved</button></nav>'+
+      (st.status==="pending"&&c.oldest_days!=null?'<span class="note">Oldest waiting '+c.oldest_days+' day'+(c.oldest_days===1?"":"s")+'</span>':'')+'</div>'+
+      '<p class="note" style="margin:0">'+(st.status==="pending"?"Rules the weekly sweep found on council and National Trust pages. An approved rule shows in the app as a chip on the place and feeds Mylo's verdict, so a wrong rule is worse than none. Flags point at likely mistakes; they never block.":"Approved rules, newest places first within each authority. Draft spotlight post asks the content engine for a post about one rule.")+'</p><div data-rs-refresh></div>';
+    var body=Object.keys(groups).sort().map(function(a){var places=groups[a],n=Object.keys(places).reduce(function(t,k){return t+places[k].length},0);
+      return '<div class="card"><div class="subhead"><h3 style="font-size:18px">'+esc(a)+'</h3><span>'+n+(st.status==="pending"?" pending":" approved")+'</span></div>'+
+        Object.keys(places).map(function(k){var p=places[k][0];return '<div class="rs-place stack" style="gap:10px"><div><div class="title" style="font-size:16px">'+esc(p.place_name)+'</div><div class="note">'+esc(p.place_address||"")+' · <a href="'+esc(maps(p))+'" target="_blank" rel="noopener">Open in Google Maps</a></div></div>'+places[k].map(ruleCard).join("")+'</div>'}).join("")+'</div>'}).join("");
+    el.innerHTML=head+(body||'<div class="empty">'+(st.status==="pending"?"No rules waiting. The next sweep runs weekly.":"No approved rules yet.")+'</div>')+'<div class="rs-bulk" data-rs-bulk hidden></div>';
+    bulkBar();
+  }
+  function ids(){return Object.keys(st.sel).filter(function(k){return st.sel[k]})}
+  function bulkBar(){var b=st.el&&st.el.querySelector("[data-rs-bulk]");if(!b)return;var n=ids().length;b.hidden=!n;if(!n){b.innerHTML="";return}
+    b.innerHTML='<b>'+n+' selected</b><button class="btn primary small" data-rs="bulk_approve" data-confirm="Approve '+n+' rule'+(n===1?"":"s")+'?">Approve selected</button>'+
+      '<select data-rs-bulk-reason aria-label="Reason to reject" style="width:auto"><option value="">Reject because…</option>'+Object.keys(REASON).map(function(k){return '<option value="'+k+'">'+REASON[k]+'</option>'}).join("")+'</select><input type="text" data-rs-bulk-other placeholder="Say why" maxlength="200" hidden style="width:auto">'+
+      '<button class="btn danger small" data-rs="bulk_reject" data-confirm="Reject '+n+' rule'+(n===1?"":"s")+'?">Reject selected</button><button class="btn small" data-rs="bulk_clear">Clear</button>'}
+  function load(){st.el.innerHTML='<div class="empty">Loading.</div>';
+    H.api("restrictions_list",{status:st.status}).then(function(r){st.data=r.data;H.state.restr=r.data.counts;st.sel={};draw();if(window.HQAct)HQAct.onQueue()}).catch(function(e){st.el.innerHTML='<div class="empty">'+esc((e&&e.message)||"That did not load.")+'</div>'})}
+  // Verdict refresh: one call per 5 places, results per place as they arrive.
+  function refresh(places){if(!places||!places.length)return;var box=st.el.querySelector("[data-rs-refresh]")||null,rows={},cost=0,fx=(H.state.snap&&H.state.snap.fx)||null;
+    var html=function(){var done=Object.keys(rows).length;return '<div class="card"><div class="subhead"><h3 style="font-size:16px">Verdicts refreshing for '+places.length+' place'+(places.length===1?"":"s")+'</h3><span>'+done+' of '+places.length+'</span></div>'+
+      Object.keys(rows).map(function(k){var x=rows[k];return '<div class="note"><span class="tag '+(x.result==="refreshed"?"ok":x.result==="cleared"?"":"crit")+'" style="text-transform:none">'+esc(x.result)+'</span> '+esc(x.place||"A place")+(x.verdict?': '+esc(x.verdict):x.detail?': '+esc(x.detail):'')+'</div>'}).join("")+
+      (done===places.length?'<div class="note">Mylo cost '+(fx?"£"+(cost*fx.rate).toFixed(3):"$"+cost.toFixed(4))+', read from its own metering.</div>':'')+'</div>'};
+    var go=function(i){if(!box)return;box.innerHTML=html();if(i>=places.length)return;
+      H.api("restrictions_refresh",{location_ids:places.slice(i,i+5)}).then(function(r){r.data.results.forEach(function(x){rows[x.location_id]=x});cost+=r.data.cost_usd||0})
+        .catch(function(e){places.slice(i,i+5).forEach(function(id){rows[id]={location_id:id,result:"failed",detail:(e&&e.message)||"No answer."}})})
+        .then(function(){go(i+5)})};
+    go(0);
+  }
+  function after(places){var keep=st.status;H.api("restrictions_list",{status:keep}).then(function(r){st.data=r.data;H.state.restr=r.data.counts;st.sel={};draw();if(window.HQAct)HQAct.onQueue();refresh(places)}).catch(function(){})}
+  function wire(el){
+    el.addEventListener("change",function(ev){var c=ev.target.closest("[data-rsel]");if(c){st.sel[c.dataset.rsel]=c.checked;bulkBar();return}
+      var s=ev.target.closest("[data-rs-reason],[data-rs-bulk-reason]");if(s){var o=s.parentNode.querySelector("[data-rs-other],[data-rs-bulk-other]");if(o)o.hidden=s.value!=="other"}});
+    el.addEventListener("click",function(ev){var tab=ev.target.closest("[data-rs-tab]");if(tab){st.status=tab.dataset.rsTab;load();return}
+      var b=ev.target.closest("[data-rs]");if(!b)return;var w=b.dataset.rs,card=b.closest("[data-rid]"),id=card&&card.dataset.rid,rule=id&&st.data.rules.filter(function(r){return r.id===id})[0];
+      var fail=function(where){return function(e){H.note(where,false,(e&&e.message)||"That did not work.");b.disabled=false;b.dataset.armed="";if(b.dataset.label)b.textContent=b.dataset.label;b.classList.remove("confirm")}};
+      if(w==="bulk_clear"){st.sel={};draw();return}
+      if(w==="edit"){card.querySelector("[data-rs-form]").innerHTML=editForm(rule);return}
+      if(w==="edit_cancel"){card.querySelector("[data-rs-form]").innerHTML="";return}
+      if(w==="hold"){var f=card.querySelector("[data-rs-form]");if(!f.querySelector("[data-rs-note]")){f.innerHTML='<div class="row"><input type="text" data-rs-note maxlength="300" placeholder="Note (optional), for example check the council map" style="flex:1"><button class="btn small" data-rs="hold_save">Hold</button></div>';return}}
+      if(b.dataset.confirm&&!H.armed(b))return;
+      if(w==="hold_save"){b.disabled=true;H.api("restrictions_act",{action:"hold",ids:[id],note:(card.querySelector("[data-rs-note]").value||"").trim()}).then(function(r){H.note(card,true,r.message);setTimeout(function(){after([])},700)}).catch(fail(card));return}
+      if(w==="approve"){b.disabled=true;H.api("restrictions_act",{action:"approve",ids:[id]}).then(function(r){after(r.refresh_places)}).catch(fail(card));return}
+      if(w==="reject"){var rs=card.querySelector("[data-rs-reason]").value,ot=(card.querySelector("[data-rs-other]").value||"").trim();if(!rs){fail(card)({message:"Pick a reason first."});return}if(rs==="other"&&ot.length<2){fail(card)({message:"Say why."});return}
+        b.disabled=true;H.api("restrictions_act",{action:"reject",ids:[id],reason:rs,reason_text:rs==="other"?ot:undefined}).then(function(){after([])}).catch(fail(card));return}
+      if(w==="edit_save"){var g=function(k){var x=card.querySelector('[data-e="'+k+'"]');return x?x.value.trim():""};b.disabled=true;
+        H.api("restrictions_edit_approve",{id:id,restriction_type:g("restriction_type"),summary:g("summary"),area_description:g("area_description"),starts_on:g("starts_on")||null,ends_on:g("ends_on")||null,starts_time:g("starts_time")||null,ends_time:g("ends_time")||null})
+          .then(function(r){after(r.refresh_places)}).catch(fail(card));return}
+      if(w==="spotlight"){b.disabled=true;H.api("restrictions_spotlight",{id:id}).then(function(r){H.note(card,true,r.message);b.textContent="Requested"}).catch(fail(card));return}
+      if(w==="bulk_approve"||w==="bulk_reject"){var bar=b.closest("[data-rs-bulk]"),sel=ids(),reason=w==="bulk_reject"?bar.querySelector("[data-rs-bulk-reason]").value:null,other=w==="bulk_reject"?(bar.querySelector("[data-rs-bulk-other]").value||"").trim():"";
+        if(w==="bulk_reject"&&!reason){fail(bar)({message:"Pick a reason first."});return}if(reason==="other"&&other.length<2){fail(bar)({message:"Say why."});return}
+        H.deferOp((w==="bulk_approve"?"Approving ":"Rejecting ")+sel.length+" rule"+(sel.length===1?"":"s"),function(){
+          H.api("restrictions_act",{action:w==="bulk_approve"?"approve":"reject",ids:sel,reason:reason||undefined,reason_text:reason==="other"?other:undefined}).then(function(r){after(r.refresh_places)}).catch(function(e){alert((e&&e.message)||"That did not work.");after([])})},function(){draw()});
+        b.disabled=true;return}
+    });
+  }
+  window.HQRestrictions={render:function(el){st.el=el;if(!el._rsWired){wire(el);el._rsWired=true}load()}};
 })();
 </script>
 <script>
