@@ -2104,7 +2104,9 @@ label.amen:has(input:checked){border-color:var(--brand-line);background:var(--br
     if(setupMode)acts.push('<button class="btn primary small" data-do="cr_approve"'+(bespoke&&!bespokeReady?' disabled title="Add bespoke terms, a cap and the signed agreement first"':"")+'>'+(canSetup?"Approve and set up":"Run setup")+'</button>');
     if(st==="applied"||st==="approved")acts.push('<button class="btn small" data-do="cr_decline" data-confirm="Confirm decline">Decline</button>');
     if(acts.length)h+='<div class="row" style="margin-top:6px">'+acts.join("")+'</div>';
-    if(st==="active")h+='<label class="note">Reason for ending</label><input type="text" class="pill-in" data-cr-endreason><div class="row"><button class="btn danger small" data-do="cr_end" data-confirm="Confirm end">End partnership</button></div>';
+    if(st==="active")h+='<label class="note">Reason for ending</label><input type="text" class="pill-in" data-cr-endreason>'+
+      '<p class="note" style="margin:0;color:var(--crit);font-weight:700">Ending '+esc(cr.display_name)+' switches off their App Store offer and their code'+(cr.offer_code?' '+esc(String(cr.offer_code).toUpperCase()):"")+' stops working straight away. This cannot be undone: a new code would need a new offer. People who already used the code keep their price. Their Premium is removed and their page comes down.</p>'+
+      '<div class="row"><button class="btn danger small" data-do="cr_end" data-confirm="Confirm: end permanently">End partnership</button></div>';
     return h+'</div>';
   }
   function crAddForm(){
@@ -2135,11 +2137,16 @@ label.amen:has(input:checked){border-color:var(--brand-line);background:var(--br
     Promise.all([H.api("creators_list",{filter:crFilter}),counts]).then(function(rr){var r=rr[0];
       var rows=r.data.rows||[],c=r.data.counts||{};crData={};rows.forEach(function(x){crData[x.id]=x});
       var chips=[["applied","Applications",c.applied],["active","Active",c.active],["ended_declined","Ended and declined",c.ended_declined]].map(function(f){return '<button class="chip" data-crf="'+f[0]+'" aria-pressed="'+(crFilter===f[0])+'">'+f[1]+(f[2]?' <span class="count">'+f[2]+'</span>':"")+'</button>'}).join("");
-      el.innerHTML='<div class="filter">'+chips+'</div>'+
+      el.innerHTML='<div class="row" style="justify-content:space-between;align-items:center"><div class="filter">'+chips+'</div><span class="note" data-cr-slots></span></div>'+
         '<div class="row"><button class="btn small" data-do="cr_check">Check connections</button></div><div data-cr-check></div>'+
         '<details class="card"><summary>Add a creator</summary>'+crAddForm()+'</details>'+
         '<div class="subhead"><h3>'+(crFilter==="applied"?"Applications":crFilter==="active"?"Active creators":"Ended and declined")+'</h3><span>'+(rows.length?rows.length+" shown":"none")+'</span></div>'+
         (rows.length?rows.map(crCard).join(""):'<div class="empty">None.</div>');
+      // Offer slots: cached on the server for 10 minutes; never holds up the list.
+      H.api("creator_offer_slots").then(function(s){var d=s.data,x=el.querySelector("[data-cr-slots]");if(!x)return;
+        if(!d||!d.available){x.textContent="Offer slots: not available";return}
+        x.textContent=d.active+" of "+d.limit+" App Store offer slots used";if(d.active>=8){x.style.color="var(--warn)";x.style.fontWeight="700"}})
+        .catch(function(){var x=el.querySelector("[data-cr-slots]");if(x)x.textContent="Offer slots: not available"});
     }).catch(function(e){fail(el,e)});
   }
   function crRefresh(){if(H.refreshCreators)H.refreshCreators();setTimeout(load,900)}

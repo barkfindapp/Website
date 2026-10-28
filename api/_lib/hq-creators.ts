@@ -39,6 +39,8 @@ const slugify = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').repla
 const OFFER_CODE_RE = /^[A-Z0-9]{3,30}$/;
 const defaultCode = (slug: string) => slug.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 28) + '20';
 
+const SLOT_TTL_MS = 10 * 60 * 1000;
+let slotCache: { at: number; data: Record<string, unknown> } | null = null;
 // Call the creator-admin edge function with the server-side trigger secret. Returns the HTTP
 // status and the parsed body. The secret never leaves the server.
 async function callAdmin(pool: Pool, body: Record<string, unknown>): Promise<{ http_status: number } & Record<string, unknown>> {
@@ -99,6 +101,25 @@ const COUNTS_SQL = `select count(*) filter (where status = 'applied')::int as ap
 export function creatorOps(pool: Pool): Record<string, Op> {
   return {
     // Counts for the Act chip and the Today card.
+    // App Store offer slots on the annual plan (Apple allows a limited number of active offers).
+    // Read only: creator-admin list_offers, which calls Apple, so the answer is cached for 10
+    // minutes per server instance. Any failure answers { available: false } so the panel never waits on it.
+    creator_offer_slots: {
+      perm: 'creators',
+      run: async (a) => {
+        only(a, []);
+        if (slotCache && Date.now() - slotCache.at < SLOT_TTL_MS) return { data: slotCache.data };
+        const r = await callAdmin(pool, { action: 'list_offers' });
+        const active = Number(r.active), limit = Number(r.limit);
+        const data = r.http_status === 200 && r.ok !== false && Number.isInteger(active) && Number.isInteger(limit) && limit > 0
+          ? { available: true, active, limit, checked_at: new Date().toISOString() }
+          : { available: false };
+        if (!data.available) console.error('hq creator_offer_slots', r.http_status, String((r as any).error || '').slice(0, 120));
+        // A failure is remembered for 2 minutes, so a broken call is not retried against Apple on every load.
+        slotCache = { at: data.available ? Date.now() : Date.now() - SLOT_TTL_MS + 2 * 60 * 1000, data };
+        return { data };
+      },
+    },
     creators_counts: {
       perm: 'creators',
       run: async (a) => { only(a, []); return { data: (await pool.query(COUNTS_SQL)).rows[0] }; },
