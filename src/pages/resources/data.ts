@@ -114,8 +114,10 @@ export function groupByCounty<T extends GuideSummary>(list: T[]) {
     if (!map.has(g.county)) map.set(g.county, []);
     map.get(g.county)!.push(g);
   }
+  // "More towns" is the fallback label (scripts/county-map.mjs UNMAPPED_COUNTY)
+  // for guides with no mapped county; it always sorts last.
   return [...map.entries()]
-    .sort(([a], [b]) => (a === "Other areas" ? 1 : b === "Other areas" ? -1 : a.localeCompare(b, "en-GB")))
+    .sort(([a], [b]) => (a === "More towns" ? 1 : b === "More towns" ? -1 : a.localeCompare(b, "en-GB")))
     .map(([county, items]) => ({ county, items: items.sort((a, b) => a.town.localeCompare(b.town, "en-GB")) }));
 }
 
