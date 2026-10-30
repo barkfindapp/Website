@@ -7,6 +7,13 @@
 // per paying customer, and asks the edge function to pause or resume through the
 // x-hq-trigger header (app_secrets.hq_trigger, never sent to the browser).
 // Reading needs the money permission; pausing, resuming and the settings are owner only.
+//
+// Ad groups (apple-ads-sync v8): ads_ad_groups holds each campaign's ad groups with month-to-date figures from
+// Apple's ad group report (null when Apple did not give one: shown as a dash, never estimated). paused_reason says
+// why a row is paused: kill_switch (Pause all), cap_guard and budget_guard (the sync's guard, which only ever
+// pauses), or manual (one row at a time, from HQ with paused_by_hq true, or in Apple Ads with it false).
+// Pause all and its Resume are unchanged; Resume only brings back kill_switch and cap_guard pauses. The four
+// per-row ops pause or resume one campaign or ad group through the edge function's per-row actions.
 import type { Pool } from 'pg';
 import { HttpError, only, bool, writeTx } from './hq-core.js';
 import type { Op } from './hq-act.js';
@@ -24,6 +31,26 @@ const NOTES: Record<keyof AdsSettings, string> = {
   ads_max_daily_budget_gbp: 'Apple Ads: a campaign daily budget above this, in pounds, is flagged as a budget jump.',
 };
 const r2 = (x: unknown) => (x == null ? null : Math.round(Number(x) * 100) / 100);
+const int = (x: unknown) => (x == null ? null : Number(x));
+const RESUMABLE = ['kill_switch', 'cap_guard'];          // what Resume (after Pause all or the cap guard) brings back
+const HELD = ['kill_switch', 'cap_guard', 'budget_guard']; // pauses HQ raises on Today: not deliberate tuning
+
+// Who paused a row, in words, for the card and Ralphy. null when it is running.
+function whoPaused(row: any, level: 'campaign' | 'ad_group', id: string, ev: any[], names: Record<string, string>) {
+  if (row.status !== 'PAUSED') return null;
+  const by = (e: any) => { const u = e?.detail?.by; return u && names[u] ? names[u] : null; };
+  if (row.paused_by_hq && row.paused_reason === 'manual') {
+    const e = ev.find((x) => x.kind === 'paused_one' && x.detail?.level === level && String(x.detail?.id) === id);
+    return (by(e) || 'someone') + ' in HQ';
+  }
+  if (row.paused_reason === 'kill_switch' || (row.paused_by_hq && !row.paused_reason)) {
+    const e = ev.find((x) => x.kind === 'paused' && x.detail?.reason === 'hq_op' && (x.detail?.done || []).map(String).includes(id));
+    return 'HQ Pause all' + (by(e) ? ' (' + by(e) + ')' : '');
+  }
+  if (row.paused_reason === 'cap_guard') return 'the cap guard, automatically';
+  if (row.paused_reason === 'budget_guard') return 'the budget guard, automatically (daily budget above the maximum)';
+  return 'someone in Apple Ads';
+}
 const per = (spend: number, n: number) => (n > 0 ? r2(spend / n) : null);   // nothing to divide by: null, shown as a dash
 
 async function settings(q: Pool): Promise<AdsSettings> {
@@ -49,10 +76,11 @@ export async function adsWatch(pool: Pool) {
   if (!ready) return { setup: false, settings: cfg };
   const sync = (await pool.query('select last_attempt, last_ok, last_error from public.ads_sync_state order by id limit 1')).rows[0] || {};
   if (!sync.last_ok) return { setup: false, settings: cfg, last_attempt: sync.last_attempt ?? null, last_error: sync.last_error ?? null };
-  const [month, camps, attr, events] = await Promise.all([
+  const groupsReady = (await pool.query("select to_regclass('public.ads_ad_groups') is not null as ok")).rows[0].ok;
+  const [month, camps, attr, events, groups, pauses] = await Promise.all([
     pool.query(`select coalesce(sum(coalesce(spend_gbp, spend)), 0)::float as spend from public.ads_spend_daily where day >= ${MONTH_START}`),
     pool.query(`select c.campaign_id::text as campaign_id, c.name as campaign_name, c.status, c.serving_status, c.daily_budget_gbp::float as daily_budget,
-                       c.paused_by_hq, c.paused_at, coalesce(s.spend, 0)::float as spend, coalesce(s.impressions, 0)::int as impressions,
+                       c.paused_by_hq, c.paused_reason, c.paused_at, coalesce(s.spend, 0)::float as spend, coalesce(s.impressions, 0)::int as impressions,
                        coalesce(s.taps, 0)::int as taps, coalesce(s.installs, 0)::int as installs
                   from public.ads_campaigns c
                   left join (select campaign_id, sum(coalesce(spend_gbp, spend)) as spend, sum(impressions) as impressions, sum(taps) as taps, sum(installs) as installs
@@ -64,7 +92,20 @@ export async function adsWatch(pool: Pool) {
                        coalesce(sum(revenue_gbp) filter (where converted_at >= ${MONTH_START}), 0)::float as revenue
                   from public.ads_attribution group by campaign_name`),
     pool.query(`select kind, detail, created_at from public.ads_watch_events where created_at > now() - interval '35 days' order by created_at desc limit 40`),
+    groupsReady
+      ? pool.query(`select ad_group_id::text as ad_group_id, campaign_id::text as campaign_id, name, status, serving_status, serving_state_reasons,
+                           search_match, default_cpt_bid_gbp::float as bid_gbp, paused_by_hq, paused_reason, paused_at,
+                           spend_month_gbp::float as spend, impressions_month as impressions, taps_month as taps, installs_month as installs, report_synced_at
+                      from public.ads_ad_groups order by name`)
+      : Promise.resolve({ rows: [] as any[] }),
+    // The pause events behind "who paused it", with the staff names for their user ids.
+    pool.query(`select e.kind, e.detail, e.created_at, s.display_name
+                  from (select kind, detail, created_at from public.ads_watch_events where kind in ('paused', 'paused_one') order by created_at desc limit 60) e
+                  left join public.hq_staff s on s.user_id::text = e.detail->>'by'
+                 order by e.created_at desc`),
   ]);
+  const names: Record<string, string> = {};
+  for (const p of pauses.rows as any[]) if (p.detail?.by && p.display_name) names[p.detail.by] = p.display_name;
   const spend = r2(month.rows[0].spend) || 0;
   const ev = events.rows as { kind: string; detail: any; created_at: Date }[];
   // RevenueCat may send the campaign's name or its id: match either, case and spacing aside.
@@ -74,9 +115,18 @@ export async function adsWatch(pool: Pool) {
     const hits = attr.rows.filter((a: any) => a.campaign_name != null && (key(a.campaign_name) === key(c.campaign_name) || key(a.campaign_name) === key(c.campaign_id)));
     hits.forEach((a: any) => used.add(a.campaign_name));
     const trials = hits.reduce((t: number, a: any) => t + a.trials, 0), paid = hits.reduce((t: number, a: any) => t + a.paid, 0);
+    const adGroups = (groups.rows as any[]).filter((g) => g.campaign_id === c.campaign_id).map((g) => ({
+      ad_group_id: g.ad_group_id, name: g.name, status: g.status, serving_status: g.serving_status,
+      serving_reasons: Array.isArray(g.serving_state_reasons) ? g.serving_state_reasons.map(String) : [],
+      search_match: g.search_match, bid_gbp: r2(g.bid_gbp),
+      spend: r2(g.spend), impressions: int(g.impressions), taps: int(g.taps), installs: int(g.installs),
+      paused_by_hq: !!g.paused_by_hq, paused_reason: g.paused_reason ?? null, paused_at: g.paused_at ?? null,
+      paused_by: whoPaused(g, 'ad_group', g.ad_group_id, pauses.rows, names),
+    }));
     return {
       campaign_id: c.campaign_id, campaign_name: c.campaign_name, status: c.status, serving_status: c.serving_status, daily_budget: r2(c.daily_budget),
-      paused_by_hq: !!c.paused_by_hq, spend: r2(c.spend) || 0, impressions: c.impressions, taps: c.taps, installs: c.installs, trials, paid,
+      paused_by_hq: !!c.paused_by_hq, paused_reason: c.paused_reason ?? null, paused_at: c.paused_at ?? null,
+      paused_by: whoPaused(c, 'campaign', c.campaign_id, pauses.rows, names), ad_groups: adGroups, spend: r2(c.spend) || 0, impressions: c.impressions, taps: c.taps, installs: c.installs, trials, paid,
       revenue_gbp: r2(hits.reduce((t: number, a: any) => t + a.revenue, 0)),
       cost_per_install: per(c.spend, c.installs), cost_per_trial: per(c.spend, trials), cost_per_paid: per(c.spend, paid),
     };
@@ -84,7 +134,14 @@ export async function adsWatch(pool: Pool) {
   const unmatched = attr.rows.filter((a: any) => !used.has(a.campaign_name) || a.campaign_name == null)
     .reduce((t: any, a: any) => ({ trials: t.trials + a.trials, paid: t.paid + a.paid }), { trials: 0, paid: 0 });
   const running = camps.rows.filter((c: any) => c.status === 'ENABLED');
-  const pausedRows = camps.rows.filter((c: any) => c.paused_by_hq);
+  // Pause all and the guard: what Today flags and the card's banner. A manual pause is tuning, shown on its row.
+  const pausedRows = camps.rows.filter((c: any) => c.paused_by_hq && (!c.paused_reason || HELD.includes(c.paused_reason)));
+  const resumable = camps.rows.filter((c: any) => c.paused_by_hq && RESUMABLE.includes(c.paused_reason)).length;
+  // Everything paused, campaigns and ad groups alike, with who paused it: for Ralphy.
+  const pausedList = byCampaign.flatMap((c: any) => [
+    ...(c.status === 'PAUSED' ? [{ level: 'campaign', name: c.campaign_name, paused_by: c.paused_by, reason: c.paused_reason, since: c.paused_at }] : []),
+    ...c.ad_groups.filter((g: any) => g.status === 'PAUSED').map((g: any) => ({ level: 'ad_group', name: g.name, campaign: c.campaign_name, paused_by: g.paused_by, reason: g.paused_reason, since: g.paused_at })),
+  ]);
   const lastOk = new Date(sync.last_ok), failingNow = !!sync.last_attempt && new Date(sync.last_attempt) > lastOk;
   const syncOk = Date.now() - lastOk.getTime() < STALE_HOURS * 3600e3 && !failingNow;
   const jump = ev.find((e) => e.kind === 'budget_jump' && Date.now() - new Date(e.created_at).getTime() < 24 * 3600e3) || null;
@@ -94,7 +151,8 @@ export async function adsWatch(pool: Pool) {
     month_spend: spend, cap: cfg.ads_monthly_cap_gbp, pct, remaining: r2(Math.max(0, cfg.ads_monthly_cap_gbp - spend)),
     alert_level: cfg.ads_alert_pct, at_alert: pct >= cfg.ads_alert_pct, at_cap: spend >= cfg.ads_monthly_cap_gbp,
     running_daily_budget: r2(running.reduce((t: number, c: any) => t + (Number(c.daily_budget) || 0), 0)), running_campaigns: running.length,
-    paused_by_hq: pausedRows.length > 0, paused_campaigns: pausedRows.length,
+    paused_by_hq: pausedRows.length > 0, paused_campaigns: pausedRows.length, resumable_campaigns: resumable,
+    ad_groups_ready: groupsReady, paused_list: pausedList,
     paused_at: pausedRows.length ? pausedRows.map((c: any) => c.paused_at).filter(Boolean).sort().pop() ?? null : null,
     last_sync: sync.last_ok, last_attempt: sync.last_attempt, sync_error: failingNow ? (sync.last_error || 'The last check did not finish.') : null,
     sync_ok: syncOk, stale_hours: STALE_HOURS,
@@ -105,7 +163,7 @@ export async function adsWatch(pool: Pool) {
 }
 
 // The edge function's pause and resume actions, with the server-side trigger secret.
-async function callSync(pool: Pool, body: Record<string, unknown>) {
+async function callSync(pool: Pool, body: Record<string, unknown>, refusalAsIs = false) {
   const sec = (await pool.query("select value from public.app_secrets where name = 'hq_trigger'")).rows[0];
   if (!sec?.value) throw new HttpError(503, 'The HQ trigger secret is not set up.');
   let res: Response;
@@ -114,12 +172,52 @@ async function callSync(pool: Pool, body: Record<string, unknown>) {
   } catch { throw new HttpError(502, 'The apple-ads-sync function did not answer. Nothing was changed by HQ.'); }
   const reply: any = await res.json().catch(() => ({}));
   if (res.status === 404) throw new HttpError(503, 'The apple-ads-sync function is not deployed yet.');
+  if (refusalAsIs && res.ok && reply?.ok === false) throw new HttpError(409, String(reply.error || 'Apple Ads did not make the change.').slice(0, 300));
   if (!res.ok || reply?.ok === false) throw new HttpError(502, `apple-ads-sync did not do it${reply?.error ? ': ' + String(reply.error).slice(0, 200) : '.'}`);
   return reply;
 }
 const campaignsNow = async (pool: Pool) => (await pool.query(
   'select campaign_id::text as campaign_id, name, status, serving_status, daily_budget_gbp, paused_by_hq, paused_at from public.ads_campaigns order by name')).rows;
 const ownerOnly = (ctx: any) => { if (ctx.staff.level !== 'owner') throw new HttpError(403, 'Only an owner can do this.'); };
+
+// Pause or resume one campaign or ad group. The edge function checks the row against Apple live, refuses what
+// does not make sense (already paused, not in that campaign, not enough cap left, a budget-guard campaign still
+// over the maximum) and updates the row; HQ checks the ids, then audits who asked and what came back.
+const ID = /^\d{1,19}$/;
+function oneRowOp(pool: Pool, verb: 'pause' | 'resume', level: 'campaign' | 'ad_group'): Op {
+  return {
+    perm: 'money',
+    run: async (a, ctx) => {
+      only(a, level === 'campaign' ? ['campaign_id'] : ['campaign_id', 'ad_group_id']); ownerOnly(ctx);
+      const cid = String(a.campaign_id ?? ''), agid = String(a.ad_group_id ?? '');
+      if (!ID.test(cid)) throw new HttpError(400, 'Choose a campaign.');
+      if (level === 'ad_group' && !ID.test(agid)) throw new HttpError(400, 'Choose an ad group.');
+      if (level === 'ad_group' && !(await pool.query("select to_regclass('public.ads_ad_groups') is not null as ok")).rows[0].ok)
+        throw new HttpError(503, 'Ad groups are not set up in HQ yet.');
+      const camp = (await pool.query('select campaign_id::text as campaign_id, name, status, paused_by_hq, paused_reason, daily_budget_gbp from public.ads_campaigns where campaign_id = $1', [cid])).rows[0];
+      if (!camp) throw new HttpError(404, 'That campaign is not in HQ. Wait for the next check and try again.');
+      let row: any = camp;
+      if (level === 'ad_group') {
+        row = (await pool.query(`select ad_group_id::text as ad_group_id, campaign_id::text as campaign_id, name, status, paused_by_hq, paused_reason
+                                   from public.ads_ad_groups where ad_group_id = $1`, [agid])).rows[0];
+        if (!row) throw new HttpError(404, 'That ad group is not in HQ. Wait for the next check and try again.');
+        if (row.campaign_id !== cid) throw new HttpError(400, 'That ad group is not in that campaign.');
+      }
+      const body: Record<string, unknown> = { action: `${verb}_${level}`, source: 'hq', requested_by: ctx.staff.userId, campaign_id: cid };
+      if (level === 'ad_group') body.ad_group_id = agid;
+      const reply = await callSync(pool, body, true);
+      const what = level === 'campaign' ? 'campaign' : 'ad group';
+      return writeTx(pool, ctx.staff.userId, async (_c, audit) => {
+        await audit({ action: `ads_${verb}_${level}`, entity: level === 'campaign' ? 'ads_campaigns' : 'ads_ad_groups', entityId: level === 'campaign' ? cid : agid,
+          detail: `${verb === 'pause' ? 'Paused' : 'Resumed'} the Apple Ads ${what} "${row.name}"${level === 'ad_group' ? ` in "${camp.name}"` : ''} from HQ`,
+          before: { row, campaign: level === 'ad_group' ? camp : undefined }, after: { reply } });
+        const idle = verb === 'resume' && level === 'ad_group' && reply?.campaign_status === 'PAUSED';
+        return { ok: true, message: `${verb === 'pause' ? 'Paused' : 'Resumed'} "${row.name}" in Apple Ads.` +
+          (idle ? ` Its campaign "${camp.name}" is paused, so it will not serve until that is resumed.` : '') };
+      });
+    },
+  };
+}
 
 export function adsOps(pool: Pool): Record<string, Op> {
   return {
@@ -152,17 +250,24 @@ export function adsOps(pool: Pool): Record<string, Op> {
         only(a, []); ownerOnly(ctx);
         const w = await adsWatch(pool);
         if (!w.setup) throw new HttpError(503, 'Apple Ads is not connected yet.');
-        if (!w.paused_by_hq) throw new HttpError(409, 'HQ has not paused any campaigns, so there is nothing to resume.');
+        if (!w.resumable_campaigns) throw new HttpError(409, w.paused_by_hq
+          ? 'The paused campaigns were paused by the budget guard, so this Resume leaves them. Lower the daily budget in Apple Ads, then use the Resume on that campaign.'
+          : 'Pause all and the cap guard have not paused any campaigns, so there is nothing to resume. A campaign or ad group paused on its own has its own Resume.');
         if (w.month_spend >= w.cap) throw new HttpError(409, `This month's spend (£${w.month_spend.toFixed(2)}) has reached the £${w.cap} cap. Campaigns stay paused until next month, or until the cap is changed in Admin, Settings.`);
         const before = await campaignsNow(pool);
         const reply = await callSync(pool, { action: 'resume_hq_paused', source: 'hq', requested_by: ctx.staff.userId });
         return writeTx(pool, ctx.staff.userId, async (_c, audit) => {
           await audit({ action: 'ads_resume', entity: 'ads_campaigns', detail: `Resumed the Apple Ads campaigns HQ paused (${w.month_spend.toFixed(2)} of ${w.cap} pounds this month)`,
             before: { campaigns: before, month_spend: w.month_spend, cap: w.cap }, after: { reply } });
-          return { ok: true, message: 'The campaigns HQ paused are being resumed. The card updates after the next check.' };
+          return { ok: true, message: 'The campaigns Pause all or the cap guard paused are being resumed. Ones paused on their own stay paused. The card updates after the next check.' };
         });
       },
     },
+
+    ads_pause_campaign: oneRowOp(pool, 'pause', 'campaign'),
+    ads_resume_campaign: oneRowOp(pool, 'resume', 'campaign'),
+    ads_pause_ad_group: oneRowOp(pool, 'pause', 'ad_group'),
+    ads_resume_ad_group: oneRowOp(pool, 'resume', 'ad_group'),
 
     ads_settings_save: {
       perm: 'money',

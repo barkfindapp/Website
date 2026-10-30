@@ -3297,9 +3297,24 @@ label.amen:has(input:checked){border-color:var(--brand-line);background:var(--br
         (d.last_error?'<p class="note ads-stale" style="margin:0">Last attempt'+(d.last_attempt?' at '+esc(adsTime(d.last_attempt)):'')+' failed: '+esc(d.last_error)+'</p>':'')+'</div>';return}
       var SERVE={NOT_RUNNING:"Not running yet",RUNNING:""};
       var lvl=d.at_cap?"crit":d.at_alert?"warn":"", w=Math.min(100,Math.max(0,d.pct));
-      var rows=d.by_campaign.map(function(c){return '<tr><td>'+esc(c.campaign_name)+(c.status&&c.status!=="ENABLED"?' <span class="tag" style="text-transform:none">'+esc(String(c.status).toLowerCase())+'</span>':'')+
-        (c.status==="ENABLED"&&c.serving_status&&SERVE[c.serving_status]!==""?' <span class="tag warn" style="text-transform:none">'+esc(SERVE[c.serving_status]||String(c.serving_status).replace(/_/g," ").toLowerCase())+'</span>':'')+
-        (c.paused_by_hq?' <span class="tag crit" style="text-transform:none">paused by HQ</span>':'')+'</td><td class="num">'+adsMoney(c.spend)+'</td><td class="num">'+n(c.installs)+'</td><td class="num">'+n(c.trials)+'</td><td class="num">'+n(c.paid)+'</td><td class="num">'+adsMoney(c.cost_per_install)+'</td><td class="num">'+adsMoney(c.cost_per_trial)+'</td><td class="num">'+adsMoney(c.cost_per_paid)+'</td></tr>'}).join("");
+      var act=d.can_act, HELD={kill_switch:1,cap_guard:1,budget_guard:1};
+      function pausedTag(x){if(x.status!=="PAUSED")return "";var held=x.paused_by_hq&&(!x.paused_reason||HELD[x.paused_reason]);
+        return ' <span class="tag'+(held?' crit':'')+'" style="text-transform:none">paused</span>'}
+      function byLine(x){return x.status==="PAUSED"&&x.paused_by?"Paused by "+x.paused_by+".":""}
+      function serveTag(x){return x.status==="ENABLED"&&x.serving_status&&SERVE[x.serving_status]!==""?' <span class="tag warn" style="text-transform:none">'+esc(SERVE[x.serving_status]||String(x.serving_status).replace(/_/g," ").toLowerCase())+'</span>':''}
+      function rowBtn(level,cid,agid,x){if(!act||(x.status!=="ENABLED"&&x.status!=="PAUSED"))return "";var p=x.status==="ENABLED";
+        return '<div class="row" style="margin:6px 0 0"><button class="btn small'+(p?'':' primary')+'" data-ads-row="'+(p?"pause":"resume")+'" data-level="'+level+'" data-cid="'+esc(cid)+'"'+(agid?' data-agid="'+esc(agid)+'"':'')+
+          ' data-confirm="'+(p?"Pause ":"Resume ")+esc(x.name||x.campaign_name)+'?">'+(p?"Pause":"Resume")+'</button></div>'}
+      var rows=d.by_campaign.map(function(c){
+        var head='<tr><td style="min-width:230px">'+esc(c.campaign_name)+(c.status&&c.status!=="ENABLED"&&c.status!=="PAUSED"?' <span class="tag" style="text-transform:none">'+esc(String(c.status).toLowerCase())+'</span>':'')+pausedTag(c)+serveTag(c)+
+          (byLine(c)?'<div class="note" style="margin:0">'+esc(byLine(c))+'</div>':'')+rowBtn("campaign",c.campaign_id,null,c)+'</td><td class="num">'+adsMoney(c.spend)+'</td><td class="num">'+n(c.installs)+'</td><td class="num">'+n(c.trials)+'</td><td class="num">'+n(c.paid)+'</td><td class="num">'+adsMoney(c.cost_per_install)+'</td><td class="num">'+adsMoney(c.cost_per_trial)+'</td><td class="num">'+adsMoney(c.cost_per_paid)+'</td></tr>';
+        var subs=(c.ad_groups||[]).map(function(g){
+          var bits=["Search match "+(g.search_match==null?"unknown":g.search_match?"on":"off"),"bid "+adsMoney(g.bid_gbp)];
+          if(g.status==="ENABLED"&&g.serving_status==="NOT_RUNNING"&&g.serving_reasons&&g.serving_reasons.length)bits.push(g.serving_reasons.map(function(r){return String(r).replace(/_/g," ").toLowerCase()}).join(", "));
+          return '<tr class="ads-ag"><td style="padding-left:22px">'+esc(g.name)+pausedTag(g)+serveTag(g)+'<div class="note" style="margin:0">'+esc((bits.join(", ")+". "+byLine(g)).trim())+'</div>'+rowBtn("ad_group",c.campaign_id,g.ad_group_id,g)+'</td>'+
+            '<td class="num">'+adsMoney(g.spend)+'</td><td class="num">'+n(g.installs)+'</td><td class="num" colspan="5" style="text-align:left;color:var(--mute)">'+
+            (g.impressions==null&&g.taps==null?'':n(g.impressions)+' impressions, '+n(g.taps)+' taps')+'</td></tr>'}).join("");
+        return head+subs}).join("");
       el.innerHTML='<div class="card" id="ads"><div class="subhead"><h3>Apple Ads</h3><span>This month</span></div>'+
         '<div class="ads-head"><span class="v">'+adsMoney(d.month_spend)+'</span><span class="u">of £'+esc(Number(d.cap).toLocaleString("en-GB"))+' cap</span></div>'+
         '<div class="ads-bar '+lvl+'" role="img" aria-label="'+esc(d.pct)+'% of the monthly cap"><span style="width:'+w+'%"></span></div>'+
@@ -3310,13 +3325,18 @@ label.amen:has(input:checked){border-color:var(--brand-line);background:var(--br
         (d.budget_jump_24h?'<p class="note" style="margin:0;color:var(--warn);font-weight:700">A campaign\'s daily budget went above £'+esc(d.settings.ads_max_daily_budget_gbp)+' in the last 24 hours. Check it in Apple Ads.</p>':'')+
         (rows?'<div style="overflow-x:auto"><table class="po"><thead><tr><th>Campaign</th><th class="num">Spend</th><th class="num">Installs</th><th class="num">Trials</th><th class="num">Paid</th><th class="num">Per install</th><th class="num">Per trial</th><th class="num">Per paid</th></tr></thead><tbody>'+rows+'</tbody></table></div>':'<p class="note" style="margin:0">No spend this month yet.</p>')+
         (d.unmatched_attribution&&(d.unmatched_attribution.trials||d.unmatched_attribution.paid)?'<p class="note" style="margin:0">Not matched to a campaign this month: '+n(d.unmatched_attribution.trials)+' trial'+(d.unmatched_attribution.trials===1?"":"s")+', '+n(d.unmatched_attribution.paid)+' paid. RevenueCat sent no campaign name or id for these.</p>':'')+
-        '<p class="note" style="margin:0">Installs come from Apple. Trials and paid come from RevenueCat, so they only count people who reached the paywall.</p>'+
-        (d.can_act?'<div class="row">'+(d.paused_by_hq?'<button class="btn small" data-ads="resume" data-confirm="Resume the campaigns HQ paused?"'+(d.at_cap?' disabled title="This month\'s spend has reached the cap"':'')+'>Resume</button>':'')+
+        '<p class="note" style="margin:0">Installs come from Apple. Trials and paid come from RevenueCat, so they only count people who reached the paywall.'+(d.ad_groups_ready?' Ad groups show Apple\'s month-to-date figures; a dash means Apple did not give one. Trials and paid are by campaign only.':'')+'</p>'+
+        (d.can_act?'<div class="row">'+(d.resumable_campaigns?'<button class="btn small" data-ads="resume" data-confirm="Resume what Pause all or the cap guard paused?"'+(d.at_cap?' disabled title="This month\'s spend has reached the cap"':'')+'>Resume</button>':'')+
           '<button class="btn danger small" data-ads="pause" data-confirm="Pause every Apple Ads campaign?">Pause all</button></div>':'')+'</div>';
     }).catch(function(e){el.innerHTML='<div class="card"><div class="empty">'+esc((e&&e.message)||"Apple Ads did not load.")+'</div></div>'});
   }
   $("adsPane").addEventListener("click",function(ev){var b=ev.target.closest("[data-ads]");if(!b||!H.armed(b))return;var card=b.closest(".card");b.disabled=true;
     H.api(b.dataset.ads==="pause"?"ads_pause_all":"ads_resume").then(function(r){H.note(card,true,r.message||"Done.");setTimeout(adsCard,2500)})
+      .catch(function(e){H.note(card,false,(e&&e.message)||"That did not work.");b.disabled=false;b.dataset.armed="";b.textContent=b.dataset.label||b.textContent;b.classList.remove("confirm")})});
+  // One campaign or ad group: its own Pause or Resume. Pause all and its Resume stay separate, above.
+  $("adsPane").addEventListener("click",function(ev){var b=ev.target.closest("[data-ads-row]");if(!b||!H.armed(b))return;var card=b.closest(".card");b.disabled=true;
+    var o={campaign_id:b.dataset.cid};if(b.dataset.agid)o.ad_group_id=b.dataset.agid;
+    H.api("ads_"+b.dataset.adsRow+"_"+b.dataset.level,o).then(function(r){H.note(card,true,r.message||"Done.");setTimeout(adsCard,1800)})
       .catch(function(e){H.note(card,false,(e&&e.message)||"That did not work.");b.disabled=false;b.dataset.armed="";b.textContent=b.dataset.label||b.textContent;b.classList.remove("confirm")})});
   function moneyTab(){
     payouts();adsCard();
