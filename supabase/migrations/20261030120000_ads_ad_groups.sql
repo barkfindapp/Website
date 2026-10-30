@@ -1,15 +1,16 @@
 -- Apple Ads: ad groups, and why a row is paused. For the project chat to apply.
 -- 30 Oct 2026. The one allowed change to ads_campaigns is paused_reason.
 --
--- paused_reason: 'kill_switch' (HQ's Pause all), 'cap_guard' (apple-ads-sync's auto-pause guard),
--- 'manual' (paused one row at a time, in HQ or in Apple Ads), null when running.
+-- paused_reason: 'kill_switch' (HQ's Pause all), 'cap_guard' (the guard: cap left under a day of budgets),
+-- 'budget_guard' (the guard: a daily budget above the max), 'manual' (paused one row at a time, in HQ or
+-- in Apple Ads), null when running.
 -- paused_by_hq tells HQ and Apple Ads pauses apart: true only for rows HQ or the guard paused.
 
 begin;
 
 alter table public.ads_campaigns
   add column if not exists paused_reason text
-    check (paused_reason in ('kill_switch', 'cap_guard', 'manual'));
+    check (paused_reason in ('kill_switch', 'cap_guard', 'budget_guard', 'manual'));
 
 -- Anything HQ has paused before this change came from Pause all or the guard. Nothing is paused today,
 -- so this normally updates no rows.
@@ -29,7 +30,7 @@ create table if not exists public.ads_ad_groups (
   currency               text,
   default_cpt_bid_gbp    numeric,
   paused_by_hq           boolean not null default false,
-  paused_reason          text check (paused_reason in ('kill_switch', 'cap_guard', 'manual')),
+  paused_reason          text check (paused_reason in ('kill_switch', 'cap_guard', 'budget_guard', 'manual')),
   paused_at              timestamptz,
   -- Month to date (Europe/London), from Apple's ad group report. Null means Apple did not give it:
   -- HQ shows a dash, never an estimate.

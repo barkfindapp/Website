@@ -18,7 +18,7 @@ exactly as now.
 Apply `supabase/migrations/20261030120000_ads_ad_groups.sql` (on the `hq-ads-ad-groups` branch). It:
 
 - adds `paused_reason` to `ads_campaigns`. This is the only change to that table. The values are `kill_switch`,
-  `cap_guard` or `manual`, and null when the row is running;
+  `cap_guard`, `budget_guard` or `manual`, and null when the row is running;
 - creates `ads_ad_groups`, with the same lock-down as `ads_campaigns`: RLS on, no policies, no anon or
   authenticated grants, service_role only.
 
@@ -27,12 +27,13 @@ What the reasons mean:
 | Paused by | `paused_by_hq` | `paused_reason` |
 |---|---|---|
 | HQ Pause all (`pause_all`) | true | `kill_switch` |
-| The guard (cap left under a day of budgets, or a daily budget above the max) | true | `cap_guard` |
+| The guard: cap left under a day of running budgets | true | `cap_guard` |
+| The guard: a campaign's daily budget above `ads_max_daily_budget_gbp` | true | `budget_guard` |
 | HQ, one campaign or ad group (new actions) | true | `manual` |
 | Someone in Apple Ads | false | `manual` |
 | Running | false | null |
 
-The guard's daily-budget pause counts as `cap_guard` too, because it is the same guard.
+`budget_guard` applies to campaigns only, because the guard only pauses campaigns.
 
 ## 2. Sync: ad groups
 
@@ -75,11 +76,18 @@ Compare Apple's status with the stored row before the upsert:
 
 ## 4. Existing actions
 
-- `setStatus` (campaigns) takes the reason. `pause_all` writes `kill_switch`; the guard's two pauses write
-  `cap_guard`. Resuming writes `paused_by_hq` false and `paused_reason` null, as now.
+- `setStatus` (campaigns) takes the reason:
+  - `pause_all` writes `kill_switch`;
+  - the guard's cap pause (`actions.cap_pause` in v7) writes `cap_guard`;
+  - the guard's daily-budget pause (`actions.budget_pause` in v7) writes `budget_guard`.
+
+  Resuming writes `paused_by_hq` false and `paused_reason` null, as now.
+
+  If a campaign is caught by both in one sync, the budget pause runs first, so it stays `budget_guard`.
+  The cap pause only touches campaigns that are still ENABLED.
 - `resume` (alias `resume_hq_paused`, HQ's Resume after a cap pause) brings back only campaigns with
-  `paused_by_hq` true **and** `paused_reason` in (`kill_switch`, `cap_guard`). A `manual` pause is only
-  undone by its own per-row resume. Keep the cap check as it is, worked out over those campaigns only.
+  `paused_by_hq` true **and** `paused_reason` in (`kill_switch`, `cap_guard`). A `manual` or `budget_guard`
+  pause is only undone by that row's own resume. Keep the cap check as it is, worked out over those campaigns only.
   The reply when there are none is unchanged: "No campaigns paused by HQ."
 - `pause_all` and the guard work on campaigns only, as now. They do not touch ad groups.
 
@@ -109,8 +117,10 @@ Each action:
    the daily budgets of the ENABLED campaigns plus this campaign's budget if it is paused. Otherwise the
    guard would pause everything again at the next sync.
    - For an ad group, count its campaign's budget once.
-   - A per-row resume works whatever the reason (`manual`, `kill_switch` or `cap_guard`), as long as the
-     cap check passes.
+   - A per-row resume works for `manual`, `kill_switch` and `cap_guard`, as long as the cap check passes.
+   - `resume_campaign` on a `budget_guard` campaign also refuses while its `daily_budget_gbp` is above
+     `ads_max_daily_budget_gbp`. Read it fresh from Apple first, because Josh may have just lowered it.
+     Error: "Its daily budget (£X) is still above the £Y maximum. Lower it in Apple Ads first."
 3. Makes the Apple call, then updates only that row:
    - **pause:** `status` PAUSED, `paused_by_hq` true, `paused_reason` `manual`, `paused_at` now;
    - **resume:** `status` ENABLED, `paused_by_hq` false, `paused_reason` null, `paused_at` null.
@@ -129,7 +139,9 @@ Each action:
   `manual`, and a `changed_in_apple_ads` event.
 - `pause_all` still pauses every campaign with reason `kill_switch`. `resume` brings those back and leaves
   `manual` ones paused.
-- The guard still pauses, with `cap_guard`, and never resumes.
+- The guard still pauses, with `cap_guard` or `budget_guard`, and never resumes.
+- A `budget_guard` campaign stays paused through `resume`. Its own resume refuses while the budget is
+  over the max, and works once the budget is at or under it.
 - Tell the HQ chat:
   - the version number;
   - whether the ad group report gave spend, impressions, taps and installs, or which came back null;
