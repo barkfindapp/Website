@@ -376,6 +376,7 @@ label.amen:has(input:checked){border-color:var(--brand-line);background:var(--br
 .gate input.code{letter-spacing:.35em;text-align:center;font-weight:800;font-size:20px}
 .gate .row .btn{flex:1 1 auto}
 .linkbtn{background:none;border:0;padding:0;font:inherit;font-weight:800;color:var(--brand);text-decoration:underline;text-underline-offset:3px;cursor:pointer}
+table.ads-t th,table.ads-t td{padding:8px 10px;white-space:nowrap}table.ads-t td{vertical-align:middle}table.ads-t td:first-child{white-space:normal;min-width:250px}table.ads-t .tag{white-space:nowrap;display:inline-block}table.ads-t .tag{padding:3px 7px;font-size:10.5px;margin-left:4px;text-transform:none}table.ads-t tr.ads-ag td{padding-top:5px;padding-bottom:5px;font-size:13px;border-bottom-style:dashed}table.ads-t tr.ads-ag td:first-child{padding-left:26px}table.ads-t .ag-meta{display:block;color:var(--mute);font-size:12px;line-height:1.35}table.ads-t td.ag-imp{color:var(--mute);font-size:12px}table.ads-t .linkbtn{font-size:12.5px}table.ads-t .linkbtn.confirm{color:var(--warn)}
 </style>
 </head>
 <body>
@@ -3297,23 +3298,25 @@ label.amen:has(input:checked){border-color:var(--brand-line);background:var(--br
         (d.last_error?'<p class="note ads-stale" style="margin:0">Last attempt'+(d.last_attempt?' at '+esc(adsTime(d.last_attempt)):'')+' failed: '+esc(d.last_error)+'</p>':'')+'</div>';return}
       var SERVE={NOT_RUNNING:"Not running yet",RUNNING:""};
       var lvl=d.at_cap?"crit":d.at_alert?"warn":"", w=Math.min(100,Math.max(0,d.pct));
-      var act=d.can_act, HELD={kill_switch:1,cap_guard:1,budget_guard:1};
+      var act=d.can_act, HELD={kill_switch:1,cap_guard:1,budget_guard:1}, SHORT={kill_switch:"Pause all",cap_guard:"cap guard",budget_guard:"budget guard"};
+      // One line per row: a short "paused: who" tag (the full sentence on hover), small link-style Pause or Resume.
       function pausedTag(x){if(x.status!=="PAUSED")return "";var held=x.paused_by_hq&&(!x.paused_reason||HELD[x.paused_reason]);
-        return ' <span class="tag'+(held?' crit':'')+'" style="text-transform:none">paused</span>'}
-      function byLine(x){return x.status==="PAUSED"&&x.paused_by?"Paused by "+x.paused_by+".":""}
-      function serveTag(x){return x.status==="ENABLED"&&x.serving_status&&SERVE[x.serving_status]!==""?' <span class="tag warn" style="text-transform:none">'+esc(SERVE[x.serving_status]||String(x.serving_status).replace(/_/g," ").toLowerCase())+'</span>':''}
+        var who=SHORT[x.paused_reason]||(x.paused_by_hq?"HQ":"Apple Ads");
+        return ' <span class="tag'+(held?' crit':'')+'" title="'+esc(x.paused_by?"Paused by "+x.paused_by+".":"Paused.")+'">paused: '+esc(who)+'</span>'}
+      function serveTag(x){return x.status==="ENABLED"&&x.serving_status&&SERVE[x.serving_status]!==""?' <span class="tag warn">'+esc(SERVE[x.serving_status]||String(x.serving_status).replace(/_/g," ").toLowerCase())+'</span>':''}
       function rowBtn(level,cid,agid,x){if(!act||(x.status!=="ENABLED"&&x.status!=="PAUSED"))return "";var p=x.status==="ENABLED";
-        return '<div class="row" style="margin:6px 0 0"><button class="btn small'+(p?'':' primary')+'" data-ads-row="'+(p?"pause":"resume")+'" data-level="'+level+'" data-cid="'+esc(cid)+'"'+(agid?' data-agid="'+esc(agid)+'"':'')+
-          ' data-confirm="'+(p?"Pause ":"Resume ")+esc(x.name||x.campaign_name)+'?">'+(p?"Pause":"Resume")+'</button></div>'}
+        return '<button class="linkbtn" data-ads-row="'+(p?"pause":"resume")+'" data-level="'+level+'" data-cid="'+esc(cid)+'"'+(agid?' data-agid="'+esc(agid)+'"':'')+
+          ' data-confirm="'+(p?"Confirm pause":"Confirm resume")+'">'+(p?"Pause":"Resume")+'</button>'}
       var rows=d.by_campaign.map(function(c){
-        var head='<tr><td style="min-width:230px">'+esc(c.campaign_name)+(c.status&&c.status!=="ENABLED"&&c.status!=="PAUSED"?' <span class="tag" style="text-transform:none">'+esc(String(c.status).toLowerCase())+'</span>':'')+pausedTag(c)+serveTag(c)+
-          (byLine(c)?'<div class="note" style="margin:0">'+esc(byLine(c))+'</div>':'')+rowBtn("campaign",c.campaign_id,null,c)+'</td><td class="num">'+adsMoney(c.spend)+'</td><td class="num">'+n(c.installs)+'</td><td class="num">'+n(c.trials)+'</td><td class="num">'+n(c.paid)+'</td><td class="num">'+adsMoney(c.cost_per_install)+'</td><td class="num">'+adsMoney(c.cost_per_trial)+'</td><td class="num">'+adsMoney(c.cost_per_paid)+'</td></tr>';
+        var head='<tr><td>'+esc(c.campaign_name)+(c.status&&c.status!=="ENABLED"&&c.status!=="PAUSED"?' <span class="tag">'+esc(String(c.status).toLowerCase())+'</span>':'')+pausedTag(c)+serveTag(c)+
+          '</td><td class="num">'+adsMoney(c.spend)+'</td><td class="num">'+n(c.installs)+'</td><td class="num">'+n(c.trials)+'</td><td class="num">'+n(c.paid)+'</td><td class="num">'+adsMoney(c.cost_per_install)+'</td><td class="num">'+adsMoney(c.cost_per_trial)+'</td><td class="num">'+adsMoney(c.cost_per_paid)+'</td>'+
+          (act?'<td class="num">'+rowBtn("campaign",c.campaign_id,null,c)+'</td>':'')+'</tr>';
         var subs=(c.ad_groups||[]).map(function(g){
-          var bits=["Search match "+(g.search_match==null?"unknown":g.search_match?"on":"off"),"bid "+adsMoney(g.bid_gbp)];
-          if(g.status==="ENABLED"&&g.serving_status==="NOT_RUNNING"&&g.serving_reasons&&g.serving_reasons.length)bits.push(g.serving_reasons.map(function(r){return String(r).replace(/_/g," ").toLowerCase()}).join(", "));
-          return '<tr class="ads-ag"><td style="padding-left:22px">'+esc(g.name)+pausedTag(g)+serveTag(g)+'<div class="note" style="margin:0">'+esc((bits.join(", ")+". "+byLine(g)).trim())+'</div>'+rowBtn("ad_group",c.campaign_id,g.ad_group_id,g)+'</td>'+
-            '<td class="num">'+adsMoney(g.spend)+'</td><td class="num">'+n(g.installs)+'</td><td class="num" colspan="5" style="text-align:left;color:var(--mute)">'+
-            (g.impressions==null&&g.taps==null?'':n(g.impressions)+' impressions, '+n(g.taps)+' taps')+'</td></tr>'}).join("");
+          var meta=adsMoney(g.bid_gbp)+" bid, search match "+(g.search_match==null?"unknown":g.search_match?"on":"off");
+          var why=g.status==="ENABLED"&&g.serving_status==="NOT_RUNNING"&&g.serving_reasons&&g.serving_reasons.length?g.serving_reasons.map(function(r){return String(r).replace(/_/g," ").toLowerCase()}).join(", "):"";
+          return '<tr class="ads-ag"><td><span class="ag-name">'+esc(g.name)+'</span>'+pausedTag(g)+serveTag(g)+'<span class="ag-meta"'+(why?' title="'+esc(why)+'"':'')+'>'+esc(meta)+'</span></td>'+
+            '<td class="num">'+adsMoney(g.spend)+'</td><td class="num">'+n(g.installs)+'</td><td colspan="5" class="ag-imp">'+(g.impressions!=null?n(g.impressions)+" impressions, "+n(g.taps)+" taps":"")+'</td>'+
+            (act?'<td class="num">'+rowBtn("ad_group",c.campaign_id,g.ad_group_id,g)+'</td>':'')+'</tr>'}).join("");
         return head+subs}).join("");
       el.innerHTML='<div class="card" id="ads"><div class="subhead"><h3>Apple Ads</h3><span>This month</span></div>'+
         '<div class="ads-head"><span class="v">'+adsMoney(d.month_spend)+'</span><span class="u">of £'+esc(Number(d.cap).toLocaleString("en-GB"))+' cap</span></div>'+
@@ -3323,7 +3326,7 @@ label.amen:has(input:checked){border-color:var(--brand-line);background:var(--br
         (d.sync_error?'<p class="note ads-stale" style="margin:0">The check at '+esc(adsTime(d.last_attempt))+' failed: '+esc(d.sync_error)+'</p>':'')+
         (d.paused_by_hq?'<p class="note" style="margin:0;color:var(--crit);font-weight:700">HQ paused '+(d.paused_campaigns===d.by_campaign.length?"every campaign":d.paused_campaigns+" campaign"+(d.paused_campaigns===1?"":"s"))+(d.paused_at?' at '+esc(adsTime(d.paused_at)):'')+'.</p>':'')+
         (d.budget_jump_24h?'<p class="note" style="margin:0;color:var(--warn);font-weight:700">A campaign\'s daily budget went above £'+esc(d.settings.ads_max_daily_budget_gbp)+' in the last 24 hours. Check it in Apple Ads.</p>':'')+
-        (rows?'<div style="overflow-x:auto"><table class="po"><thead><tr><th>Campaign</th><th class="num">Spend</th><th class="num">Installs</th><th class="num">Trials</th><th class="num">Paid</th><th class="num">Per install</th><th class="num">Per trial</th><th class="num">Per paid</th></tr></thead><tbody>'+rows+'</tbody></table></div>':'<p class="note" style="margin:0">No spend this month yet.</p>')+
+        (rows?'<div style="overflow-x:auto"><table class="po ads-t"><thead><tr><th>Campaign</th><th class="num">Spend</th><th class="num">Installs</th><th class="num">Trials</th><th class="num">Paid</th><th class="num">Per install</th><th class="num">Per trial</th><th class="num">Per paid</th>'+(act?'<th></th>':'')+'</tr></thead><tbody>'+rows+'</tbody></table></div>':'<p class="note" style="margin:0">No spend this month yet.</p>')+
         (d.unmatched_attribution&&(d.unmatched_attribution.trials||d.unmatched_attribution.paid)?'<p class="note" style="margin:0">Not matched to a campaign this month: '+n(d.unmatched_attribution.trials)+' trial'+(d.unmatched_attribution.trials===1?"":"s")+', '+n(d.unmatched_attribution.paid)+' paid. RevenueCat sent no campaign name or id for these.</p>':'')+
         '<p class="note" style="margin:0">Installs come from Apple. Trials and paid come from RevenueCat, so they only count people who reached the paywall.'+(d.ad_groups_ready?' Ad groups show Apple\'s month-to-date figures; a dash means Apple did not give one. Trials and paid are by campaign only.':'')+'</p>'+
         (d.can_act?'<div class="row">'+(d.resumable_campaigns?'<button class="btn small" data-ads="resume" data-confirm="Resume what Pause all or the cap guard paused?"'+(d.at_cap?' disabled title="This month\'s spend has reached the cap"':'')+'>Resume</button>':'')+
