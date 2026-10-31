@@ -52,6 +52,8 @@ const SEE_ALL = "font-semibold text-[#B74217] hover:underline";
 // Must match METHOD_SLUG in scripts/build-resources.mjs.
 const METHOD_PATH = "/dog-friendly/how-guides-are-made";
 const DISCOVER_IMAGE = "/og-discover.png";
+// og-discover.png is 1200x630; this alt describes the Discover share card.
+const DISCOVER_IMAGE_ALT = "BarkFind Discover: dog-friendly town guides, news and events";
 
 // Anything without a published page behind it is a 404, matching the server.
 export default function ResourcesRoutes({ path }: { path: string }) {
@@ -240,6 +242,9 @@ function DiscoverHub() {
     description: "Dog-friendly town guides, news and events from BarkFind, free to read.",
     path: "/discover",
     image: DISCOVER_IMAGE,
+    imageAlt: DISCOVER_IMAGE_ALT,
+    imageWidth: 1200,
+    imageHeight: 630,
   });
   const [type, setType] = useState<HubType>(typeFromUrl);
   // The search term lives in the URL (/discover?q=bonfire) so a view can be
@@ -411,6 +416,9 @@ function GuideIndex() {
     description: `Dog-friendly cafes, pubs, walks and beaches in ${plural(guides.length, "UK town")}, with local dog restrictions, from BarkFind.`,
     path: "/dog-friendly",
     image: DISCOVER_IMAGE,
+    imageAlt: DISCOVER_IMAGE_ALT,
+    imageWidth: 1200,
+    imageHeight: 630,
     jsonLd: breadcrumbSchema([HOME, DISCOVER, GUIDES]),
   });
   const [query, setQuery] = useState("");
@@ -661,7 +669,7 @@ function NewsPage({ post }: { post: NewsPost }) {
       description: post.summary,
       ...(post.date ? { datePublished: post.date } : {}),
       mainEntityOfPage: `${SITE_URL}${path}`,
-      image: [`${SITE_URL}/onboarding-mockup-1.png`],
+      image: [`${SITE_URL}/og-default.jpg`],
       author: { "@type": "Organization", name: "BarkFind", url: SITE_URL },
       publisher: { "@type": "Organization", name: "BarkFind", logo: { "@type": "ImageObject", url: `${SITE_URL}/barkfind-logo.png` } },
     },

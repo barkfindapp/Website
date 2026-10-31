@@ -9,13 +9,19 @@ import { useEffect } from "react";
 
 export const SITE_URL = "https://www.barkfind.com";
 const SITE_NAME = "BarkFind";
-const DEFAULT_IMAGE = `${SITE_URL}/onboarding-mockup-1.png`;
+const DEFAULT_IMAGE = `${SITE_URL}/og-default.jpg`;
+// The share card is 1200x630; this alt describes it for pages that use it.
+const DEFAULT_IMAGE_ALT =
+  "BarkFind app on iPhone: a map of dog-friendly places in Weston-super-Mare and the filters screen";
 
 type SeoConfig = {
   title: string;
   description: string;
   path: string; // canonical path, e.g. "/treats" or "/"
   image?: string; // absolute URL or site-root path
+  imageAlt?: string; // alt text for the share image
+  imageWidth?: number; // og:image:width, when known
+  imageHeight?: number; // og:image:height, when known
   noindex?: boolean;
   ogType?: "website" | "article";
   jsonLd?: Record<string, unknown> | Record<string, unknown>[];
@@ -41,6 +47,10 @@ function upsertLink(rel: string, href: string) {
   el.setAttribute("href", href);
 }
 
+function removeMeta(attr: "name" | "property", key: string) {
+  document.head.querySelector(`meta[${attr}="${key}"]`)?.remove();
+}
+
 function toAbsolute(url: string) {
   return url.startsWith("http") ? url : `${SITE_URL}${url.startsWith("/") ? "" : "/"}${url}`;
 }
@@ -49,6 +59,14 @@ export function useSeo(config: SeoConfig) {
   useEffect(() => {
     const canonical = `${SITE_URL}${config.path}`;
     const image = toAbsolute(config.image ?? DEFAULT_IMAGE);
+    // The default and Discover cards are 1200x630 with known alt text. A page
+    // that passes its own image (for example a guide's venue photo) is of
+    // unknown size, so dimensions and alt are emitted only when supplied.
+    const usingDefaultImage = !config.image;
+    const imageAlt = config.imageAlt ?? (usingDefaultImage ? DEFAULT_IMAGE_ALT : null);
+    const imageWidth = config.imageWidth ?? (usingDefaultImage ? 1200 : null);
+    const imageHeight = config.imageHeight ?? (usingDefaultImage ? 630 : null);
+    const imageType = image.endsWith(".png") ? "image/png" : /\.jpe?g$/.test(image) ? "image/jpeg" : null;
 
     document.title = config.title;
     upsertMeta("name", "description", config.description);
@@ -57,15 +75,27 @@ export function useSeo(config: SeoConfig) {
 
     upsertMeta("property", "og:site_name", SITE_NAME);
     upsertMeta("property", "og:type", config.ogType ?? "website");
+    upsertMeta("property", "og:locale", "en_GB");
     upsertMeta("property", "og:title", config.title);
     upsertMeta("property", "og:description", config.description);
     upsertMeta("property", "og:url", canonical);
     upsertMeta("property", "og:image", image);
+    upsertMeta("property", "og:image:secure_url", image);
+    if (imageType) upsertMeta("property", "og:image:type", imageType);
+    else removeMeta("property", "og:image:type");
+    if (imageWidth != null) upsertMeta("property", "og:image:width", String(imageWidth));
+    else removeMeta("property", "og:image:width");
+    if (imageHeight != null) upsertMeta("property", "og:image:height", String(imageHeight));
+    else removeMeta("property", "og:image:height");
+    if (imageAlt) upsertMeta("property", "og:image:alt", imageAlt);
+    else removeMeta("property", "og:image:alt");
 
     upsertMeta("name", "twitter:card", "summary_large_image");
     upsertMeta("name", "twitter:title", config.title);
     upsertMeta("name", "twitter:description", config.description);
     upsertMeta("name", "twitter:image", image);
+    if (imageAlt) upsertMeta("name", "twitter:image:alt", imageAlt);
+    else removeMeta("name", "twitter:image:alt");
 
     // JSON-LD structured data (id-tagged so re-runs replace rather than stack).
     const existing = document.head.querySelectorAll('script[data-seo-jsonld="true"]');
@@ -80,7 +110,7 @@ export function useSeo(config: SeoConfig) {
         document.head.appendChild(script);
       }
     }
-  }, [config.title, config.description, config.path, config.image, config.noindex, config.ogType, config.jsonLd]);
+  }, [config.title, config.description, config.path, config.image, config.imageAlt, config.imageWidth, config.imageHeight, config.noindex, config.ogType, config.jsonLd]);
 }
 
 // --- Shared structured-data building blocks ---
