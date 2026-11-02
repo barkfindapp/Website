@@ -206,7 +206,7 @@ function Questions() {
     },
     {
       q: `Can I try the app before I post about it?`,
-      a: `Yes. Ask and we will add you to the test build before launch. Post about what you actually find, including the bits that need work. It is more believable and we would rather know.`,
+      a: `Yes. It is live on the App Store, so download it and use it properly first. Post about what you actually find, including the bits that need work. It is more believable and we would rather know.`,
     },
     {
       q: `Do I have to show my face?`,
@@ -444,7 +444,7 @@ export default function CreatorsPage() {
           venue's own dog policy, the council restrictions and what other owners found when they turned up,
           so people know before they set off.
         </p>
-        <p>We launch on iPhone on 13 October 2026, UK only. Android is planned but not built.</p>
+        <p>BarkFind is live on iPhone, UK only. Android is planned but not built.</p>
       </Section>
 
       <Section title="How you can help">
