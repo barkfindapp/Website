@@ -3,8 +3,9 @@
 // Supabase auth templates in docs/emails: white card, rust logo, teal note box,
 // dark footer. Sent through Resend from the server only.
 //
-// Voice: BarkFind is one person, Josh. Write in the first person singular, UK
-// English, no em dashes, no exclamation marks, nothing that reads as AI-written.
+// Voice for business-facing portal copy: first person plural (we/us/our), warm and
+// plain, UK English, no em dashes, no exclamation marks, nothing that reads as
+// AI-written. Signed off as "The BarkFind team".
 // Files under api/_lib are not deployed as functions (leading underscore).
 import { Resend } from 'resend';
 
@@ -74,15 +75,15 @@ async function send(resend: Resend, to: string, subject: string, html: string): 
 export function sendClaimReceived(resend: Resend, to: string, name: string, venue: string): Promise<boolean> {
   const who = name.trim() ? esc(name.trim().split(/\s+/)[0]) : 'there';
   const html = shell({
-    preview: `I have your claim for ${venue}.`,
+    preview: `We have your claim for ${venue}.`,
     heading: 'Your claim is in',
     paras: [
       `Hi ${who},`,
-      `Thanks for claiming <strong>${esc(venue)}</strong> on BarkFind. I have your claim and I will look at it myself.`,
-      `I check every claim by hand, so I will email you at this address once it is done. If I need anything else to confirm you run the venue, I will ask here.`,
-      `Josh, BarkFind`,
+      `Thanks for claiming <strong>${esc(venue)}</strong> on BarkFind. We have your claim and we will look at it.`,
+      `We check every claim by hand, so we will email you at this address once it is done. If we need anything else to confirm you run the venue, we will ask here.`,
+      `The BarkFind team`,
     ],
-    note: 'You do not need to do anything else for now. If you did not make this claim, reply to this email and let me know.',
+    note: 'You do not need to do anything else for now. If you did not make this claim, reply to this email and let us know.',
   });
   return send(resend, to, `Your BarkFind claim for ${venue}`, html);
 }
@@ -95,9 +96,9 @@ export function sendClaimApproved(resend: Resend, to: string, name: string, venu
     heading: 'Your venue is yours to manage',
     paras: [
       `Hi ${who},`,
-      `Good news: I have approved your claim for <strong>${esc(venue)}</strong>. You can now manage its listing on BarkFind.`,
+      `Good news: we have approved your claim for <strong>${esc(venue)}</strong>. You can now manage its listing on BarkFind.`,
       `Sign in at <a href="https://www.barkfind.com/business/manage" style="color:#B74217;">barkfind.com/business/manage</a> to edit your details, opening hours and dog-friendly amenities. Every change is checked before it goes live.`,
-      `Josh, BarkFind`,
+      `The BarkFind team`,
     ],
   });
   return send(resend, to, `You can now manage ${venue} on BarkFind`, html);
@@ -111,10 +112,10 @@ export function sendClaimDeclined(resend: Resend, to: string, name: string, venu
     heading: 'About your claim',
     paras: [
       `Hi ${who},`,
-      `Thanks for your claim for <strong>${esc(venue)}</strong>. I was not able to approve it this time.`,
+      `Thanks for your claim for <strong>${esc(venue)}</strong>. We were not able to approve it this time.`,
       `<strong>Reason:</strong> ${esc(reason)}`,
-      `If you think this is wrong, or you can send something that confirms you run the venue, reply to this email and I will take another look.`,
-      `Josh, BarkFind`,
+      `If you think this is wrong, or you can send something that confirms you run the venue, reply to this email and we will take another look.`,
+      `The BarkFind team`,
     ],
   });
   return send(resend, to, `Your BarkFind claim for ${venue}`, html);
