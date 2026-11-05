@@ -120,3 +120,19 @@ export function sendClaimDeclined(resend: Resend, to: string, name: string, venu
   });
   return send(resend, to, `Your BarkFind claim for ${venue}`, html);
 }
+
+// Sent from HQ when an owner's access to a venue is revoked (Task 3).
+export function sendOwnerRevoked(resend: Resend, to: string, name: string, venue: string): Promise<boolean> {
+  const who = name.trim() ? esc(name.trim().split(/\s+/)[0]) : 'there';
+  const html = shell({
+    preview: `Your access to ${venue} has been removed.`,
+    heading: 'Your venue access has changed',
+    paras: [
+      `Hi ${who},`,
+      `We have removed your access to manage <strong>${esc(venue)}</strong> on BarkFind.`,
+      `If you think this is a mistake, reply to this email and we will look into it.`,
+      `The BarkFind team`,
+    ],
+  });
+  return send(resend, to, `Your BarkFind access to ${venue}`, html);
+}

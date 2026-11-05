@@ -306,6 +306,11 @@ export function placeOps(pool: Pool): Record<string, Op> {
                   (select count(*)::int from public.business_claims where location_id = l.id) as claims,
                   (select count(*)::int from public.location_restrictions where location_id = l.id) as restrictions,
                   (select count(*)::int from public.listing_change_requests where location_id = l.id and status = 'pending') as pending_changes,
+                  (select coalesce(jsonb_agg(jsonb_build_object('id', lo.id, 'role', lo.role, 'granted_at', lo.granted_at, 'name', pr.full_name, 'email', au.email) order by lo.granted_at), '[]')
+                     from public.location_owners lo
+                     left join public.profiles pr on pr.user_id = lo.user_id
+                     left join auth.users au on au.id = lo.user_id
+                    where lo.location_id = l.id and lo.revoked_at is null) as owners,
                   (select coalesce(jsonb_agg(x), '[]') from (select left(review_text, 300) as text, paw_rating, status, created_at
                      from public.reviews where location_id = l.id order by created_at desc limit 5) x) as recent_reviews
              from public.locations l
