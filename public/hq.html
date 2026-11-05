@@ -1524,15 +1524,52 @@ table.ads-t th,table.ads-t td{padding:8px 10px;white-space:nowrap}table.ads-t td
     }).catch(function(e){fail(el,e)});
   }
 
-  // Claims: all claims, pending first; AI assessment, verify, reject.
+  // Claims: pending first. Shows the venue, domain match, evidence and other claims on
+  // the same venue. Approve (creates the owner, points the venue at them, marks it
+  // verified) needs the business_claims permission; decline (reason, emailed) needs
+  // claims. A claim with no venue must have one attached before it can be approved.
+  var VMETHODS=[["work_email","Work email on the venue domain"],["phone_call","Phone call to the Google number"],["document","Document"],["other","Other"]];
+  function claimCard(c){
+    var pending=c.status==="pending", canB=H.can("business_claims"), link=function(u){return httpOnly(u)?u:"https://"+u};
+    var tags='<span class="tag '+(pending?"warn":c.status==="verified"?"ok":"")+'">'+esc(c.status)+'</span><span>submitted '+esc(dateOnly(c.created_at))+'</span>'+
+      (c.source?'<span class="tag">from '+esc(c.source)+'</span>':'')+
+      (c.work_email_matches_site===true?'<span class="tag ok">domain match</span>':c.work_email_matches_site===false?'<span class="tag">no domain match</span>':'')+
+      (c.other_claims>0?'<span class="tag warn">'+c.other_claims+' other claim'+(c.other_claims>1?"s":"")+'</span>':'')+
+      (c.place_has_owner?'<span class="tag">venue already has an owner</span>':'');
+    var venue=c.location_id
+      ? '<div class="title">'+esc(c.place||"Unknown place")+(c.barkfind_verified?' <span class="tag ok">verified</span>':'')+'</div><div class="note">'+esc(c.address||"")+'</div>'+
+        ((c.website||c.maps_url)?'<div class="note">'+(c.website?'<a href="'+esc(link(c.website))+'" target="_blank" rel="noopener noreferrer">Website</a>':'')+((c.website&&c.maps_url)?' &middot; ':'')+(c.maps_url?'<a href="'+esc(c.maps_url)+'" target="_blank" rel="noopener noreferrer">Google listing (phone)</a>':'')+'</div>':'')
+      : '<div class="title">No venue attached</div><div class="note">This claim came in without a venue. Attach one before approving.</div>';
+    var kvs='<dl class="kvs"><dt>Claimant</dt><dd>'+esc(c.claimant_name||c.account_name||"–")+'</dd>'+
+      (c.role?'<dt>Role</dt><dd>'+esc(c.role)+'</dd>':'')+
+      '<dt>Work email</dt><dd>'+hidden(c.claimant_email)+(c.email_differs?' <span class="note">(different from the account email)</span>':'')+'</dd>'+
+      (c.claimant_phone!==undefined?'<dt>Phone</dt><dd>'+hidden(c.claimant_phone)+'</dd>':'')+
+      '<dt>Account</dt><dd>'+esc(c.account_name||"–")+' '+(c.account_email?hidden(c.account_email):'')+'</dd></dl>';
+    var body=(c.message?'<div class="text">'+esc(c.message)+'</div>':'<div class="note">No message provided.</div>')+
+      (c.evidence_url?'<div class="note">Evidence: '+(httpOnly(c.evidence_url)?'<a href="'+esc(c.evidence_url)+'" target="_blank" rel="noopener noreferrer">'+esc(c.evidence_url)+'</a>':esc(c.evidence_url))+'</div>':'<div class="note">No evidence provided.</div>');
+    var actions="";
+    if(pending){
+      if(!c.location_id){
+        actions+=canB
+          ? '<div class="subhead"><h3>Attach a venue</h3></div><div class="row"><input class="pill-in" data-csearch placeholder="Venue name and town"><button class="btn small" data-do="csearch">Search</button></div><div data-cresults class="stack"></div>'
+          : '<div class="note">A venue must be attached before this claim can be approved. That needs the business claims permission.</div>';
+      }
+      actions+='<div class="row"><button class="btn small" data-do="assess">AI assessment</button></div><div data-assess></div>';
+      if(canB&&c.location_id){
+        actions+='<div class="subhead"><h3>Approve</h3></div><label class="note">Verification method</label><select data-method aria-label="Verification method">'+VMETHODS.map(function(m){return '<option value="'+m[0]+'">'+esc(m[1])+'</option>'}).join("")+'</select><div class="row"><button class="btn ok small" data-do="approve" data-confirm="Confirm approve">Approve and make them the owner</button></div>';
+      }
+      if(H.can("claims")){
+        actions+='<label class="note">Reason for declining (emailed to them)</label><textarea data-decline style="min-height:70px"></textarea><div class="row"><button class="btn danger small" data-do="decline" data-confirm="Confirm decline">Decline</button></div>';
+      }
+    }else{
+      if(c.verification_method)actions+='<div class="note">Verified by: '+esc(String(c.verification_method).replace(/_/g," "))+'</div>';
+      if(c.decline_reason)actions+='<div class="prior">Declined: '+esc(c.decline_reason)+'</div>';
+    }
+    return '<div class="card" data-cid="'+esc(c.id)+'"><div class="meta">'+tags+'</div>'+venue+kvs+body+actions+'</div>';
+  }
   function claims(el){
     H.api("claims_list").then(function(r){
-      el.innerHTML=r.data.length?r.data.map(function(c){var pending=c.status==="pending";
-        return '<div class="card" data-cid="'+esc(c.id)+'"><div class="meta"><span class="tag '+(pending?"warn":c.status==="verified"?"ok":"")+'">'+esc(c.status)+'</span><span>submitted '+esc(dateOnly(c.created_at))+'</span></div><div class="title">'+esc(c.place||"Unknown place")+'</div><div class="note">'+esc(c.address||"")+'</div>'+
-          '<dl class="kvs"><dt>Claimant</dt><dd>'+esc(c.claimant_name||c.account_name||"–")+'</dd><dt>Email</dt><dd>'+hidden(c.claimant_email)+(c.email_differs?' <span class="note">(different from the account email)</span>':'')+'</dd>'+(c.claimant_phone!==undefined?'<dt>Phone</dt><dd>'+hidden(c.claimant_phone)+'</dd>':'')+'<dt>Account</dt><dd>'+esc(c.account_name||"–")+' '+(c.account_email?esc(c.account_email):'')+'</dd></dl>'+
-          (c.message?'<div class="text">'+esc(c.message)+'</div>':'<div class="note">No message provided.</div>')+
-          (c.evidence_url?'<div class="note">Evidence: '+(httpOnly(c.evidence_url)?'<a href="'+esc(c.evidence_url)+'" target="_blank" rel="noopener noreferrer">'+esc(c.evidence_url)+'</a>':esc(c.evidence_url))+'</div>':'<div class="note">No evidence provided.</div>')+
-          (pending?'<div class="row"><button class="btn small" data-do="assess">AI assessment</button><button class="btn ok small" data-do="verify" data-confirm="Confirm verify">Verify</button><button class="btn danger small" data-do="reject" data-confirm="Confirm reject">Reject</button></div><div data-assess></div>':'')+'</div>'}).join(""):'<div class="empty">No business claims.</div>';
+      el.innerHTML=r.data.length?r.data.map(claimCard).join(""):'<div class="empty">No business claims.</div>';
     }).catch(function(e){fail(el,e)});
   }
 
@@ -1721,7 +1758,7 @@ table.ads-t th,table.ads-t td{padding:8px 10px;white-space:nowrap}table.ads-t td
         (row.status==="pending"&&can.apply?'<div class="row"><button class="btn ok small" data-ia="apply" data-confirm="Confirm apply">Apply ticked changes</button></div><label class="note">Reason for declining (sent to them)</label><textarea data-ib-decline style="min-height:70px"></textarea><div class="row"><button class="btn danger small" data-ia="decline" data-confirm="Confirm decline">Decline</button></div>':(row.decline_reason?'<div class="prior">Declined: '+esc(row.decline_reason)+'</div>':''))+'</div>';
     }else if(k==="business_claim"){
       body='<div class="card"><div class="meta"><span class="tag">'+esc(row.status)+'</span></div><div class="title">'+esc((d.place||{}).name||"A place")+'</div><dl class="kvs"><dt>Claimant</dt><dd>'+esc(row.claimant_name||"–")+'</dd><dt>Email</dt><dd>'+(row.claimant_email?esc(row.claimant_email):'<span class="note">hidden</span>')+'</dd></dl>'+(row.message?'<div class="text">'+esc(row.message)+'</div>':'')+(row.evidence_url?'<div class="note">Evidence: '+(httpOnly(row.evidence_url)?'<a href="'+esc(row.evidence_url)+'" target="_blank" rel="noopener noreferrer">'+esc(row.evidence_url)+'</a>':esc(row.evidence_url))+'</div>':'')+
-        (row.status==="pending"&&H.can("claims")?'<div class="row"><button class="btn small" data-ia="assess">AI assessment</button><button class="btn ok small" data-ia="verify" data-confirm="Confirm verify">Verify</button><button class="btn danger small" data-ia="reject" data-confirm="Confirm reject">Reject</button></div><div data-assess></div>':'')+'</div>';
+        (row.status==="pending"&&H.can("claims")?'<div class="row"><button class="btn small" data-ia="assess">AI assessment</button><button class="btn small" data-ia="claim_open">Open in Claims</button></div><div class="note">Approve, decline or attach a venue in the Claims panel.</div><div data-assess></div>':'')+'</div>';
     }else if(k==="place_report"){
       body=reportPanel(d);
     }else if(k==="user_report"){
@@ -1837,7 +1874,7 @@ table.ads-t th,table.ads-t td{padding:8px 10px;white-space:nowrap}table.ads-t td
     if(w==="apply"){var fields=[].map.call($("sheetBody").querySelectorAll("[data-field]:checked"),function(x){return x.dataset.field});if(!fields.length){H.note(card,false,"Tick at least one change.");return}ibAct(H.api("listing_change_apply",{id:o.id,fields:fields}),b,card);return}
     if(w==="decline"){var rs=$("sheetBody").querySelector("[data-ib-decline]").value.trim();if(!rs){H.note(card,false,"Give a reason first. It is sent to them.");return}ibAct(H.api("listing_change_decline",{id:o.id,reason:rs}),b,card);return}
     if(w==="assess"){var box=card.querySelector("[data-assess]");b.disabled=true;box.innerHTML='<div class="note">Assessing the claim.</div>';H.api("claim_assess",{id:o.id}).then(function(r){box.innerHTML='<div class="assess">'+esc(r.text)+'</div>'}).catch(function(e){box.innerHTML="";H.note(card,false,e.message)}).then(function(){b.disabled=false});return}
-    if(w==="verify"||w==="reject"){ibAct(H.api("claim_set_status",{id:o.id,status:w==="verify"?"verified":"rejected"}),b,card);return}
+    if(w==="claim_open"){location.hash="#act/claims";if(typeof closeSheet==="function")closeSheet();return}
     if(w==="openplace"){if(window.HQPlaces&&HQPlaces.open&&d.place&&d.place.id){var pid=d.place.id;stopHeartbeat();HQPlaces.open(pid)}return}
     if(w==="reporter"){if(window.HQUsers&&HQUsers.open&&b.dataset.user)HQUsers.open(b.dataset.user);return}
     if(w==="fixed"||w==="dismiss"){resolveReport(w,b,card);return}
@@ -2211,10 +2248,13 @@ table.ads-t th,table.ads-t td{padding:8px 10px;white-space:nowrap}table.ads-t td
     if(what==="ur_actioned"||what==="ur_dismissed"){run(b,card,H.act("user_report",{id:card.dataset.uid,status:what==="ur_actioned"?"actioned":"dismissed"}),refresh);return}
     if(what==="lr_dismissed"){run(b,card,H.act("location_report",{id:card.dataset.lrid,status:"dismissed"}),refresh);return}
     if(what==="flag_place"){var rs=card.querySelector("[data-flag-reason]").value.trim();if(!rs){H.note(card,false,"Give a reason first.");return}run(b,card,H.api("report_flag_place",{report_id:card.dataset.lrid,reason:rs}),refresh);return}
-    // Claims
-    var cid=card&&card.dataset.cid;
-    if(what==="assess"){var box=card.querySelector("[data-assess]");b.disabled=true;box.innerHTML='<div class="note">Assessing the claim.</div>';H.api("claim_assess",{id:cid}).then(function(r){box.innerHTML='<div class="assess">'+esc(r.text)+'</div>'}).catch(function(e){box.innerHTML='';H.note(card,false,e.message)}).then(function(){b.disabled=false});return}
-    if(what==="verify"||what==="reject"){run(b,card,H.api("claim_set_status",{id:cid,status:what==="verify"?"verified":"rejected"}),refresh);return}
+    // Claims (buttons may sit inside a nested result card, so find the claim by data-cid)
+    var cel=b.closest("[data-cid]"), cid=cel&&cel.dataset.cid;
+    if(what==="assess"){var box=cel.querySelector("[data-assess]");b.disabled=true;box.innerHTML='<div class="note">Assessing the claim.</div>';H.api("claim_assess",{id:cid}).then(function(r){box.innerHTML='<div class="assess">'+esc(r.text)+'</div>'}).catch(function(e){box.innerHTML='';H.note(cel,false,e.message)}).then(function(){b.disabled=false});return}
+    if(what==="csearch"){var q=(cel.querySelector("[data-csearch]").value||"").trim();var out=cel.querySelector("[data-cresults]");if(q.length<2){H.note(cel,false,"Type the venue name and town.");return}b.disabled=true;out.innerHTML='<div class="note">Searching.</div>';H.api("claim_search_places",{q:q}).then(function(r){out.innerHTML=r.data.length?r.data.map(function(p){return '<div class="card" style="padding:10px 12px"><div class="row" style="justify-content:space-between;align-items:flex-start"><span><b>'+esc(p.name)+'</b><div class="note">'+esc(p.address||"")+'</div></span><button class="btn small" data-do="attach" data-loc="'+esc(p.id)+'">Attach</button></div></div>'}).join(""):'<div class="empty">No matches.</div>'}).catch(function(e){out.innerHTML='';H.note(cel,false,e.message)}).then(function(){b.disabled=false});return}
+    if(what==="attach"){run(b,cel,H.api("claim_attach_venue",{id:cid,location_id:b.dataset.loc}),refresh);return}
+    if(what==="approve"){var mm=cel.querySelector("[data-method]").value;run(b,cel,H.api("claim_approve",{id:cid,verification_method:mm}),refresh);return}
+    if(what==="decline"){var rsn=(cel.querySelector("[data-decline]").value||"").trim();if(!rsn){H.note(cel,false,"Give a reason first.");return}run(b,cel,H.api("claim_decline",{id:cid,reason:rsn}),refresh);return}
     // Suggestions
     if(what==="sub_openplace"){if(window.HQPlaces&&HQPlaces.open)HQPlaces.open(b.dataset.id);return}
     if(what==="sub_markadded"){subResolve(card.dataset.sub,"added","add",card,b);return}
@@ -2967,6 +3007,8 @@ table.ads-t th,table.ads-t td{padding:8px 10px;white-space:nowrap}table.ads-t td
         '<div class="row"><button class="btn small'+(p.is_sponsored?' ok':'')+'" data-pl="toggle" data-f="is_sponsored" data-on="'+(!p.is_sponsored)+'">'+(p.is_sponsored?"Sponsored: on":"Sponsored: off")+'</button>'+
         '<button class="btn small'+(p.barkfind_verified?' ok':'')+'" data-pl="toggle" data-f="barkfind_verified" data-on="'+(!p.barkfind_verified)+'">'+(p.barkfind_verified?"BarkFind verified: on":"BarkFind verified: off")+'</button></div>'+
         (p.google_verified?'<div class="note">Google also verifies this place, so it shows as verified either way.</div>':'')+'</div>':'')+
+      '<div class="card" data-pl-card="owners"><div class="subhead"><h3 style="font-size:18px">Owners</h3></div>'+
+        ((p.owners||[]).length?p.owners.map(function(o){return '<div class="prior" data-owner="'+esc(o.id)+'"><div><b>'+esc(o.name||"Owner")+'</b> <span class="note">'+esc(o.role||"owner")+'</span></div><div class="note">'+(o.email?hidden(o.email):'')+' · since '+esc(H.when(o.granted_at))+'</div>'+(H.can("business_claims")?'<label class="note">Reason for revoking (emailed to them)</label><input type="text" class="pill-in" data-oreason maxlength="1000"><div class="row"><button class="btn danger small" data-pl="owner_revoke" data-oid="'+esc(o.id)+'" data-confirm="Confirm revoke">Revoke access</button></div>':'')+'</div>'}).join(""):'<div class="note">No owners yet. They are added by approving a claim.</div>')+'</div>'+
       (H.can("places_moderate")&&!p.flagged?'<div class="card" data-pl-card="flag"><div class="subhead"><h3 style="font-size:18px">Flag</h3></div><p class="note" style="margin:0">Hides it from the app. It goes to Flagged places, where it can be restored.</p>'+
         '<select data-pl-reason>'+(p.flag_reasons||[]).map(function(x){return '<option>'+esc(x)+'</option>'}).join("")+'</select><input type="text" class="pill-in" data-pl-note maxlength="300" placeholder="Note (optional)">'+
         '<div class="row"><button class="btn danger small" data-pl="flag" data-confirm="Confirm flag">Flag place</button></div></div>':'')+
@@ -3046,6 +3088,7 @@ table.ads-t th,table.ads-t td{padding:8px 10px;white-space:nowrap}table.ads-t td
     if(b.dataset.confirm&&!H.armed(b))return;
     if(w==="unlock"){busy(b,H.api("place_unlock",{id:p.id,field:b.dataset.f}),card,refresh);return}
     if(w==="flag"){busy(b,H.api("place_flag",{id:p.id,reason:card.querySelector("[data-pl-reason]").value,note:card.querySelector("[data-pl-note]").value.trim()}),card,refresh);return}
+    if(w==="owner_revoke"){var ownEl=b.closest("[data-owner]");var oreason=(ownEl.querySelector("[data-oreason]").value||"").trim();if(!oreason){H.note(card,false,"Give a reason first. It is emailed to the owner.");return}busy(b,H.api("owner_revoke",{id:b.dataset.oid,reason:oreason}),card,refresh);return}
     if(w==="delete"){busy(b,H.api("place_delete",{id:p.id}),card,function(r){if(!r||r.ok===false)return;setTimeout(function(){$("sheetBg").hidden=true;document.body.style.overflow="";if(pl.sec==="list")load();if(pl.sec==="dups")dupsView($("plPane"))},900)});return}
   });
   function refresh(r){if(!r||r.ok===false)return;var msg=r.message;H.api("place_detail",{id:pl.open.id}).then(function(x){pl.open=x.data;placeView(x.data);var c=$("sheetBody").querySelector(".card");if(c)H.note(c,true,msg);if(pl.sec==="list")load()}).catch(function(){})}

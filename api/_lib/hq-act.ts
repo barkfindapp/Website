@@ -7,6 +7,10 @@ import type { Pool, PoolClient } from 'pg';
 import { HttpError, bad, only, uuid, str, oneOf, writeTx, toTrash, scrubEmails } from './hq-core.js';
 import type { Perm, Staff } from './hq-staff.js';
 import { signIn } from './hq-reset.js';
+import { Resend } from 'resend';
+import { sendClaimApproved, sendClaimDeclined, sendOwnerRevoked } from './business-email.js';
+
+const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
 
 export type Ctx = { staff: Staff; token: string; hqUrl: string };
 export type Op = { perm: Perm; run: (a: Record<string, unknown>, ctx: Ctx) => Promise<unknown> };
@@ -203,19 +207,26 @@ export function actOps(pool: Pool, deps: Deps): Record<string, Op> {
       perm: 'claims',
       run: async (a, ctx) => {
         only(a, []);
+        // business_claims.user_id is the claimant's profiles.id, so join profiles on id,
+        // then auth.users through profiles.user_id for the account email.
         const r = await pool.query(
-          `select bc.id, bc.status, bc.evidence_url, bc.created_at, bc.claimant_name, bc.claimant_email, bc.claimant_phone, bc.message,
-                  l.name as place, coalesce(left(l.address, 55), '') as address, l.website,
-                  p.full_name as account_name, u.email as account_email, u.created_at as account_created
+          `select bc.id, bc.status, bc.location_id, bc.evidence_url, bc.created_at, bc.claimant_name, bc.claimant_email, bc.claimant_phone, bc.message,
+                  bc.role, bc.source, bc.work_email_matches_site, bc.verification_method, bc.decided_at, bc.decline_reason,
+                  l.name as place, coalesce(left(l.address, 55), '') as address, l.website, l.place_id,
+                  l.barkfind_verified, (l.owner_id is not null) as place_has_owner,
+                  p.full_name as account_name, u.email as account_email, u.created_at as account_created,
+                  (select count(*)::int from public.business_claims o where o.location_id = bc.location_id and o.id <> bc.id) as other_claims
              from public.business_claims bc
              left join public.locations l on l.id = bc.location_id
-             left join public.profiles p on p.user_id = bc.user_id
-             left join auth.users u on u.id = bc.user_id
+             left join public.profiles p on p.id = bc.user_id
+             left join auth.users u on u.id = p.user_id
             order by (bc.status = 'pending') desc, bc.created_at desc limit 200`);
         return {
           data: r.rows.map((x) => ({
             ...x,
             email_differs: !!(x.claimant_email && x.account_email && String(x.claimant_email).trim().toLowerCase() !== String(x.account_email).trim().toLowerCase()),
+            // Google phone is not stored; a Maps link from place_id lets staff open the listing to call.
+            maps_url: x.place_id ? 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(x.place || 'place') + '&query_place_id=' + encodeURIComponent(x.place_id) : null,
             claimant_email: contact(ctx, x.claimant_email), claimant_phone: contact(ctx, x.claimant_phone), account_email: contact(ctx, x.account_email),
           })),
         };
@@ -230,7 +241,8 @@ export function actOps(pool: Pool, deps: Deps): Record<string, Op> {
         const r = await pool.query(
           `select bc.status, bc.evidence_url, bc.message, bc.claimant_email, bc.claimant_phone, l.name as place, l.address, l.website,
                   u.email as account_email, u.created_at as account_created
-             from public.business_claims bc left join public.locations l on l.id = bc.location_id left join auth.users u on u.id = bc.user_id
+             from public.business_claims bc left join public.locations l on l.id = bc.location_id
+             left join public.profiles p on p.id = bc.user_id left join auth.users u on u.id = p.user_id
             where bc.id = $1`, [id]);
         const c = r.rows[0];
         if (!c) throw new HttpError(404, 'That claim no longer exists.');
@@ -252,22 +264,116 @@ export function actOps(pool: Pool, deps: Deps): Record<string, Op> {
         return deps.claude('hq_claim_assess', prompt, ctx.staff.userId);
       },
     },
-    claim_set_status: {
-      perm: 'claims',
+    // Search BarkFind's own live places to attach to a claim that has no venue.
+    claim_search_places: {
+      perm: 'business_claims',
+      run: async (a) => {
+        const q = str(only(a, ['q']).q, 100, { min: 2 });
+        const terms = q.split(/\s+/).filter(Boolean).slice(0, 6).map((w) => '%' + w + '%');
+        const r = await pool.query(
+          `select id, name, coalesce(address, '') as address from public.locations
+            where flagged = false and (name || ' ' || coalesce(address, '')) ilike all($1::text[])
+            order by name limit 10`, [terms]);
+        return { data: r.rows };
+      },
+    },
+    // Attach a venue to a claim that arrived without one (some app claims saved location_id null).
+    claim_attach_venue: {
+      perm: 'business_claims',
       run: async (a, ctx) => {
-        only(a, ['id', 'status']);
+        only(a, ['id', 'location_id']);
         const id = uuid(a.id);
-        const status = oneOf(a.status, ['verified', 'rejected'] as const) as 'verified' | 'rejected';
+        const locationId = uuid(a.location_id);
         return writeTx(pool, ctx.staff.userId, async (c, audit) => {
           const before = await rowJson(c, 'business_claims', id);
           if (!before) throw new HttpError(404, 'That claim no longer exists.');
           if (before.status !== 'pending') throw new HttpError(409, 'That claim has already been decided.');
-          await c.query('update public.business_claims set status = $2 where id = $1', [id, status]);
-          if (status === 'verified' && before.location_id) await c.query('update public.locations set barkfind_verified = true where id = $1', [before.location_id]);
+          if (before.location_id) throw new HttpError(409, 'That claim already has a venue.');
+          const loc = (await c.query('select id, name, flagged from public.locations where id = $1', [locationId])).rows[0];
+          if (!loc || loc.flagged) throw new HttpError(409, 'That venue is not available.');
+          await c.query('update public.business_claims set location_id = $2 where id = $1', [id, locationId]);
           const after = await rowJson(c, 'business_claims', id);
-          await audit({ action: 'claim_set_status', entity: 'business_claims', entityId: id, detail: status === 'verified' ? 'Verified business claim' : 'Rejected business claim', before, after: { ...after, place_verified: status === 'verified' } });
-          return { ok: true, message: status === 'verified' ? 'Claim verified. The place now shows as verified.' : 'Claim rejected.' };
+          await audit({ action: 'claim_attach_venue', entity: 'business_claims', entityId: id, detail: `Attached ${loc.name} to a claim`, before, after });
+          return { ok: true, message: `Attached ${loc.name}. You can approve the claim now.` };
         });
+      },
+    },
+    // Approve: create the owner, point the venue at them, mark it verified, email the owner.
+    // Refuses while the claim has no venue. Needs business_claims (owner only by default).
+    claim_approve: {
+      perm: 'business_claims',
+      run: async (a, ctx) => {
+        only(a, ['id', 'verification_method']);
+        const id = uuid(a.id);
+        const method = oneOf(a.verification_method, ['work_email', 'phone_call', 'document', 'other'] as const) as string;
+        const res = await writeTx(pool, ctx.staff.userId, async (c, audit) => {
+          const before = await rowJson(c, 'business_claims', id);
+          if (!before) throw new HttpError(404, 'That claim no longer exists.');
+          if (before.status !== 'pending') throw new HttpError(409, 'That claim has already been decided.');
+          if (!before.location_id) throw new HttpError(409, 'Attach a venue to this claim before approving it.');
+          // business_claims.user_id is the claimant's profiles.id. location_owners.user_id needs
+          // their auth user id (profiles.user_id); locations.owner_id is the profiles.id.
+          const prof = (await c.query('select id, user_id, full_name from public.profiles where id = $1', [before.user_id])).rows[0];
+          if (!prof) throw new HttpError(409, 'This claimant no longer has a profile.');
+          const loc = (await c.query('select id, name from public.locations where id = $1', [before.location_id])).rows[0];
+          if (!loc) throw new HttpError(409, 'That venue no longer exists.');
+          const existing = await c.query('select 1 from public.location_owners where location_id = $1 and user_id = $2 and revoked_at is null limit 1', [before.location_id, prof.user_id]);
+          if (!existing.rowCount) {
+            await c.query("insert into public.location_owners (location_id, user_id, role, granted_by) values ($1, $2, 'owner', $3)", [before.location_id, prof.user_id, ctx.staff.userId]);
+          }
+          await c.query('update public.locations set owner_id = $2, barkfind_verified = true where id = $1', [before.location_id, before.user_id]);
+          await c.query("update public.business_claims set status = 'verified', verification_method = $2, decided_by = $3, decided_at = now() where id = $1", [id, method, ctx.staff.userId]);
+          const after = await rowJson(c, 'business_claims', id);
+          await audit({ action: 'claim_approve', entity: 'business_claims', entityId: id, detail: `Approved claim for ${loc.name} (${method})`, before, after });
+          return { email: before.claimant_email as string | null, name: (before.claimant_name as string) || prof.full_name || '', place: loc.name as string };
+        });
+        const sent = resend && res.email ? await sendClaimApproved(resend, res.email, res.name, res.place) : false;
+        return { ok: true, message: sent ? 'Approved. The owner can manage the venue now, and the email is on its way.' : res.email ? 'Approved. The email did not send, so tell the owner yourself.' : 'Approved. There is no email on this claim, so tell the owner yourself.' };
+      },
+    },
+    // Decline: a reason is required and is emailed. Moderators keep this (perm claims).
+    claim_decline: {
+      perm: 'claims',
+      run: async (a, ctx) => {
+        only(a, ['id', 'reason']);
+        const id = uuid(a.id);
+        const reason = str(a.reason, 1000, { min: 1 });
+        const res = await writeTx(pool, ctx.staff.userId, async (c, audit) => {
+          const before = await rowJson(c, 'business_claims', id);
+          if (!before) throw new HttpError(404, 'That claim no longer exists.');
+          if (before.status !== 'pending') throw new HttpError(409, 'That claim has already been decided.');
+          await c.query("update public.business_claims set status = 'rejected', decline_reason = $2, decided_by = $3, decided_at = now() where id = $1", [id, reason, ctx.staff.userId]);
+          const after = await rowJson(c, 'business_claims', id);
+          const place = before.location_id ? (await c.query('select name from public.locations where id = $1', [before.location_id])).rows[0]?.name || 'your venue' : 'your venue';
+          await audit({ action: 'claim_decline', entity: 'business_claims', entityId: id, detail: 'Declined business claim', before, after });
+          return { email: before.claimant_email as string | null, name: (before.claimant_name as string) || '', place };
+        });
+        const sent = resend && res.email ? await sendClaimDeclined(resend, res.email, res.name, res.place, reason) : false;
+        return { ok: true, message: sent ? 'Declined, and the reason was emailed to them.' : res.email ? 'Declined. The email did not send, so tell them yourself.' : 'Declined. There is no email on this claim, so tell them yourself.' };
+      },
+    },
+    // Revoke an owner from a venue (on the place panel). Reason required, owner emailed, audited.
+    owner_revoke: {
+      perm: 'business_claims',
+      run: async (a, ctx) => {
+        only(a, ['id', 'reason']);
+        const id = uuid(a.id);
+        const reason = str(a.reason, 1000, { min: 1 });
+        const res = await writeTx(pool, ctx.staff.userId, async (c, audit) => {
+          const row = (await c.query('select lo.*, l.name as place from public.location_owners lo left join public.locations l on l.id = lo.location_id where lo.id = $1', [id])).rows[0];
+          if (!row) throw new HttpError(404, 'That owner record no longer exists.');
+          if (row.revoked_at) throw new HttpError(409, 'That owner has already been removed.');
+          await c.query('update public.location_owners set revoked_at = now(), revoked_reason = $2 where id = $1', [id, reason]);
+          // location_owners.user_id is the auth id; locations.owner_id is the profiles.id. If the
+          // venue still points at this person, clear it so it no longer shows a revoked owner.
+          const prof = (await c.query('select id, full_name from public.profiles where user_id = $1', [row.user_id])).rows[0];
+          if (prof) await c.query('update public.locations set owner_id = null where id = $1 and owner_id = $2', [row.location_id, prof.id]);
+          const email = (await c.query('select email from auth.users where id = $1', [row.user_id])).rows[0]?.email || null;
+          await audit({ action: 'owner_revoke', entity: 'location_owners', entityId: id, detail: `Revoked an owner from ${row.place || 'a venue'}`, before: row, after: { ...row, revoked_at: 'now', revoked_reason: reason } });
+          return { email: email as string | null, name: prof?.full_name || '', place: (row.place as string) || 'your venue' };
+        });
+        const sent = resend && res.email ? await sendOwnerRevoked(resend, res.email, res.name, res.place) : false;
+        return { ok: true, message: sent ? 'Owner removed, and they were emailed.' : res.email ? 'Owner removed. The email did not send, so tell them yourself.' : 'Owner removed.' };
       },
     },
 

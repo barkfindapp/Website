@@ -10,7 +10,7 @@ const SUPABASE_URL = process.env.SUPABASE_URL!;
 const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY!;
 
 export const PERMISSIONS = [
-  'today', 'ask_ralphy', 'money', 'insights', 'reviews', 'reports', 'safety', 'privacy', 'claims',
+  'today', 'ask_ralphy', 'money', 'insights', 'reviews', 'reports', 'safety', 'privacy', 'claims', 'business_claims',
   'support_read', 'support_reply', 'support_assign', 'users_view', 'users_contact', 'users_ban', 'places_edit', 'places_moderate', 'places_delete', 'content',
   'announce', 'outreach_view', 'outreach_edit', 'outreach_delete', 'outreach_send', 'restrictions_review', 'renewals', 'creators', 'audit_view', 'trash_restore', 'staff_manage', 'staff_admins',
 ] as const;
@@ -25,9 +25,11 @@ export const asLevel = (l: string): Level => (l === 'support' ? 'moderator' : l)
 const ALL = [...PERMISSIONS] as Perm[];
 const LEVEL_PERMS: Record<Level, Perm[]> = {
   owner: ALL,
-  // 'creators' is owner-only by default: excluded from admin and every lower level,
-  // but still grantable to an individual through effectivePerms.
-  admin: ALL.filter((p) => p !== 'staff_admins' && p !== 'creators'),
+  // 'creators' and 'business_claims' are owner-only by default: excluded from admin
+  // and every lower level, but still grantable to an individual through effectivePerms.
+  // Approving a claim grants a venue owner real control, so it stays owner-only (plus
+  // whoever is granted it, e.g. Megan). Moderators keep 'claims' to view and decline.
+  admin: ALL.filter((p) => p !== 'staff_admins' && p !== 'creators' && p !== 'business_claims'),
   moderator: ['today', 'insights', 'reviews', 'reports', 'claims', 'users_view', 'places_edit', 'places_moderate',
     'support_read', 'support_reply', 'support_assign', 'users_contact', 'restrictions_review'],
   support: [],   // never used: asLevel() reads support as moderator
