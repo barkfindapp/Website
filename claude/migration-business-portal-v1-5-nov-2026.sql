@@ -71,6 +71,13 @@ alter table public.listing_change_requests
   add constraint listing_change_requests_source_check
   check (source in ('hq', 'app', 'website', 'email', 'owner'));
 
+-- Add 'withdrawn' to the status whitelist (was 'pending','applied','declined'), so a Task 4 owner
+-- can withdraw a change that is still waiting for approval.
+alter table public.listing_change_requests drop constraint if exists listing_change_requests_status_check;
+alter table public.listing_change_requests
+  add constraint listing_change_requests_status_check
+  check (status in ('pending', 'applied', 'declined', 'withdrawn'));
+
 -- Beyond the brief's literal Task 1 list, but needed by Task 4 (the owner edit form includes
 -- description and amenities, and both exist as real columns on locations). Without this, an owner
 -- edit to either field would be rejected by the changes whitelist. Cut this block if you would
@@ -110,8 +117,14 @@ create index if not exists review_replies_status_idx on public.review_replies (s
 
 alter table public.review_replies enable row level security;
 
+-- A new table in Supabase keeps the default anon/authenticated grants. RLS blocks them, but the rest
+-- of our tables (listing_change_requests among them) have the grants removed outright. Match that so
+-- these two are locked the same way, not just behind RLS.
+revoke all on public.location_owners, public.review_replies from anon, authenticated;
+
 -- The app reads approved replies through this view. Plain view (runs as owner, so it is not blocked
--- by the base table's RLS), exactly like creators_public.
+-- by the base table's RLS), exactly like creators_public. The reply is hidden if its review is no
+-- longer approved (rejected or removed), so a reply never outlives the review it answers.
 drop view if exists public.review_replies_public;
 create view public.review_replies_public as
   select rr.review_id,
@@ -120,7 +133,9 @@ create view public.review_replies_public as
          l.name        as venue_name
     from public.review_replies rr
     join public.locations l on l.id = rr.location_id
-   where rr.status = 'approved';
+    join public.reviews r on r.id = rr.review_id
+   where rr.status = 'approved'
+     and r.status = 'approved';
 
 grant select on public.review_replies_public to anon, authenticated;
 
