@@ -30,15 +30,6 @@ const BENEFITS = [
       </svg>
     ),
   },
-  {
-    title: "Promote offers & sponsored placement",
-    body: "Run exclusive in-app promotions and boost your visibility with sponsored placement to reach even more local dog owners.",
-    icon: (
-      <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth={1.75} viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" d="M7 7h.01M7 3h5a1.99 1.99 0 011.414.586l7 7a2 2 0 010 2.828l-5.172 5.172a2 2 0 01-2.828 0l-7-7A1.99 1.99 0 013 9V4a1 1 0 011-1z" />
-      </svg>
-    ),
-  },
 ];
 
 function EnquiryForm() {
@@ -75,7 +66,7 @@ function EnquiryForm() {
   if (status === "success") {
     return (
       <div className="rounded-2xl bg-[#FAEFD1] border border-[#B74217]/15 p-8 text-center">
-        <p className="font-serif text-2xl text-[#1a1a1a] mb-2">Thanks, we've got it! 🐾</p>
+        <p className="font-serif text-2xl text-[#1a1a1a] mb-2">Thanks, we've got your message. We'll be in touch soon.</p>
         <p className="text-sm text-[#585858]">
           Our team will be in touch at the email you provided. In the meantime, feel free to reach us at{" "}
           <a href="mailto:info@barkfind.com" className="text-[#B74217] font-semibold hover:underline">info@barkfind.com</a>.
@@ -105,7 +96,7 @@ function EnquiryForm() {
       </div>
       <div>
         <label className="block text-sm font-semibold text-[#1a1a1a] mb-1.5">How can we help?</label>
-        <textarea value={form.message} onChange={update("message")} rows={4} className={inputClass} placeholder="Tell us about your venue and what you're interested in (claiming your listing, promotions, sponsored placement)…" />
+        <textarea value={form.message} onChange={update("message")} rows={4} className={inputClass} placeholder="Tell us about your venue and whether you'd like to claim your listing." />
       </div>
       <button
         type="submit"
@@ -152,7 +143,7 @@ export default function Business() {
           {[
             ["1", "Get in touch", "Send us your details using the form below."],
             ["2", "Verify your venue", "We confirm you're the owner or manager of the business."],
-            ["3", "Manage & promote", "Keep your listing accurate, respond to reviews, and run promotions."],
+            ["3", "Manage your listing", "Keep your details, opening hours and dog-friendly amenities accurate and up to date."],
           ].map(([n, t, d]) => (
             <div key={n} className="flex flex-col items-center text-center gap-2">
               <div className="w-12 h-12 rounded-full bg-white shadow-md shadow-[#B74217]/10 flex items-center justify-center">
@@ -166,7 +157,7 @@ export default function Business() {
       </Section>
 
       <Section title="Get in touch">
-        <p>Fill in the form and our team will get back to you about claiming your listing, promotions, or sponsored placement.</p>
+        <p>Fill in the form and our team will get back to you about claiming your listing.</p>
         <div className="mt-2">
           <EnquiryForm />
         </div>
