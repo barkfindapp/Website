@@ -25,6 +25,11 @@ const RESOURCE_SECTIONS = ["/discover", "/dog-friendly", "/news", "/events"];
 // never in the main bundle a homepage visitor downloads.
 const ResetPassword = lazy(() => import("./pages/ResetPassword"));
 
+// Business portal (/business/claim, and /business/manage in a later task). Lazy so
+// supabase-js and the portal code stay out of the main bundle; only /business
+// itself (the marketing page) is in the exact-match map below.
+const BusinessClaim = lazy(() => import("./pages/BusinessClaim"));
+
 const ROUTES: Record<string, () => JSX.Element> = {
   "/mockup": MockupCapture,
   "/privacy": PrivacyPolicy,
@@ -53,6 +58,14 @@ export default function App() {
     return (
       <Suspense fallback={null}>
         <ResourcesRoutes path={clean} />
+      </Suspense>
+    );
+  }
+  // Business portal: /business/claim (owners claim a venue). Client-only, noindex.
+  if (clean === "/business/claim") {
+    return (
+      <Suspense fallback={null}>
+        <BusinessClaim />
       </Suspense>
     );
   }
