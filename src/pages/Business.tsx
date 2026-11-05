@@ -66,7 +66,7 @@ function EnquiryForm() {
   if (status === "success") {
     return (
       <div className="rounded-2xl bg-[#FAEFD1] border border-[#B74217]/15 p-8 text-center">
-        <p className="font-serif text-2xl text-[#1a1a1a] mb-2">Thanks, we've got it! 🐾</p>
+        <p className="font-serif text-2xl text-[#1a1a1a] mb-2">Thanks, we've got your message. We'll be in touch soon.</p>
         <p className="text-sm text-[#585858]">
           Our team will be in touch at the email you provided. In the meantime, feel free to reach us at{" "}
           <a href="mailto:info@barkfind.com" className="text-[#B74217] font-semibold hover:underline">info@barkfind.com</a>.
