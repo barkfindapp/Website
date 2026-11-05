@@ -180,12 +180,12 @@ function ClaimFlow({ session }: { session: Session }) {
         <div className="rounded-2xl bg-[#FAEFD1] border border-[#B74217]/15 p-8">
           <p className="font-serif text-2xl text-[#1a1a1a] mb-2">Your claim is in.</p>
           <p className="text-sm text-[#585858] leading-relaxed">
-            I review every claim by hand to check you run the venue. I will email you at{" "}
+            We review every claim by hand to check you run the venue. We will email you at{" "}
             <span className="font-semibold text-[#2F291E]">{done.email}</span> once it is done.
           </p>
           {done.hasOwner && (
             <p className="text-sm text-[#585858] leading-relaxed mt-3">
-              This venue already has an owner on BarkFind, so I will check your claim with them first.
+              This venue already has an owner on BarkFind, so we will check your claim with them first.
             </p>
           )}
           {!done.emailed && (
@@ -328,12 +328,12 @@ function ClaimForm({ venue, accountEmail, onBack, onDone }: {
         </div>
         <div>
           <label className={labelClass}>Phone *</label>
-          <input required type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} className={inputClass} placeholder="A number I can reach you on" />
+          <input required type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} className={inputClass} placeholder="A number we can reach you on" />
         </div>
         <div>
           <label className={labelClass}>Work email *</label>
           <input required type="email" value={workEmail} onChange={(e) => setWorkEmail(e.target.value)} className={inputClass} placeholder="you@yourvenue.com" />
-          <p className="text-xs text-[#585858] mt-1.5">An email on the venue's own domain helps me confirm your claim faster.</p>
+          <p className="text-xs text-[#585858] mt-1.5">An email on the venue's own domain helps us confirm your claim faster.</p>
         </div>
         <div>
           <label className={labelClass}>Evidence link</label>
