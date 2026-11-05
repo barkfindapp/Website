@@ -126,6 +126,16 @@ export default function Business() {
       title="BarkFind for Businesses"
       subtitle="Reach dog owners who are actively looking for places like yours, cafes, pubs, restaurants, shops, and more."
     >
+      <div className="mt-2 flex flex-col sm:flex-row sm:items-center gap-3">
+        <a
+          href="/business/claim"
+          className="inline-flex items-center justify-center px-6 py-3.5 rounded-full bg-[#B74217] text-white font-bold text-sm hover:opacity-90 transition-opacity shadow-sm shadow-[#B74217]/20"
+        >
+          Claim your listing
+        </a>
+        <span className="text-sm text-[#585858]">Free, and you keep control of your venue's details.</span>
+      </div>
+
       <Section title="Why list on BarkFind">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 mt-2">
           {BENEFITS.map((b) => (
