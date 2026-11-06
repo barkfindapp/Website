@@ -121,6 +121,39 @@ export function sendClaimDeclined(resend: Resend, to: string, name: string, venu
   return send(resend, to, `Your BarkFind claim for ${venue}`, html);
 }
 
+// Sent from HQ when an owner's listing change is applied (Task 4).
+export function sendChangeApplied(resend: Resend, to: string, name: string, venue: string): Promise<boolean> {
+  const who = name.trim() ? esc(name.trim().split(/\s+/)[0]) : 'there';
+  const html = shell({
+    preview: `Your changes to ${venue} are live.`,
+    heading: 'Your changes are live',
+    paras: [
+      `Hi ${who},`,
+      `Your changes to <strong>${esc(venue)}</strong> have been approved and are now live on BarkFind.`,
+      `You can make more changes any time at <a href="https://www.barkfind.com/business/manage" style="color:#B74217;">barkfind.com/business/manage</a>.`,
+      `The BarkFind team`,
+    ],
+  });
+  return send(resend, to, `Your changes to ${venue} are live`, html);
+}
+
+// Sent from HQ when an owner's listing change is declined (Task 4). Reason included.
+export function sendChangeDeclined(resend: Resend, to: string, name: string, venue: string, reason: string): Promise<boolean> {
+  const who = name.trim() ? esc(name.trim().split(/\s+/)[0]) : 'there';
+  const html = shell({
+    preview: `About your changes to ${venue}.`,
+    heading: 'About your changes',
+    paras: [
+      `Hi ${who},`,
+      `We were not able to apply your recent changes to <strong>${esc(venue)}</strong>.`,
+      `<strong>Reason:</strong> ${esc(reason)}`,
+      `You can edit and resubmit at <a href="https://www.barkfind.com/business/manage" style="color:#B74217;">barkfind.com/business/manage</a>, or reply to this email if you have a question.`,
+      `The BarkFind team`,
+    ],
+  });
+  return send(resend, to, `Your changes to ${venue}`, html);
+}
+
 // Sent from HQ when an owner's access to a venue is revoked (Task 3).
 export function sendOwnerRevoked(resend: Resend, to: string, name: string, venue: string): Promise<boolean> {
   const who = name.trim() ? esc(name.trim().split(/\s+/)[0]) : 'there';
