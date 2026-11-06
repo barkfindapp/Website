@@ -505,6 +505,9 @@ export function inboxOps(pool: Pool): Record<string, Op> {
                           locked_fields = (select array(select distinct unnest(locked_fields || array['image_url']))),
                           details_set_at = now(), details_set_by = $3 where id = $1`,
                   [res.locationId, url, ctx.staff.userId]);
+                // Credit the venue for its own photo. Separate and best effort so publishing
+                // the photo still works before the photo_credit column migration is applied.
+                try { await pool.query('update public.locations set photo_credit = $2 where id = $1', [res.locationId, res.place]); } catch { /* column may not exist yet */ }
               } catch (e: any) { console.error('owner photo apply', e?.message); }
             }
           }

@@ -135,6 +135,10 @@ export default function Business() {
         </a>
         <span className="text-sm text-[#585858]">Free, and you keep control of your venue's details.</span>
       </div>
+      <p className="mt-3 text-sm text-[#585858]">
+        Already an owner?{" "}
+        <a href="/business/manage" className="text-[#B74217] font-semibold hover:underline">Manage your venue</a>.
+      </p>
 
       <Section title="Why list on BarkFind">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 mt-2">
