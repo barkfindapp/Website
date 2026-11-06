@@ -5,12 +5,35 @@
 // Each kind is only listed for people with its permission. Emails need users_contact.
 import type { Pool, PoolClient } from 'pg';
 import { Resend } from 'resend';
+import { createClient } from '@supabase/supabase-js';
 import { HttpError, bad, only, uuid, str, oneOf, writeTx, scrubEmails } from './hq-core.js';
 import type { Op, Ctx } from './hq-act.js';
 import type { Perm } from './hq-staff.js';
 import { signIn } from './hq-reset.js';
+import { refreshVerdicts } from './hq-restrictions.js';
+import { sendChangeApplied, sendChangeDeclined } from './business-email.js';
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
+const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+const SUPABASE_URL = process.env.SUPABASE_URL || '';
+const resendInbox = RESEND_API_KEY ? new Resend(RESEND_API_KEY) : null;
+// Service-role client for moving an owner's approved photo from the private
+// business-uploads bucket into the public location-photos bucket.
+const storageAdmin = SERVICE_KEY && SUPABASE_URL ? createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false, autoRefreshToken: false } }) : null;
+
+// Copy one approved owner photo into the public bucket and return its public URL.
+async function copyOwnerPhoto(locationId: string, srcPath: string): Promise<string | null> {
+  if (!storageAdmin) return null;
+  try {
+    const dl = await storageAdmin.storage.from('business-uploads').download(srcPath);
+    if (dl.error || !dl.data) return null;
+    const ext = (srcPath.split('.').pop() || 'jpg').toLowerCase();
+    const dest = 'venue-owner/' + locationId + '/' + Date.now() + '.' + ext;
+    const up = await storageAdmin.storage.from('location-photos').upload(dest, dl.data, { contentType: dl.data.type || 'image/jpeg', upsert: true });
+    if (up.error) return null;
+    return storageAdmin.storage.from('location-photos').getPublicUrl(dest).data.publicUrl || null;
+  } catch { return null; }
+}
 export const KINDS = ['support_ticket', 'listing_change', 'business_claim', 'place_report', 'user_report', 'privacy_request', 'treat_claim'] as const;
 type Kind = typeof KINDS[number];
 const SEVERITIES = ['urgent', 'high', 'normal', 'low'] as const;
@@ -23,7 +46,9 @@ const KIND_PERM: Record<Kind, Perm[]> = {
 };
 const canSee = (ctx: Ctx, k: Kind) => KIND_PERM[k].some((p) => ctx.staff.perms.has(p));
 const has = (ctx: Ctx, p: Perm) => ctx.staff.perms.has(p);
-const LISTING_FIELDS = ['name', 'address', 'opening_hours', 'dog_policy', 'dog_policy_note', 'website', 'image_url', 'closed'] as const;
+const LISTING_FIELDS = ['name', 'address', 'opening_hours', 'dog_policy', 'dog_policy_note', 'website', 'image_url', 'description', 'amenities', 'closed'] as const;
+// Changing any of these needs a forced Mylo verdict on apply, so Mylo does not contradict the venue.
+const MYLO_FIELDS = ['dog_policy', 'dog_policy_note', 'amenities'];
 const DOG_POLICIES = ['welcome', 'restricted', 'not_allowed'] as const;
 
 // One row per request, whatever its kind: the same columns from every table.
@@ -435,7 +460,7 @@ export function inboxOps(pool: Pool): Record<string, Op> {
         const id = uuid(a.id);
         if (!Array.isArray(a.fields) || !a.fields.length) throw bad();
         const fields = [...new Set(a.fields.map((f) => oneOf(f, LISTING_FIELDS) as string))];
-        return writeTx(pool, ctx.staff.userId, async (c, audit) => {
+        const res = await writeTx(pool, ctx.staff.userId, async (c, audit) => {
           const req = (await c.query('select * from public.listing_change_requests where id = $1 for update', [id])).rows[0];
           if (!req) throw new HttpError(404, 'That request no longer exists.');
           if (req.status !== 'pending') throw new HttpError(409, 'That request has already been decided.');
@@ -459,8 +484,48 @@ export function inboxOps(pool: Pool): Record<string, Op> {
           await c.query("update public.listing_change_requests set status = 'applied', decided_by = $2, decided_at = now(), updated_at = now() where id = $1", [id, ctx.staff.userId]);
           const after = (await c.query('select to_jsonb(l) as r from public.locations l where id = $1', [req.location_id])).rows[0]?.r;
           await audit({ action: 'listing_change_apply', entity: 'locations', entityId: req.location_id, detail: `Applied a listing change (${fields.join(', ')}) to ${before.name}`, before, after });
-          return { ok: true, message: 'Change applied to the place and locked against automatic updates.' };
+          return {
+            locationId: req.location_id as string, place: before.name as string, source: req.source as string,
+            requestedBy: req.requested_by as string | null,
+            photo: (req.source === 'owner' && Array.isArray(req.photo_paths) && req.photo_paths.length) ? String(req.photo_paths[0]) : null,
+            needMylo: req.source === 'owner' && detailFields.some((f) => MYLO_FIELDS.includes(f)),
+          };
         });
+        // An owner change: move the approved photo to the public bucket, force a Mylo
+        // verdict if the dog policy or amenities changed, and email the owner. All best
+        // effort, after the change itself has landed.
+        if (res.source === 'owner') {
+          if (res.photo) {
+            const url = await copyOwnerPhoto(res.locationId, res.photo);
+            if (url) {
+              try {
+                await pool.query(
+                  `update public.locations set image_url = $2, image_source = 'venue_owner',
+                          locked_fields = (select array(select distinct unnest(locked_fields || array['image_url']))),
+                          details_set_at = now(), details_set_by = $3 where id = $1`,
+                  [res.locationId, url, ctx.staff.userId]);
+              } catch (e: any) { console.error('owner photo apply', e?.message); }
+            }
+          }
+          if (res.needMylo) { try { await refreshVerdicts(pool, [res.locationId]); } catch (e: any) { console.error('owner change mylo', e?.message); } }
+          if (resendInbox && res.requestedBy) {
+            const u = (await pool.query('select u.email, p.full_name from auth.users u left join public.profiles p on p.user_id = u.id where u.id = $1', [res.requestedBy])).rows[0];
+            if (u?.email) await sendChangeApplied(resendInbox, u.email, u.full_name || '', res.place);
+          }
+        }
+        return { ok: true, message: 'Change applied to the place and locked against automatic updates.' };
+      },
+    },
+    // Short-lived signed URLs to preview an owner change's photos (private bucket).
+    change_photos: {
+      perm: 'places_edit',
+      run: async (a) => {
+        const id = uuid(only(a, ['id']).id);
+        const row = (await pool.query('select photo_paths from public.listing_change_requests where id = $1', [id])).rows[0];
+        const paths = Array.isArray(row?.photo_paths) ? (row.photo_paths as string[]) : [];
+        if (!paths.length || !storageAdmin) return { data: { urls: [] } };
+        const { data } = await storageAdmin.storage.from('business-uploads').createSignedUrls(paths, 300);
+        return { data: { urls: (data || []).map((x) => x.signedUrl).filter(Boolean) } };
       },
     },
     listing_change_decline: {
@@ -475,10 +540,18 @@ export function inboxOps(pool: Pool): Record<string, Op> {
           await c.query("update public.listing_change_requests set status = 'declined', decline_reason = $2, decided_by = $3, decided_at = now(), updated_at = now() where id = $1", [id, reason, ctx.staff.userId]);
           const place = (await c.query('select name from public.locations where id = $1', [before.location_id])).rows[0]?.name || 'your place';
           await audit({ action: 'listing_change_decline', entity: 'listing_change_requests', entityId: id, detail: 'Declined a listing change', before, after: { ...before, status: 'declined', decline_reason: reason } });
-          return { place, email: before.requester_email as string | null, name: before.requester_name as string | null };
+          return { place, email: before.requester_email as string | null, name: before.requester_name as string | null, source: before.source as string, requestedBy: before.requested_by as string | null };
         });
-        const sent = res.email ? await declineEmail(res.email, res.name || '', res.place, reason) : false;
-        return { ok: true, message: sent ? 'Declined, and the reason was emailed to them.' : res.email ? 'Declined. The email did not send, so tell them yourself.' : 'Declined. There is no email address on this request, so tell them yourself.' };
+        // Owner changes have no requester_email; look the owner up and use the branded email.
+        let email = res.email, name = res.name, branded = false;
+        if (res.source === 'owner' && res.requestedBy) {
+          const u = (await pool.query('select u.email, p.full_name from auth.users u left join public.profiles p on p.user_id = u.id where u.id = $1', [res.requestedBy])).rows[0];
+          email = u?.email || null; name = u?.full_name || null; branded = true;
+        }
+        const sent = email
+          ? (branded && resendInbox ? await sendChangeDeclined(resendInbox, email, name || '', res.place, reason) : await declineEmail(email, name || '', res.place, reason))
+          : false;
+        return { ok: true, message: sent ? 'Declined, and the reason was emailed to them.' : email ? 'Declined. The email did not send, so tell them yourself.' : 'Declined. There is no email address on this request, so tell them yourself.' };
       },
     },
   };

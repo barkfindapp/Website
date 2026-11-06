@@ -29,6 +29,7 @@ const ResetPassword = lazy(() => import("./pages/ResetPassword"));
 // supabase-js and the portal code stay out of the main bundle; only /business
 // itself (the marketing page) is in the exact-match map below.
 const BusinessClaim = lazy(() => import("./pages/BusinessClaim"));
+const BusinessManage = lazy(() => import("./pages/BusinessManage"));
 
 const ROUTES: Record<string, () => JSX.Element> = {
   "/mockup": MockupCapture,
@@ -61,11 +62,19 @@ export default function App() {
       </Suspense>
     );
   }
-  // Business portal: /business/claim (owners claim a venue). Client-only, noindex.
+  // Business portal: /business/claim (claim a venue), /business/manage (edit a
+  // venue you own). Client-only, noindex.
   if (clean === "/business/claim") {
     return (
       <Suspense fallback={null}>
         <BusinessClaim />
+      </Suspense>
+    );
+  }
+  if (clean === "/business/manage") {
+    return (
+      <Suspense fallback={null}>
+        <BusinessManage />
       </Suspense>
     );
   }

@@ -14,14 +14,25 @@ import { createClient } from '@supabase/supabase-js';
 import { Resend } from 'resend';
 import { HttpError, bad, obj, only, uuid, str } from './_lib/hq-core.js';
 import { sendClaimReceived } from './_lib/business-email.js';
+import { AMENITY_CODES, AMENITY_GROUPS, CATEGORY_GROUP } from './_lib/amenities.js';
 
 const DB_URL = process.env.SUPABASE_DB_URL!;
 const SUPABASE_URL = process.env.SUPABASE_URL!;
 const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY!;
+const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
+const UPLOAD_BUCKET = 'business-uploads';
 
 const pool = new Pool({ connectionString: DB_URL, ssl: { rejectUnauthorized: false }, max: 3 });
 const resend = RESEND_API_KEY ? new Resend(RESEND_API_KEY) : null;
+// Service-role client, server only, for issuing signed upload URLs into the private
+// business-uploads bucket. Never sent to the browser.
+const admin = SERVICE_KEY ? createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false, autoRefreshToken: false } }) : null;
+
+// Fields an owner may change, and the dog-policy values the app allows.
+const OWNER_FIELDS = ['description', 'website', 'opening_hours', 'amenities', 'dog_policy', 'dog_policy_note'] as const;
+const DOG_POLICIES = ['welcome', 'restricted', 'not_allowed'] as const;
+const MAX_PHOTOS = 6;
 
 export const maxDuration = 30;
 
@@ -63,6 +74,62 @@ function host(v: string | null | undefined): string | null {
 function emailDomain(e: string): string | null {
   const at = e.lastIndexOf('@');
   return at > 0 ? e.slice(at + 1).trim().toLowerCase() || null : null;
+}
+
+// The signed-in user must be an active owner or manager of this venue.
+async function requireOwner(authId: string, locationId: string) {
+  const r = await pool.query(
+    'select 1 from public.location_owners where location_id = $1 and user_id = $2 and revoked_at is null limit 1',
+    [locationId, authId]);
+  if (!r.rowCount) throw new HttpError(403, 'You do not manage this venue.');
+}
+
+// Validate and normalise one owner-edit field. Returns the value to store, or throws.
+function cleanField(field: string, v: unknown): unknown {
+  if (field === 'description') return str(v, 2000, { optional: true }) || null;
+  if (field === 'website') {
+    const s = str(v, 500, { optional: true });
+    if (s && !host(s)) throw new HttpError(400, 'That website does not look like a web address.');
+    return s || null;
+  }
+  if (field === 'dog_policy_note') return str(v, 300, { optional: true }) || null;
+  if (field === 'dog_policy') {
+    if (v === '' || v === null || v === undefined) return null;
+    if (typeof v !== 'string' || !(DOG_POLICIES as readonly string[]).includes(v)) throw bad();
+    return v;
+  }
+  if (field === 'opening_hours') {
+    // An array of day lines, as the app and HQ store it. Empty means "cleared".
+    if (!Array.isArray(v)) throw bad();
+    const lines = v.map((x) => str(x, 120)).slice(0, 14);
+    return lines;
+  }
+  if (field === 'amenities') {
+    if (!Array.isArray(v) || v.length > AMENITY_CODES.length) throw bad();
+    const codes = [...new Set(v.map((x) => str(x, 60, { min: 1 })))];
+    const unknown = codes.filter((c) => !AMENITY_CODES.includes(c));
+    if (unknown.length) throw new HttpError(400, 'That is not a BarkFind amenity: ' + unknown.slice(0, 3).join(', ').slice(0, 120));
+    return codes.sort((x, y) => AMENITY_CODES.indexOf(x) - AMENITY_CODES.indexOf(y));
+  }
+  throw bad();
+}
+
+function oneOfExt(v: unknown): string {
+  const s = String(v || '').toLowerCase();
+  if (s === 'jpg' || s === 'jpeg') return 'jpg';
+  if (s === 'png') return 'png';
+  throw new HttpError(400, 'Photos must be JPEG or PNG.');
+}
+function cryptoId(): string { return (globalThis.crypto as Crypto).randomUUID().replace(/-/g, ''); }
+
+// Two values differ, treating amenities as a set and ignoring order.
+function differs(field: string, a: unknown, b: unknown): boolean {
+  if (field === 'amenities' || field === 'opening_hours') {
+    const sa = JSON.stringify([...((a as unknown[]) || [])].slice().sort());
+    const sb = JSON.stringify([...((b as unknown[]) || [])].slice().sort());
+    return sa !== sb;
+  }
+  return JSON.stringify(a ?? null) !== JSON.stringify(b ?? null);
 }
 
 type Ctx = { user: User };
@@ -158,6 +225,120 @@ const OPS: Record<string, Op> = {
       if (resend) emailed = await sendClaimReceived(resend, workEmail, ctx.user.fullName, loc.name);
 
       return { data: { ok: true, emailed, has_owner: hasOwner } };
+    },
+  },
+
+  // ---------- Manage listing (Task 4) ----------
+  // The venues this owner manages, with any change still waiting.
+  my_venues: {
+    run: async (a, ctx) => {
+      only(a, []);
+      const r = await pool.query(
+        `select l.id, l.name, coalesce(l.address, '') as address, lo.role, l.barkfind_verified,
+                (select jsonb_build_object('id', cr.id, 'created_at', cr.created_at)
+                   from public.listing_change_requests cr
+                  where cr.location_id = l.id and cr.source = 'owner' and cr.status = 'pending'
+                  order by cr.created_at desc limit 1) as pending_change
+           from public.location_owners lo join public.locations l on l.id = lo.location_id
+          where lo.user_id = $1 and lo.revoked_at is null
+          order by l.name`, [ctx.user.authId]);
+      return { data: { venues: r.rows } };
+    },
+  },
+  // One venue's current listing, the editable values, the amenity options for its
+  // category, and any change waiting for approval (old and new side by side).
+  venue_for_edit: {
+    run: async (a, ctx) => {
+      const locationId = uuid(only(a, ['location_id']).location_id);
+      await requireOwner(ctx.user.authId, locationId);
+      const l = (await pool.query(
+        `select id, name, coalesce(address,'') as address, category, description, website,
+                opening_hours, amenities, dog_policy, dog_policy_note, image_url, barkfind_verified
+           from public.locations where id = $1`, [locationId])).rows[0];
+      if (!l) throw new HttpError(404, 'That venue no longer exists.');
+      const group = CATEGORY_GROUP[l.category as string] || 'pub-cafe-bar';
+      const pending = (await pool.query(
+        `select id, changes, current_values, photo_paths, created_at
+           from public.listing_change_requests
+          where location_id = $1 and source = 'owner' and status = 'pending'
+          order by created_at desc limit 1`, [locationId])).rows[0] || null;
+      return { data: { venue: l, amenity_options: AMENITY_GROUPS[group] || [], pending } };
+    },
+  },
+  // Save an edit as one listing_change_request (source owner). Nothing on the venue
+  // changes until HQ applies it. Refuses a second pending change on the same venue.
+  submit_change: {
+    run: async (a, ctx) => {
+      only(a, ['location_id', 'changes', 'photo_paths']);
+      const locationId = uuid(a.location_id);
+      await requireOwner(ctx.user.authId, locationId);
+      const raw = obj(a.changes);
+      for (const k of Object.keys(raw)) if (!(OWNER_FIELDS as readonly string[]).includes(k)) throw bad();
+      const photoPaths: string[] = a.photo_paths === undefined ? []
+        : Array.isArray(a.photo_paths) ? a.photo_paths.map((p) => str(p, 300, { min: 1 }))
+        : (() => { throw bad(); })();
+      if (photoPaths.length > MAX_PHOTOS) throw bad();
+      // Uploads must sit under this venue's folder (where the signed URL put them).
+      if (photoPaths.some((p) => !p.startsWith(locationId + '/'))) throw bad();
+
+      const cur = (await pool.query(
+        `select description, website, opening_hours, amenities, dog_policy, dog_policy_note
+           from public.locations where id = $1`, [locationId])).rows[0];
+      if (!cur) throw new HttpError(404, 'That venue no longer exists.');
+
+      // Keep only fields that actually change; snapshot the current value of each.
+      const changes: Record<string, unknown> = {};
+      const currentValues: Record<string, unknown> = {};
+      for (const f of Object.keys(raw)) {
+        const val = cleanField(f, raw[f]);
+        if (differs(f, val, cur[f])) { changes[f] = val; currentValues[f] = cur[f] ?? null; }
+      }
+      if (!Object.keys(changes).length && !photoPaths.length) throw new HttpError(400, 'Nothing has changed.');
+
+      const dupe = await pool.query(
+        "select 1 from public.listing_change_requests where location_id = $1 and source = 'owner' and status = 'pending' limit 1", [locationId]);
+      if (dupe.rowCount) throw new HttpError(409, 'You already have a change waiting for approval on this venue. Withdraw it first.');
+
+      const ins = await pool.query(
+        `insert into public.listing_change_requests
+           (location_id, requested_by, requester_role, changes, current_values, source, photo_paths, status)
+         values ($1, $2, 'business', $3::jsonb, $4::jsonb, 'owner', $5, 'pending') returning id`,
+        [locationId, ctx.user.authId, JSON.stringify(changes), JSON.stringify(currentValues), photoPaths.length ? photoPaths : null]);
+      const reqId = ins.rows[0].id as string;
+      try {
+        const name = (await pool.query('select name from public.locations where id = $1', [locationId])).rows[0]?.name || 'a venue';
+        await pool.query(
+          "select public.hq_fire_alert('owner_change_request', $1, 'warn', $2, $3, 'https://www.barkfind.com/hq#act/inbox')",
+          [reqId, 'Owner change for ' + name, 'A venue owner submitted a listing change for ' + name + '.']);
+      } catch (e: any) { console.error('owner change alert', e?.message); }
+      return { data: { ok: true } };
+    },
+  },
+  // Withdraw a change that is still waiting.
+  withdraw_change: {
+    run: async (a, ctx) => {
+      const id = uuid(only(a, ['id']).id);
+      const row = (await pool.query('select location_id, status from public.listing_change_requests where id = $1', [id])).rows[0];
+      if (!row) throw new HttpError(404, 'That change no longer exists.');
+      await requireOwner(ctx.user.authId, row.location_id);
+      if (row.status !== 'pending') throw new HttpError(409, 'That change has already been decided.');
+      await pool.query("update public.listing_change_requests set status = 'withdrawn', updated_at = now() where id = $1 and status = 'pending'", [id]);
+      return { data: { ok: true } };
+    },
+  },
+  // A short-lived signed URL to upload one resized photo into business-uploads. The
+  // client resizes in the browser and uploads straight to the bucket with the token.
+  photo_upload_url: {
+    run: async (a, ctx) => {
+      only(a, ['location_id', 'ext']);
+      const locationId = uuid(a.location_id);
+      await requireOwner(ctx.user.authId, locationId);
+      const ext = oneOfExt(a.ext);
+      if (!admin) throw new HttpError(503, 'Uploads are not configured on the server.');
+      const path = locationId + '/' + cryptoId() + '.' + ext;
+      const { data, error } = await admin.storage.from(UPLOAD_BUCKET).createSignedUploadUrl(path);
+      if (error || !data) throw new HttpError(502, 'Could not start the upload. Try again.');
+      return { data: { path: data.path, token: data.token } };
     },
   },
 };
