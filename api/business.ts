@@ -341,6 +341,50 @@ const OPS: Record<string, Op> = {
       return { data: { path: data.path, token: data.token } };
     },
   },
+
+  // ---------- Reply to reviews (Task 5) ----------
+  // Approved reviews for a venue the owner manages, each with its reply and status.
+  venue_reviews: {
+    run: async (a, ctx) => {
+      const locationId = uuid(only(a, ['location_id']).location_id);
+      await requireOwner(ctx.user.authId, locationId);
+      const r = await pool.query(
+        `select rv.id, rv.paw_rating, rv.review_text, rv.created_at,
+                rr.id as reply_id, rr.body as reply_body, rr.status as reply_status, rr.decline_reason as reply_decline_reason
+           from public.reviews rv
+           left join public.review_replies rr on rr.review_id = rv.id
+          where rv.location_id = $1 and rv.status = 'approved'
+          order by rv.created_at desc limit 100`, [locationId]);
+      return { data: { reviews: r.rows } };
+    },
+  },
+  // Write or edit a reply. One per review; editing sends it back to pending. Saved as
+  // pending for a person to approve (human moderation for now; a future moderate-reply
+  // edge function would score it here before saving).
+  submit_reply: {
+    run: async (a, ctx) => {
+      only(a, ['review_id', 'body']);
+      const reviewId = uuid(a.review_id);
+      const body = str(a.body, 1000, { min: 1 });
+      const rv = (await pool.query('select id, location_id, status from public.reviews where id = $1', [reviewId])).rows[0];
+      if (!rv || rv.status !== 'approved' || !rv.location_id) throw new HttpError(404, 'That review is not available to reply to.');
+      await requireOwner(ctx.user.authId, rv.location_id);
+      const up = await pool.query(
+        `insert into public.review_replies (review_id, location_id, author_user_id, body, status, updated_at)
+         values ($1, $2, $3, $4, 'pending', now())
+         on conflict (review_id) do update set body = excluded.body, author_user_id = excluded.author_user_id,
+           status = 'pending', moderation = null, decided_by = null, decided_at = null, decline_reason = null, updated_at = now()
+         returning id`,
+        [reviewId, rv.location_id, ctx.user.authId, body]);
+      const replyId = up.rows[0].id as string;
+      try {
+        const name = (await pool.query('select name from public.locations where id = $1', [rv.location_id])).rows[0]?.name || 'a venue';
+        await pool.query("select public.hq_fire_alert('review_reply', $1, 'warn', $2, $3, 'https://www.barkfind.com/hq#act/reviews')",
+          [replyId, 'Reply to moderate for ' + name, 'A venue replied to a review and it needs approval.']);
+      } catch (e: any) { console.error('review reply alert', e?.message); }
+      return { data: { ok: true } };
+    },
+  },
 };
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {

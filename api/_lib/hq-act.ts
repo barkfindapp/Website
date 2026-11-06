@@ -111,6 +111,83 @@ export function actOps(pool: Pool, deps: Deps): Record<string, Op> {
         });
       },
     },
+    // ---------- Review replies ----------
+    // Pending venue replies, each shown with the review it answers.
+    reply_queue: {
+      perm: 'reviews',
+      run: async (a) => {
+        only(a, []);
+        const r = await pool.query(
+          `select rr.id, rr.body, rr.created_at, rr.status,
+                  rv.id as review_id, rv.review_text, rv.paw_rating, rv.created_at as review_created_at,
+                  l.name as place
+             from public.review_replies rr
+             join public.reviews rv on rv.id = rr.review_id
+             left join public.locations l on l.id = rr.location_id
+            where rr.status = 'pending'
+            order by rr.created_at limit 200`);
+        return { data: r.rows };
+      },
+    },
+    // Approve a reply: it goes live in the app (through review_replies_public) and the
+    // reviewer gets an in-app notification. No push yet.
+    reply_approve: {
+      perm: 'reviews',
+      run: async (a, ctx) => {
+        const id = uuid(only(a, ['id']).id);
+        return writeTx(pool, ctx.staff.userId, async (c, audit) => {
+          const before = (await c.query('select to_jsonb(rr) as r from public.review_replies rr where rr.id = $1', [id])).rows[0]?.r;
+          if (!before) throw new HttpError(404, 'That reply no longer exists.');
+          if (before.status !== 'pending') throw new HttpError(409, 'That reply has already been decided.');
+          await c.query("update public.review_replies set status = 'approved', decided_by = $2, decided_at = now(), updated_at = now() where id = $1", [id, ctx.staff.userId]);
+          const rev = (await c.query('select user_id, location_id from public.reviews where id = $1', [before.review_id])).rows[0];
+          if (rev?.user_id) {
+            const place = (await c.query('select name from public.locations where id = $1', [rev.location_id])).rows[0]?.name || 'A venue';
+            await c.query(
+              "insert into public.notifications (user_id, type, entity, entity_id, title, message) values ($1, 'reply', 'review', $2, $3, $4)",
+              [rev.user_id, before.review_id, 'The venue replied to your review', place + ' replied to your review on BarkFind.']);
+          }
+          const after = (await c.query('select to_jsonb(rr) as r from public.review_replies rr where rr.id = $1', [id])).rows[0]?.r;
+          await audit({ action: 'reply_approve', entity: 'review_replies', entityId: id, detail: 'Approved a venue reply', before, after });
+          return { ok: true, message: 'Reply approved. The reviewer gets an in-app notification.' };
+        });
+      },
+    },
+    // Reject a pending reply. The owner sees the reason in their portal.
+    reply_reject: {
+      perm: 'reviews',
+      run: async (a, ctx) => {
+        only(a, ['id', 'reason']);
+        const id = uuid(a.id);
+        const reason = str(a.reason, 1000, { min: 1 });
+        return writeTx(pool, ctx.staff.userId, async (c, audit) => {
+          const before = (await c.query('select to_jsonb(rr) as r from public.review_replies rr where rr.id = $1', [id])).rows[0]?.r;
+          if (!before) throw new HttpError(404, 'That reply no longer exists.');
+          if (before.status !== 'pending') throw new HttpError(409, 'That reply has already been decided.');
+          await c.query("update public.review_replies set status = 'rejected', decline_reason = $2, decided_by = $3, decided_at = now(), updated_at = now() where id = $1", [id, reason, ctx.staff.userId]);
+          const after = (await c.query('select to_jsonb(rr) as r from public.review_replies rr where rr.id = $1', [id])).rows[0]?.r;
+          await audit({ action: 'reply_reject', entity: 'review_replies', entityId: id, detail: 'Rejected a venue reply', before, after });
+          return { ok: true, message: 'Reply rejected.' };
+        });
+      },
+    },
+    // Remove a reply that is already live (takes it out of review_replies_public).
+    reply_remove: {
+      perm: 'reviews',
+      run: async (a, ctx) => {
+        only(a, ['id', 'reason']);
+        const id = uuid(a.id);
+        const reason = str(a.reason, 1000, { optional: true });
+        return writeTx(pool, ctx.staff.userId, async (c, audit) => {
+          const before = (await c.query('select to_jsonb(rr) as r from public.review_replies rr where rr.id = $1', [id])).rows[0]?.r;
+          if (!before) throw new HttpError(404, 'That reply no longer exists.');
+          await c.query("update public.review_replies set status = 'removed', decline_reason = coalesce($2, decline_reason), decided_by = $3, decided_at = now(), updated_at = now() where id = $1", [id, reason || null, ctx.staff.userId]);
+          const after = (await c.query('select to_jsonb(rr) as r from public.review_replies rr where rr.id = $1', [id])).rows[0]?.r;
+          await audit({ action: 'reply_remove', entity: 'review_replies', entityId: id, detail: 'Removed a venue reply', before, after });
+          return { ok: true, message: 'Reply removed.' };
+        });
+      },
+    },
     // ---------- Reports ----------
     reports_list: {
       perm: 'reports',

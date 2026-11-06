@@ -146,6 +146,7 @@ function VenueEditor({ venueId, onBack }: { venueId: string; onBack: () => void 
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [tab, setTab] = useState<"listing" | "reviews">("listing");
 
   const load = useCallback(() => {
     setLoadErr(null);
@@ -221,6 +222,14 @@ function VenueEditor({ venueId, onBack }: { venueId: string; onBack: () => void 
         {venue.address && <p className="text-xs text-[#585858] mt-0.5">{venue.address}</p>}
       </div>
 
+      <div className="flex gap-2 mb-5">
+        {(["listing", "reviews"] as const).map((t) => (
+          <button key={t} type="button" onClick={() => setTab(t)}
+            className={`px-4 py-2 rounded-full text-sm font-bold capitalize transition-colors ${tab === t ? "bg-[#B74217] text-white" : "bg-[#FAEFD1] text-[#2F291E]"}`}>{t}</button>
+        ))}
+      </div>
+
+      {tab === "reviews" ? <ReviewsTab venueId={venueId} /> : (<>
       {pending && <WaitingChange pending={pending} onWithdraw={withdraw} />}
 
       <fieldset disabled={!!pending} className={pending ? "opacity-60" : ""}>
@@ -284,6 +293,84 @@ function VenueEditor({ venueId, onBack }: { venueId: string; onBack: () => void 
         </div>
       )}
       {msg && <p className={"mt-4 text-sm font-semibold " + (msg.ok ? "text-[#2F291E]" : "text-[#B74217]")}>{msg.text}</p>}
+      </>)}
+    </div>
+  );
+}
+
+type ReviewRow = {
+  id: string; paw_rating: number | null; review_text: string | null; created_at: string;
+  reply_id: string | null; reply_body: string | null; reply_status: string | null; reply_decline_reason: string | null;
+};
+
+const REPLY_STATUS: Record<string, string> = { pending: "Waiting for approval", approved: "Live", rejected: "Not approved", removed: "Removed" };
+
+function ReviewsTab({ venueId }: { venueId: string }) {
+  const [reviews, setReviews] = useState<ReviewRow[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [drafts, setDrafts] = useState<Record<string, string>>({});
+  const [busy, setBusy] = useState<string | null>(null);
+  const [note, setNote] = useState<{ id: string; ok: boolean; text: string } | null>(null);
+
+  const load = useCallback(() => {
+    setError(null);
+    callBusiness<{ reviews: ReviewRow[] }>("venue_reviews", { location_id: venueId }).then((r) => {
+      if (r.ok) setReviews(r.data.reviews); else setError(r.error);
+    });
+  }, [venueId]);
+  useEffect(load, [load]);
+
+  const closeDraft = (id: string) => setDrafts((d) => { const n = { ...d }; delete n[id]; return n; });
+
+  const send = async (reviewId: string) => {
+    const body = (drafts[reviewId] ?? "").trim();
+    setNote(null);
+    if (body.length < 1) { setNote({ id: reviewId, ok: false, text: "Write a reply first." }); return; }
+    setBusy(reviewId);
+    const r = await callBusiness("submit_reply", { review_id: reviewId, body });
+    setBusy(null);
+    if (!r.ok) { setNote({ id: reviewId, ok: false, text: r.error }); return; }
+    setNote({ id: reviewId, ok: true, text: "Reply sent for approval." });
+    closeDraft(reviewId);
+    load();
+  };
+
+  if (error) return <p className="text-sm font-semibold text-[#B74217]">{error}</p>;
+  if (!reviews) return <p className="text-sm text-[#585858]">Loading reviews.</p>;
+  if (!reviews.length) return <p className="text-sm text-[#585858]">No approved reviews yet. When dog owners review this venue, you can reply here.</p>;
+
+  return (
+    <div className="flex flex-col gap-4">
+      {reviews.map((rv) => {
+        const editing = drafts[rv.id] !== undefined;
+        return (
+          <div key={rv.id} className="rounded-2xl bg-white border border-stone-200 p-5">
+            <p className="text-xs text-[#585858] mb-1">{rv.paw_rating ? rv.paw_rating + " paws · " : ""}{new Date(rv.created_at).toLocaleDateString("en-GB")}</p>
+            <p className="text-sm text-[#2F291E]">{rv.review_text || "(no text)"}</p>
+
+            {rv.reply_id && !editing && (
+              <div className="mt-3 rounded-xl bg-[#FAEFD1] border border-[#B74217]/15 p-3">
+                <p className="text-xs font-semibold text-[#B74217] mb-1">Your reply · {REPLY_STATUS[rv.reply_status || ""] || rv.reply_status}</p>
+                <p className="text-sm text-[#2F291E]">{rv.reply_body}</p>
+                {rv.reply_status === "rejected" && rv.reply_decline_reason && <p className="text-xs text-[#585858] mt-1">Reason: {rv.reply_decline_reason}</p>}
+                <button type="button" onClick={() => setDrafts((d) => ({ ...d, [rv.id]: rv.reply_body || "" }))} className="mt-2 text-sm font-semibold text-[#B74217] hover:underline">Edit reply</button>
+              </div>
+            )}
+
+            {(!rv.reply_id || editing) && (
+              <div className="mt-3">
+                <textarea value={drafts[rv.id] ?? ""} onChange={(e) => setDrafts((d) => ({ ...d, [rv.id]: e.target.value }))} rows={3} maxLength={1000} className={inputClass} placeholder="Reply to this review" />
+                <div className="mt-2 flex items-center gap-3">
+                  <button type="button" onClick={() => send(rv.id)} disabled={busy === rv.id} className={primaryBtn}>{busy === rv.id ? "Sending" : "Send reply"}</button>
+                  {editing && <button type="button" onClick={() => closeDraft(rv.id)} className="text-sm font-semibold text-[#B74217] hover:underline">Cancel</button>}
+                </div>
+                <p className="text-xs text-[#585858] mt-1.5">Replies are checked before they appear. Editing a reply sends it back for approval.</p>
+              </div>
+            )}
+            {note && note.id === rv.id && <p className={"mt-2 text-sm font-semibold " + (note.ok ? "text-[#2F291E]" : "text-[#B74217]")}>{note.text}</p>}
+          </div>
+        );
+      })}
     </div>
   );
 }

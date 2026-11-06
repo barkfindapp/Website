@@ -1504,11 +1504,23 @@ table.ads-t th,table.ads-t td{padding:8px 10px;white-space:nowrap}table.ads-t td
       (r.ai_reason||flags.length?'<div class="prior">AI note: '+esc(r.ai_reason||"")+(flags.length?" ("+esc(flags.map(pretty).join(", "))+")":"")+'</div>':'')+
       '<div class="row"><button class="btn ok small" data-do="approve_review" data-confirm="Confirm approve">Approve</button><button class="btn danger small" data-do="reject_review" data-confirm="Confirm reject">Reject</button></div></div>';
   }
+  // A venue's pending reply, shown with the review it answers.
+  function replyCard(x){
+    return '<div class="card" data-rpl="'+esc(x.id)+'"><div class="meta"><span class="tag warn">reply pending</span><span>'+esc(dateOnly(x.created_at))+'</span>'+(x.place?'<span>'+esc(x.place)+'</span>':'')+'</div>'+
+      '<div class="note">Review ('+(x.paw_rating||"–")+' paws): '+esc(x.review_text||"(no text)")+'</div>'+
+      '<div class="text">'+esc(x.body)+'</div>'+
+      '<div class="row"><button class="btn ok small" data-do="rp_approve" data-confirm="Confirm approve">Approve</button></div>'+
+      '<label class="note">Reason for rejecting</label><textarea data-rp-reason style="min-height:60px"></textarea><div class="row"><button class="btn danger small" data-do="rp_reject" data-confirm="Confirm reject">Reject</button></div></div>';
+  }
   function reviews(el){
-    H.api("reviews_list",{period:st.reviewPeriod}).then(function(r){var ai=r.data.filter(function(x){return x.ai_status==="approve"&&arr(x.ai_flags).indexOf("csae_escalate")<0}).length;
+    Promise.all([H.api("reviews_list",{period:st.reviewPeriod}),H.api("reply_queue").catch(function(){return {data:[]}})]).then(function(rs){
+      var r=rs[0], rq=(rs[1]&&rs[1].data)||[];
+      var ai=r.data.filter(function(x){return x.ai_status==="approve"&&arr(x.ai_flags).indexOf("csae_escalate")<0}).length;
       el.innerHTML='<div class="subhead"><h3>Reviews to moderate</h3><span>'+(r.data.length?r.data.length+" waiting":"none waiting")+'</span></div><div class="filter" data-f="reviewPeriod">'+periodChips(st.reviewPeriod)+'</div>'+
         (ai?'<div class="row"><button class="btn ok" data-do="bulk_ai" data-confirm="Confirm approve '+ai+'">Approve all AI-cleared ('+ai+')</button></div>':'')+
-        (r.data.length?r.data.map(reviewCard).join(""):'<div class="empty">No reviews waiting.</div>');
+        (r.data.length?r.data.map(reviewCard).join(""):'<div class="empty">No reviews waiting.</div>')+
+        '<div class="subhead"><h3>Replies to moderate</h3><span>'+(rq.length?rq.length+" waiting":"none waiting")+'</span></div>'+
+        (rq.length?rq.map(replyCard).join(""):'<div class="empty">No replies waiting.</div>');
     }).catch(function(e){fail(el,e)});
   }
 
@@ -2257,6 +2269,10 @@ table.ads-t th,table.ads-t td{padding:8px 10px;white-space:nowrap}table.ads-t td
     if(what==="attach"){run(b,cel,H.api("claim_attach_venue",{id:cid,location_id:b.dataset.loc}),refresh);return}
     if(what==="approve"){var mm=cel.querySelector("[data-method]").value;run(b,cel,H.api("claim_approve",{id:cid,verification_method:mm}),refresh);return}
     if(what==="decline"){var rsn=(cel.querySelector("[data-decline]").value||"").trim();if(!rsn){H.note(cel,false,"Give a reason first.");return}run(b,cel,H.api("claim_decline",{id:cid,reason:rsn}),refresh);return}
+    // Review replies
+    var rplEl=b.closest("[data-rpl]"), rpl=rplEl&&rplEl.dataset.rpl;
+    if(what==="rp_approve"){run(b,rplEl,H.api("reply_approve",{id:rpl}),refresh);return}
+    if(what==="rp_reject"){var rr=(rplEl.querySelector("[data-rp-reason]").value||"").trim();if(!rr){H.note(rplEl,false,"Give a reason first.");return}run(b,rplEl,H.api("reply_reject",{id:rpl,reason:rr}),refresh);return}
     // Suggestions
     if(what==="sub_openplace"){if(window.HQPlaces&&HQPlaces.open)HQPlaces.open(b.dataset.id);return}
     if(what==="sub_markadded"){subResolve(card.dataset.sub,"added","add",card,b);return}
