@@ -12,6 +12,7 @@ import type { Perm } from './hq-staff.js';
 import { signIn } from './hq-reset.js';
 import { refreshVerdicts } from './hq-restrictions.js';
 import { sendChangeApplied, sendChangeDeclined } from './business-email.js';
+import { AMENITY_CODES } from './amenities.js';
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
@@ -470,7 +471,7 @@ export function inboxOps(pool: Pool): Record<string, Op> {
           if (!before) throw new HttpError(404, 'That place no longer exists.');
           const detailFields = fields.filter((f) => f !== 'closed');
           if (detailFields.length) {
-            const setCols = detailFields.map((f, i) => `${f} = $${i + 2}${f === 'opening_hours' ? '::jsonb' : ''}`);
+            const setCols = detailFields.map((f, i) => `${f} = $${i + 2}${f === 'opening_hours' ? '::jsonb' : f === 'amenities' ? '::text[]' : ''}`);
             const vals = detailFields.map((f) => (f === 'opening_hours' ? JSON.stringify(ch[f]) : ch[f]));
             await c.query(
               `update public.locations set ${setCols.join(', ')},
@@ -525,7 +526,7 @@ export function inboxOps(pool: Pool): Record<string, Op> {
         const paths = Array.isArray(row?.photo_paths) ? (row.photo_paths as string[]) : [];
         if (!paths.length || !storageAdmin) return { data: { urls: [] } };
         const { data } = await storageAdmin.storage.from('business-uploads').createSignedUrls(paths, 300);
-        return { data: { urls: (data || []).map((x) => x.signedUrl).filter(Boolean) } };
+        return { data: { urls: (data || []).map((x: { signedUrl: string }) => x.signedUrl).filter(Boolean) } };
       },
     },
     listing_change_decline: {
@@ -565,7 +566,9 @@ function readChanges(v: unknown): Record<string, unknown> {
   for (const [k, val] of Object.entries(o)) {
     if (!(LISTING_FIELDS as readonly string[]).includes(k)) throw bad();
     if (k === 'closed') { if (typeof val !== 'boolean') throw bad(); out[k] = val; }
-    else if (k === 'opening_hours') { if (!Array.isArray(val) || val.length > 14) throw bad(); out[k] = val.map((x) => str(x, 80, { min: 1 })); }
+    else if (k === 'opening_hours') { if (!Array.isArray(val) || val.length > 14) throw bad(); out[k] = val.map((x) => str(x, 120, { min: 1 })); }
+    else if (k === 'amenities') { if (!Array.isArray(val) || val.length > AMENITY_CODES.length) throw bad(); const codes = [...new Set(val.map((x) => str(x, 60, { min: 1 })))]; if (codes.some((c) => !AMENITY_CODES.includes(c))) throw bad(); out[k] = codes; }
+    else if (k === 'description') out[k] = str(val, 2000, { min: 1 });
     else if (k === 'dog_policy') out[k] = oneOf(val, DOG_POLICIES);
     else if (k === 'website' || k === 'image_url') { const s = str(val, 500, { min: 1 }); if (!/^https:\/\//i.test(s)) throw bad(); out[k] = s; }
     else out[k] = str(val, k === 'dog_policy_note' ? 500 : 200, { min: 1 });
