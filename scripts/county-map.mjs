@@ -54,10 +54,33 @@ export const DISTRICT_COUNTIES = {
 
 export const UNMAPPED_COUNTY = "More towns";
 
+// Town name (lower-cased, as it appears in a guide's source_ref) -> county label.
+// Checked before the postcode lookup. Add the town here when you approve its
+// guide: it is explicit and cannot drift, which matters for larger towns whose
+// venues spread across several postcode districts. The nine original BS and TA
+// guides are not listed here, so they keep their postcode-derived county.
+export const TOWN_COUNTIES = {
+  nottingham: "Nottinghamshire",
+  cheltenham: "Gloucestershire",
+  york: "North Yorkshire",
+  exeter: "Devon",
+  newquay: "Cornwall",
+};
+
 export function countyForDistrict(district) {
   if (!district) return null;
   const d = String(district).toUpperCase();
   if (DISTRICT_COUNTIES[d]) return DISTRICT_COUNTIES[d];
   const area = (d.match(/^[A-Z]{1,2}/) || [])[0];
   return (area && AREA_COUNTIES[area]) || null;
+}
+
+// The one county lookup: the town name first, then the postcode district/area.
+// Returns null when nothing matches, so the build can warn and fall back to
+// "More towns". When this moves to the planned content_town_areas view, this
+// stays the one function to change.
+export function countyFor(town, district) {
+  const t = String(town || "").trim().toLowerCase();
+  if (TOWN_COUNTIES[t]) return TOWN_COUNTIES[t];
+  return countyForDistrict(district);
 }

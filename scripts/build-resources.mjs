@@ -29,7 +29,7 @@ import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Marked } from "marked";
-import { countyForDistrict, UNMAPPED_COUNTY } from "./county-map.mjs";
+import { countyFor, UNMAPPED_COUNTY } from "./county-map.mjs";
 import { BLOCKED_PLACE_PHOTOS } from "./photo-blocklist.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -113,10 +113,23 @@ const HIGHLIGHTS = [
   ["Restaurants", /\brestaurants?\b/i],
   ["Places to stay", /\b(staying|stay|accommodation|hotels?)\b/i],
 ];
-function highlightsFrom(md) {
+// Only a guide's PLACE-GROUP headings count: the plain section labels (Pubs,
+// Cafes, Beaches, Parks and the like). Practical and closing sections are named
+// after the town ("Getting around Newquay with a dog", "Coverage in Newquay") or
+// are "Common questions"/"What to know", so a heading that names the town, or is
+// one of those, is skipped. That stops a word like "stay" or "walks" in a
+// practical heading from adding a chip, a title term or a filter.
+// "what to know" stays as it was: excluded wherever it appears in a heading (some
+// guides write "Beaches: what to know before you go"). The rest are the new
+// practical and closing section names, matched at the start of the heading.
+const NOT_PLACE_GROUP = /^(common questions|getting around|coverage|good to know|about\b|how )/i;
+function highlightsFrom(md, town) {
+  const townRe = town ? new RegExp("\\b" + String(town).replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "\\b", "i") : null;
   const headings = (String(md || "").match(/^#{2,3}\s+.+$/gm) || [])
-    .map((h) => h.replace(/^#+\s+/, ""))
-    .filter((h) => !/what to know/i.test(h));
+    .map((h) => h.replace(/^#+\s+/, "").trim())
+    .filter((h) => !/what to know/i.test(h))
+    .filter((h) => !NOT_PLACE_GROUP.test(h))
+    .filter((h) => !(townRe && townRe.test(h)));
   return HIGHLIGHTS.filter(([, re]) => headings.some((h) => re.test(h))).map(([label]) => label).slice(0, 3);
 }
 
@@ -223,17 +236,39 @@ function guideSeoTitle(town, title, highlights) {
   return title || `Dog-friendly ${town}`;
 }
 
-// Meta description that always ends on a full sentence: the first card-safe
-// sentence that fits, otherwise one built from the guide's highlights.
-function guideDescription(md, town, highlights, max = 160) {
-  const paras = String(md || "").split(/\n\s*\n/).map((p) => p.trim()).filter((p) => p && !p.startsWith("#"));
-  const sentences = paras
-    .slice(0, 3)
-    .flatMap((p) => stripMarkdown(p).match(/[^.?!]+[.?!]+(\s|$)/g) || [])
-    .map((x) => x.trim())
-    .filter((x) => x && !NOT_ON_CARDS.test(x));
-  const fit = sentences.find((x) => x.length <= max && x.length >= 40);
-  if (fit) return fit;
+// A paragraph that is not real prose: a blockquote, a note line, or a whole-line
+// italic aside. The description skips any of these at the top before choosing.
+function isLeadAside(p) {
+  const s = String(p || "").trim();
+  if (s.startsWith(">")) return true;
+  if (/^(note|please note|disclaimer)\b/i.test(stripMarkdown(s))) return true;
+  const one = s.replace(/\s+/g, " ");
+  if (/^_[^_]+_$/.test(one)) return true; // _italic line_
+  if (/^\*(?!\*)[^*]+\*$/.test(one)) return true; // *italic line* (not **bold**)
+  return false;
+}
+
+// Meta description: the guide's first real paragraph, as many whole sentences as
+// fit at or under `max`, ending on a full stop. A leading blockquote, note line
+// or italic line is skipped. If no sentence fits (or there is no usable
+// paragraph), a sentence built from the guide's place-group highlights, which
+// always names the town.
+function guideDescription(md, town, highlights, max = 155) {
+  const paras = String(md || "").split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean);
+  const first = paras.find((p) => !p.startsWith("#") && !isLeadAside(p));
+  if (first) {
+    const prose = stripMarkdown(first).replace(/\s+/g, " ").trim();
+    const sentences = prose.match(/[^.?!]+[.?!]+(\s|$)/g) || [];
+    let out = "";
+    for (const s of sentences) {
+      const next = (out ? out + " " : "") + s.trim();
+      if (next.length > max) break;
+      out = next;
+    }
+    if (out) return out;
+    // No whole sentence fits at or under max (a very long first sentence): fall
+    // through to the town-naming sentence below rather than cut mid-sentence.
+  }
   const what = highlights.length ? highlights.slice(0, 3).map((h) => h.toLowerCase()).join(", ").replace(/, ([^,]*)$/, " and $1") : "places";
   return `Dog-friendly ${what} in ${town}, with local dog rules and where they come from.`;
 }
@@ -272,17 +307,41 @@ function makeMarked({ sponsored = false } = {}) {
   return marked;
 }
 
-const stripLeadingH1 = (md) => String(md || "").replace(/^\s*#\s+[^\n]*\n+/, "");
+// Remove every H1 line (a single "# ", with up to three leading spaces as
+// Markdown allows), wherever it appears, not just a leading one, so a page can
+// never render two H1 headings. The page template renders the guide title as the
+// only H1. "##"/"###" are left alone.
+const stripH1Lines = (md) => String(md || "").replace(/^[ \t]{0,3}#[ \t]+[^\n]*(\r?\n)?/gm, "");
+
+// Pull a "## Common questions" section out of the body. Returns the parsed
+// questions (a bold question line with its answer on the same paragraph) and the
+// body with that section removed, so it renders once as Q&A, not twice.
+function extractCommonQuestions(md) {
+  const lines = String(md || "").split(/\r?\n/);
+  let start = -1;
+  for (let i = 0; i < lines.length; i++) if (/^#{2}\s+common questions\s*$/i.test(lines[i].trim())) { start = i; break; }
+  if (start < 0) return { questions: [], body: String(md || "") };
+  let end = lines.length;
+  for (let i = start + 1; i < lines.length; i++) if (/^#{2,3}\s+/.test(lines[i])) { end = i; break; }
+  const section = lines.slice(start + 1, end).join("\n");
+  const body = lines.slice(0, start).concat(lines.slice(end)).join("\n");
+  const questions = [];
+  for (const para of section.split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean)) {
+    const m = para.match(/^\*\*(.+?\?)\*\*\s*([\s\S]*)$/);
+    if (m) questions.push({ question: stripMarkdown(m[1]).trim(), answer: stripMarkdown(m[2]).replace(/\s+/g, " ").trim() });
+  }
+  return { questions, body };
+}
 
 function renderMarkdown(md, opts) {
-  return makeMarked(opts).parse(stripLeadingH1(md));
+  return makeMarked(opts).parse(stripH1Lines(md));
 }
 
 // The same rendering, split into top-level blocks (paragraphs, headings, lists)
 // so teaser place cards can sit between them. The text itself is untouched.
 function renderBlocks(md, opts) {
   const marked = makeMarked(opts);
-  const tokens = marked.lexer(stripLeadingH1(md));
+  const tokens = marked.lexer(stripH1Lines(md));
   return tokens
     .filter((t) => t.type !== "space")
     .map((t) => ({
@@ -591,11 +650,15 @@ function buildGuides(pieces, { geo, photos = {}, rules = {}, places = {} }, toda
       continue; // rows arrive newest-approved first
     }
     const g = geo[town] || {};
-    let county = countyForDistrict(g.district);
+    let county = countyFor(town, g.district);
     if (!county) {
       warnings.push(`no county for ${town} (district ${g.district || "unknown"}); add it to scripts/county-map.mjs`);
       county = UNMAPPED_COUNTY;
     }
+    const highlights = highlightsFrom(p.body_md, town);
+    // A "## Common questions" section renders once as Q&A (below), so it is taken
+    // out of the body used for the normal blocks.
+    const { questions: commonQuestions, body: bodyForRender } = extractCommonQuestions(p.body_md);
     bySlug.set(slug, {
       id: p.id,
       slug,
@@ -607,10 +670,11 @@ function buildGuides(pieces, { geo, photos = {}, rules = {}, places = {} }, toda
       lng: g.lng ?? null,
       venueCount: Number(g.venues) || 0, // venues passing the quality bar in this town
       summary: summarise(p.body_md, 170, { cardSafe: true }),
-      highlights: highlightsFrom(p.body_md),
-      seoTitle: guideSeoTitle(town, p.title, highlightsFrom(p.body_md)),
-      description: guideDescription(p.body_md, town, highlightsFrom(p.body_md)),
+      highlights,
+      seoTitle: guideSeoTitle(town, p.title, highlights),
+      description: guideDescription(p.body_md, town, highlights),
       faq: rulesFaq(rules[town], p.body_md, today),
+      commonQuestions,
       publishedAt: isoDate(p.approved_at),
       rule: ruleChip(rules[town], p.body_md, today),
       photoSource: photos[town] || null, // downloaded in main(); never shipped as a URL
@@ -619,7 +683,7 @@ function buildGuides(pieces, { geo, photos = {}, rules = {}, places = {} }, toda
       // Never earlier than the published (approved) date.
       updated: [isoDate(p.updated_at), isoDate(p.approved_at)].filter(Boolean).sort().pop() || null,
       ...(() => {
-        const blocks = renderBlocks(p.body_md);
+        const blocks = renderBlocks(bodyForRender);
         const matched = matchPlaces(blocks, places[town] || [], townNames);
         return {
           blocks: blocks.map(({ kind, html }) => ({ kind, html })),

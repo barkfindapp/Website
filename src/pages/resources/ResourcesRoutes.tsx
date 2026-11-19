@@ -448,6 +448,12 @@ function GuidePage({ guide }: { guide: Guide }) {
   const path = `/dog-friendly/${guide.slug}`;
   const crumbs = [HOME, DISCOVER, GUIDES, { name: guide.town, path }];
   const image = `${SITE_URL}${guide.photo?.src || DISCOVER_IMAGE}`;
+  const authorUrl = `${SITE_URL}${METHOD_PATH}`;
+  // Show "Updated" only when it is a genuinely later day than the published date.
+  const showUpdated = Boolean(guide.publishedAt && guide.updated && guide.updated > guide.publishedAt);
+  // FAQPage data = the council-rule questions and the "Common questions" section,
+  // in the same order and wording they are shown on the page.
+  const faqAll = [...guide.faq, ...guide.commonQuestions];
   useSeo({
     title: `${guide.seoTitle} | BarkFind`,
     description: guide.description,
@@ -465,10 +471,11 @@ function GuidePage({ guide }: { guide: Guide }) {
         ...(guide.updated ? { dateModified: guide.updated } : {}),
         mainEntityOfPage: `${SITE_URL}${path}`,
         image: [image],
+        author: { "@type": "Person", name: "Josh Holder", jobTitle: "Founder", url: authorUrl },
         publisher: { "@type": "Organization", name: "BarkFind", url: SITE_URL, logo: { "@type": "ImageObject", url: `${SITE_URL}/barkfind-logo.png` } },
       },
-      // Built from exactly the strings shown in the "Questions about dog rules" section.
-      ...(guide.faq.length ? [faqSchema(guide.faq.map((f) => ({ q: f.question, a: f.answer })))] : []),
+      // Built from exactly the strings shown in the FAQ sections below.
+      ...(faqAll.length ? [faqSchema(faqAll.map((f) => ({ q: f.question, a: f.answer })))] : []),
     ],
   });
   const nearby = guide.nearby.map((s) => guides.find((g) => g.slug === s)).filter((g): g is Guide => Boolean(g));
@@ -477,9 +484,14 @@ function GuidePage({ guide }: { guide: Guide }) {
     <PageShell
       title={guide.title}
       subtitle={`${placesLabel(guide.venueCount)} · ${guide.county}`}
-      meta={guide.updated ? `Updated ${formatDate(guide.updated)}` : undefined}
     >
       <Breadcrumbs items={crumbs} />
+      <p className="mb-6 text-sm text-[#585858]">
+        {guide.publishedAt ? `Published ${formatDate(guide.publishedAt)}.` : ""}
+        {showUpdated ? ` Updated ${formatDate(guide.updated as string)}.` : ""}
+        {" "}By{" "}
+        <a href={METHOD_PATH} className="font-semibold text-[#B74217] hover:underline">Josh Holder</a>
+      </p>
       <figure className="mb-8 overflow-hidden rounded-[22px] border border-[#EDE6D6]">
         {guide.photo ? (
           <div className="relative">
@@ -520,6 +532,19 @@ function GuidePage({ guide }: { guide: Guide }) {
         <Section title="Questions about dog rules">
           <dl className="flex flex-col gap-5">
             {guide.faq.map((f) => (
+              <div key={f.question}>
+                <dt className="font-bold text-[#1a1a1a]">{f.question}</dt>
+                <dd className="mt-1">{f.answer}</dd>
+              </div>
+            ))}
+          </dl>
+        </Section>
+      )}
+
+      {guide.commonQuestions.length > 0 && (
+        <Section title="Common questions">
+          <dl className="flex flex-col gap-5">
+            {guide.commonQuestions.map((f) => (
               <div key={f.question}>
                 <dt className="font-bold text-[#1a1a1a]">{f.question}</dt>
                 <dd className="mt-1">{f.answer}</dd>

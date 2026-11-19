@@ -1,0 +1,52 @@
+name: IndexNow
+
+# Runs after every successful production deployment (a push to main or an HQ
+# "Publish to website" deploy both produce a Vercel production deployment, and
+# Vercel reports its status to GitHub). It submits the site's sitemap URLs to
+# IndexNow so Bing and others recrawl sooner. It runs after the deploy is live,
+# so it can never affect or fail the deploy.
+
+on:
+  deployment_status: {}
+
+permissions:
+  contents: read
+
+jobs:
+  submit:
+    if: >-
+      github.event.deployment_status.state == 'success' &&
+      github.event.deployment_status.environment == 'Production'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Submit sitemap URLs to IndexNow
+        env:
+          INDEXNOW_KEY: ${{ secrets.INDEXNOW_KEY }}
+        run: |
+          set -uo pipefail
+          HOST="www.barkfind.com"
+          if [ -z "${INDEXNOW_KEY:-}" ]; then
+            echo "INDEXNOW_KEY secret is not set; nothing submitted."
+            exit 0
+          fi
+          sitemap=$(curl -fsS "https://$HOST/sitemap.xml" || true)
+          urls=$(printf '%s' "$sitemap" | grep -oE '<loc>[^<]+</loc>' | sed -E 's#</?loc>##g')
+          if [ -z "$urls" ]; then
+            echo "No URLs found in the sitemap; nothing submitted."
+            exit 0
+          fi
+          list=$(printf '%s\n' "$urls" | sed '/^$/d' | jq -R . | jq -s .)
+          payload=$(jq -n \
+            --arg host "$HOST" \
+            --arg key "$INDEXNOW_KEY" \
+            --arg loc "https://$HOST/$INDEXNOW_KEY.txt" \
+            --argjson urlList "$list" \
+            '{host: $host, key: $key, keyLocation: $loc, urlList: $urlList}')
+          count=$(printf '%s' "$payload" | jq '.urlList | length')
+          echo "Submitting $count URL(s) to IndexNow."
+          # A failed submission is logged and ignored, never fatal.
+          code=$(curl -s -o /tmp/indexnow.out -w '%{http_code}' -X POST "https://api.indexnow.org/indexnow" \
+            -H "Content-Type: application/json" -d "$payload" || echo "000")
+          echo "IndexNow responded $code"
+          cat /tmp/indexnow.out 2>/dev/null || true
+          exit 0

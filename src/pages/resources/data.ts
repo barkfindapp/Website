@@ -49,6 +49,7 @@ export type Guide = GuideSummary & {
   seoTitle: string;
   description: string;
   faq: { question: string; answer: string }[];
+  commonQuestions: { question: string; answer: string }[];
   publishedAt: string | null;
   rule: { text: string; authority: string; checked: string | null } | null;
   photo: GuidePhoto | null;
