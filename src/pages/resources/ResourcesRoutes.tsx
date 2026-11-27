@@ -484,6 +484,7 @@ function GuidePage({ guide }: { guide: Guide }) {
     ],
   });
   const nearby = guide.nearby.map((s) => guides.find((g) => g.slug === s)).filter((g): g is Guide => Boolean(g));
+  const reactiveCount = guide.places.filter((p) => p.reactiveFriendly).length;
 
   return (
     <PageShell
@@ -508,6 +509,20 @@ function GuidePage({ guide }: { guide: Guide }) {
           <BrandBlock town={guide.town} tall />
         )}
       </figure>
+      {reactiveCount > 0 && (
+        <a
+          href="/reactive-dogs"
+          className="mb-8 block rounded-[22px] border-l-4 border-[#3F8C89] bg-[#E2F0EF] px-5 py-4 transition-colors hover:bg-[#D2E8E6]"
+        >
+          <p className="font-bold text-[#1a1a1a]">Travelling with a reactive dog?</p>
+          <p className="mt-1 text-[#2F6F6C]">
+            {reactiveCount === 1
+              ? "One place in this guide has space, an enclosure or room to keep your distance."
+              : `${reactiveCount} places in this guide have space, an enclosure or room to keep your distance.`}{" "}
+            More on finding places that suit a reactive dog.
+          </p>
+        </a>
+      )}
       <div className="flex flex-col gap-4">
         {guide.blocks.map((b, i) => {
           const cards = guide.places.filter((p) => p.after === i);
