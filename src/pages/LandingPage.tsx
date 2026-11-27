@@ -1297,6 +1297,7 @@ function Footer() {
           <a href="#faq" className="hover:text-white transition-colors">FAQ</a>
           <a href="/treats" className="hover:text-white transition-colors">Treats</a>
           <a href="/discover" className="hover:text-white transition-colors">Discover</a>
+          <a href="/reactive-dogs" className="hover:text-white transition-colors">Reactive dogs</a>
           <a href="/business" className="hover:text-white transition-colors">For Businesses</a>
           <a href="/support" className="hover:text-white transition-colors">Support</a>
           <a href="/privacy" className="hover:text-white transition-colors">Privacy</a>

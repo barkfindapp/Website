@@ -234,6 +234,7 @@ export default function PageShell({
             <a href="/" className="hover:text-white transition-colors">Home</a>
             <a href="/treats" className="hover:text-white transition-colors">Treats</a>
             <a href="/discover" className="hover:text-white transition-colors">Discover</a>
+            <a href="/reactive-dogs" className="hover:text-white transition-colors">Reactive dogs</a>
             <a href="/support" className="hover:text-white transition-colors">Support</a>
             <a href="/business" className="hover:text-white transition-colors">Business</a>
             <a href="/privacy" className="hover:text-white transition-colors">Privacy</a>

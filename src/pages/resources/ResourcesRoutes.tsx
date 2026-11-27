@@ -403,6 +403,18 @@ function DiscoverHub() {
         </>
       )}
 
+      <a
+        href="/reactive-dogs"
+        className="mt-8 block rounded-[22px] border border-[#EDE6D6] bg-[#F5F1E9] p-5 md:p-6 hover:border-[#B74217]/40 transition-colors"
+      >
+        <p className="text-xs font-bold uppercase tracking-widest text-[#B74217] mb-1">For reactive dogs</p>
+        <h2 className="font-serif text-xl md:text-2xl text-[#1a1a1a] mb-1">Finding places that suit a reactive dog</h2>
+        <p className="text-[#585858] leading-relaxed">
+          Room to spread out, a corner away from the door, space where another dog is not about to appear.
+          How to find the places that work, and why it is the thing BarkFind cares about most.
+        </p>
+      </a>
+
       <DownloadCta />
     </PageShell>
   );

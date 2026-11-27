@@ -8,6 +8,7 @@ import Business from "./pages/Business";
 import Treats from "./pages/Treats";
 import Confirmed from "./pages/Confirmed";
 import CreatorsPage from "./pages/CreatorsPage";
+import ReactiveDogs from "./pages/ReactiveDogs";
 import NotFound from "./pages/NotFound";
 import { lazy, Suspense } from "react";
 
@@ -41,6 +42,7 @@ const ROUTES: Record<string, () => JSX.Element> = {
   "/treats": Treats,
   "/confirmed": Confirmed,
   "/creators": CreatorsPage,
+  "/reactive-dogs": ReactiveDogs,
 };
 
 export default function App() {
