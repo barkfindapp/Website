@@ -213,6 +213,12 @@ export function GuideCard({ guide, sponsored }: { guide: Guide; sponsored?: bool
         {guide.highlights.length > 0 && (
           <div className="flex flex-wrap gap-1.5">{guide.highlights.map((h) => <Chip key={h}>{h}</Chip>)}</div>
         )}
+        {guide.places.some((p) => p.reactiveFriendly) && (
+          <p className="mt-2.5 flex items-center gap-1.5 text-xs font-bold text-[#2F6F6C]">
+            <span aria-hidden="true" className="h-1.5 w-1.5 flex-shrink-0 rounded-full bg-[#3F8C89]" />
+            Good for reactive dogs
+          </p>
+        )}
         {guide.rule && (
           <p
             className="mt-2.5 rounded-xl bg-[#E6F2F1] px-[11px] py-2 text-xs font-bold text-[#2c6f6c]"
