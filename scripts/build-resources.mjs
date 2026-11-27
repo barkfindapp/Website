@@ -315,6 +315,19 @@ const AMENITY_LABELS = {
 const amenityLabel = (slug) =>
   AMENITY_LABELS[slug] || String(slug).replace(/-/g, " ").replace(/^./, (c) => c.toUpperCase());
 
+// Amenity codes that genuinely help a reactive dog: space to get distance, an
+// enclosure, or separation from other dogs. Used to flag a place, and the guide,
+// as good for a reactive dog and to link through to the /reactive-dogs hub.
+// Computed from the raw amenity codes, before the three-label slice below.
+const REACTIVE_AMENITIES = new Set([
+  "off-lead-area",
+  "fenced-area",
+  "double-gated-entry",
+  "indoor-dog-zone",
+  "separation-screens",
+  "holding-areas",
+]);
+
 const GOOGLE_HOST = /(^|\.)(google|googleusercontent|gstatic|ggpht|googleapis|googlevideo|blogger|blogspot)\.[a-z.]+$/i;
 const isHttpUrl = (u) => /^https?:\/\/[^\s]+$/i.test(String(u || ""));
 const hostOf = (u) => {
@@ -401,6 +414,7 @@ function placeCard(place, after) {
     street: streetOf(place.address),
     policy: POLICY_LABELS[place.dog_policy] ? { kind: place.dog_policy, label: POLICY_LABELS[place.dog_policy] } : null,
     amenities: (place.amenities || []).slice(0, 3).map(amenityLabel),
+    reactiveFriendly: (place.amenities || []).some((c) => REACTIVE_AMENITIES.has(c)),
     photo,
     after,
   };

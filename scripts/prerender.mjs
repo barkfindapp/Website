@@ -27,6 +27,7 @@ const ROUTES = [
   "/",
   "/treats",
   "/business",
+  "/reactive-dogs", // reactive-dogs pillar: indexed, needs real content baked into the HTML
   "/support",
   "/privacy",
   "/terms",

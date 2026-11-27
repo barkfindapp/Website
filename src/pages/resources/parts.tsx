@@ -213,6 +213,12 @@ export function GuideCard({ guide, sponsored }: { guide: Guide; sponsored?: bool
         {guide.highlights.length > 0 && (
           <div className="flex flex-wrap gap-1.5">{guide.highlights.map((h) => <Chip key={h}>{h}</Chip>)}</div>
         )}
+        {guide.places.some((p) => p.reactiveFriendly) && (
+          <p className="mt-2.5 flex items-center gap-1.5 text-xs font-bold text-[#2F6F6C]">
+            <span aria-hidden="true" className="h-1.5 w-1.5 flex-shrink-0 rounded-full bg-[#3F8C89]" />
+            Good for reactive dogs
+          </p>
+        )}
         {guide.rule && (
           <p
             className="mt-2.5 rounded-xl bg-[#E6F2F1] px-[11px] py-2 text-xs font-bold text-[#2c6f6c]"
@@ -389,6 +395,15 @@ export function PlaceCard({ place }: { place: PlaceTeaser }) {
         <h3 className="text-[17px] font-extrabold leading-snug text-[#1a1a1a]">{place.name}</h3>
         {(place.categoryLabel || place.street) && (
           <p className="mt-0.5 text-sm text-[#6b6b6b]">{[place.categoryLabel, place.street].filter(Boolean).join(" · ")}</p>
+        )}
+        {place.reactiveFriendly && (
+          <a
+            href="/reactive-dogs"
+            className="mt-2.5 inline-flex items-center gap-1.5 rounded-full bg-[#E2F0EF] px-2.5 py-1 text-[12px] font-bold text-[#2F6F6C] hover:bg-[#D2E8E6] transition-colors"
+          >
+            <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-[#3F8C89]" />
+            Good for a reactive dog
+          </a>
         )}
         {(place.policy || place.amenities.length > 0) && (
           <div className="mt-2.5 flex flex-wrap gap-1.5">

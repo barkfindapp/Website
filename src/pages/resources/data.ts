@@ -34,6 +34,10 @@ export type PlaceTeaser = {
   street: string | null;
   policy: { kind: "welcome" | "restricted" | "not_allowed"; label: string } | null;
   amenities: string[];
+  // True when the place has an amenity that genuinely helps a reactive dog
+  // (space, an enclosure, or separation from other dogs). See REACTIVE_AMENITIES
+  // in scripts/build-resources.mjs.
+  reactiveFriendly: boolean;
   photo:
     | { kind: "geograph"; src: string; width: number; height: number; credit: string; creditUrl: string | null; licence: string; licenceUrl: string | null }
     | { kind: "website"; src: string; credit: string; creditUrl: string }
