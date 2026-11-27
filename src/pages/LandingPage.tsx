@@ -643,6 +643,38 @@ function Features() {
   );
 }
 
+// ─── Reactive dogs band ───────────────────────────────────────────────────────
+
+// Owned, long-form surface, so it leads with reactivity (see brand voice). Teal
+// band to set it apart from the cream/white sections and tie to the reactive
+// cues used across Discover. Links to the /reactive-dogs pillar.
+function ReactiveBand() {
+  return (
+    <section className="py-24" style={{ background: "#EAF4F3" }}>
+      <div className="max-w-4xl mx-auto px-6 text-center">
+        <p className="text-sm font-bold text-[#2F6F6C] uppercase tracking-widest mb-3">For reactive dogs</p>
+        <h2 className="font-serif text-3xl md:text-4xl lg:text-5xl text-[#1a1a1a] mb-5 leading-tight">
+          Built for the dog who can't<br className="hidden sm:block" /> settle just anywhere
+        </h2>
+        <p className="text-lg text-[#585858] max-w-2xl mx-auto leading-relaxed mb-8">
+          BarkFind started with Mylo, a reactive Vizsla who needs space, a quiet corner and room away
+          from other dogs. If your dog is the same, the app is built to tell you which places actually
+          work before you set off, not just which ones let dogs in.
+        </p>
+        <a
+          href="/reactive-dogs"
+          className="inline-flex items-center gap-2 px-7 py-3.5 rounded-full bg-[#3F8C89] text-white font-bold text-sm hover:bg-[#2F6F6C] transition-colors shadow-sm"
+        >
+          Finding places for a reactive dog
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+            <path d="M6 3l5 5-5 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </a>
+      </div>
+    </section>
+  );
+}
+
 // ─── Rewards Section ──────────────────────────────────────────────────────────
 
 // Brand paw mark (matches in-app rating icon)
@@ -1382,6 +1414,7 @@ export default function LandingPage() {
       <AppShowcase />
       <Mylo />
       <Features />
+      <ReactiveBand />
       <HowItWorks />
       <Pricing />
       <Rewards />

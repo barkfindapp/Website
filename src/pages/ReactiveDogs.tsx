@@ -152,12 +152,12 @@ export default function ReactiveDogs() {
             </p>
           </a>
           <a
-            href="/dog-friendly"
+            href="/dog-friendly?reactive=1"
             className="flex-1 rounded-2xl bg-white border border-stone-100 shadow-sm p-6 hover:border-[#B74217]/30 transition-colors"
           >
-            <h3 className="font-bold text-[#1a1a1a] mb-1">Browse the town guides</h3>
+            <h3 className="font-bold text-[#1a1a1a] mb-1">Guides with reactive-friendly places</h3>
             <p className="text-sm text-[#585858] leading-relaxed">
-              Pubs, cafes, beaches and walks, with the honest caveats most lists leave out.
+              The town guides, filtered to places with space, an enclosure or room away from other dogs.
             </p>
           </a>
         </div>
