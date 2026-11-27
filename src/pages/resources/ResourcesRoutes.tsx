@@ -121,15 +121,24 @@ function writeParam(name: string, value: string) {
   }
 }
 
+const isReactive = (g: Guide) => g.places.some((p) => p.reactiveFriendly);
+
 function useGuideFilters() {
   const enabled = guides.length >= FILTERS_FROM;
   const areas = groupByCounty(guides).map((g) => g.county);
   const highlights = HIGHLIGHT_ORDER.filter((h) => guides.some((g) => g.highlights.includes(h)));
+  // Only offer the reactive toggle when some, but not all, guides qualify: a
+  // filter that keeps everything (or nothing) is noise.
+  const hasReactive = enabled && guides.some(isReactive) && !guides.every(isReactive);
   const valid = (v: string, list: string[]) => (enabled && list.some((x) => slug(x) === v) ? v : "");
   const [area, setArea] = useState(() => valid(readParam("area"), areas));
   const [highlight, setHighlight] = useState(() => valid(readParam("highlight"), highlights));
+  const [reactive, setReactive] = useState(() => hasReactive && readParam("reactive") === "1");
   const list = guides.filter(
-    (g) => (!area || slug(g.county) === area) && (!highlight || g.highlights.some((h) => slug(h) === highlight))
+    (g) =>
+      (!area || slug(g.county) === area) &&
+      (!highlight || g.highlights.some((h) => slug(h) === highlight)) &&
+      (!reactive || isReactive(g))
   );
   return {
     enabled,
@@ -138,8 +147,10 @@ function useGuideFilters() {
       <GuideFilterRows
         areas={areas}
         highlights={highlights}
+        hasReactive={hasReactive}
         area={area}
         highlight={highlight}
+        reactive={reactive}
         onArea={(v) => {
           setArea(v);
           writeParam("area", v);
@@ -147,6 +158,10 @@ function useGuideFilters() {
         onHighlight={(v) => {
           setHighlight(v);
           writeParam("highlight", v);
+        }}
+        onReactive={(v) => {
+          setReactive(v);
+          writeParam("reactive", v ? "1" : "");
         }}
       />
     ) : null,
@@ -171,10 +186,13 @@ function ChipButton({ active, onClick, children }: { active: boolean; onClick: (
 function GuideFilterRows(props: {
   areas: string[];
   highlights: string[];
+  hasReactive: boolean;
   area: string;
   highlight: string;
+  reactive: boolean;
   onArea: (v: string) => void;
   onHighlight: (v: string) => void;
+  onReactive: (v: boolean) => void;
 }) {
   const row = (label: string, items: string[], value: string, on: (v: string) => void) =>
     items.length > 1 && (
@@ -192,6 +210,24 @@ function GuideFilterRows(props: {
     <div className="mt-3 flex flex-col gap-2">
       {row("Area", props.areas, props.area, props.onArea)}
       {row("Highlights", props.highlights, props.highlight, props.onHighlight)}
+      {props.hasReactive && (
+        <div role="group" aria-label="Suitability" className="flex flex-wrap items-center gap-2">
+          <span className="mr-1 text-xs font-extrabold uppercase tracking-[0.06em] text-[#6b6b6b]">For</span>
+          <button
+            type="button"
+            aria-pressed={props.reactive}
+            onClick={() => props.onReactive(!props.reactive)}
+            className={`inline-flex items-center gap-1.5 rounded-full border px-3.5 py-1 text-sm font-bold transition ${
+              props.reactive
+                ? "border-[#3F8C89] bg-[#3F8C89] text-white"
+                : "border-[#EDE6D6] bg-white text-[#2F6F6C] hover:border-[#3F8C89]/50"
+            }`}
+          >
+            <span aria-hidden="true" className={`h-1.5 w-1.5 rounded-full ${props.reactive ? "bg-white" : "bg-[#3F8C89]"}`} />
+            Good for reactive dogs
+          </button>
+        </div>
+      )}
     </div>
   );
 }
