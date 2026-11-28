@@ -11,7 +11,8 @@ import { useEffect, useState } from "react";
 import { createClient } from "@supabase/supabase-js";
 import PageShell from "../components/PageShell";
 import { useSeo } from "../lib/seo";
-import { LAUNCHED, APP_STORE_URL } from "../data/launch";
+import { LAUNCHED } from "../data/launch";
+import { useDownloadHref } from "../lib/platform";
 
 // Public publishable key, the same one committed in public/hq.html. It is
 // safe in the browser bundle: it grants only anon-level access, and the recovery
@@ -49,6 +50,7 @@ export default function ResetPassword() {
   const [confirm, setConfirm] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const downloadHref = useDownloadHref();
 
   // Pick up the recovery session from the URL.
   useEffect(() => {
@@ -177,10 +179,10 @@ export default function ResetPassword() {
               Your password has been changed. Open BarkFind and sign in with your new password.
             </p>
             <a
-              href={APP_STORE_URL}
+              href={downloadHref}
               className="inline-flex items-center mt-5 px-6 py-3 rounded-full bg-[#B74217] text-white font-bold hover:bg-[#333333] transition-colors shadow-sm shadow-[#B74217]/30"
             >
-              Get BarkFind on the App Store
+              Get BarkFind
             </a>
           </>
         ) : (

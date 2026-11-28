@@ -1,4 +1,5 @@
-import { ANDROID_LIVE, APP_STORE_URL, LAUNCHED } from "../../data/launch";
+import { ANDROID_LIVE, LAUNCHED } from "../../data/launch";
+import { useDownloadHref } from "../../lib/platform";
 import { useState } from "react";
 import { dateParts, formatDate, type EventItem, type Guide, type GuidePhoto, type NewsPost, type PlaceTeaser } from "./data";
 
@@ -38,7 +39,8 @@ export function Breadcrumbs({ items }: { items: Crumb[] }) {
 // The website is free reading; the app adds search, Mylo and recommendations, so
 // this says what the app adds rather than suggesting the two are the same thing.
 export function DownloadCta({ placeCount }: { placeCount?: number }) {
-  const href = LAUNCHED ? APP_STORE_URL : "/#download";
+  const downloadHref = useDownloadHref();
+  const href = LAUNCHED ? downloadHref : "/#download";
   const label = LAUNCHED ? "Download BarkFind" : "Get early access";
   const note = LAUNCHED
     ? ANDROID_LIVE

@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useSeo, organizationSchema, softwareApplicationSchema, faqSchema } from "../lib/seo";
 import { ANDROID_LIVE, APP_STORE_URL } from "../data/launch";
 import { GooglePlayButton } from "../components/StoreButtons";
-import { useIsAndroid } from "../lib/platform";
+import { useIsAndroid, useDownloadHref } from "../lib/platform";
 import BonfireBanner from "../components/BonfireBanner"; // TEMPORARY: remove after 10 Nov 2026
 
 // Header and hero store buttons: when the Google Play listing is live
@@ -16,7 +16,7 @@ function ordered(android: boolean, ios: React.ReactNode, play: React.ReactNode) 
 
 function Nav() {
   const [menuOpen, setMenuOpen] = useState(false);
-  const android = useIsAndroid();
+  const downloadHref = useDownloadHref();
   const navPill =
     "inline-flex items-center px-5 py-2.5 rounded-full bg-[#B74217] text-white text-sm font-bold hover:bg-[#333333] transition-colors shadow-sm shadow-[#B74217]/30";
 
@@ -35,19 +35,9 @@ function Nav() {
           <a href="/discover" className="hover:text-[#B74217] transition-colors">Discover</a>
         </nav>
 
-        {ANDROID_LIVE ? (
-          <div className="hidden md:flex items-center gap-2">
-            {ordered(
-              android,
-              <a key="ios" href={APP_STORE_URL} className={navPill}>Download on iOS</a>,
-              <GooglePlayButton key="play" className="h-10 w-auto" />,
-            )}
-          </div>
-        ) : (
-          <a href={APP_STORE_URL} className={`hidden md:inline-flex ${navPill}`}>
-            Download on iOS
-          </a>
-        )}
+        <a href={downloadHref} className={`hidden md:inline-flex ${navPill}`}>
+          Start Free Trial
+        </a>
 
         <button
           className="md:hidden p-2 text-[#212121]"
@@ -73,32 +63,13 @@ function Nav() {
           <a href="#pricing" onClick={() => setMenuOpen(false)} className="text-[#585858]">Pricing</a>
           <a href="#faq" onClick={() => setMenuOpen(false)} className="text-[#585858]">FAQ</a>
           <a href="/discover" onClick={() => setMenuOpen(false)} className="text-[#585858]">Discover</a>
-          {ANDROID_LIVE ? (
-            ordered(
-              android,
-              <a
-                key="ios"
-                href={APP_STORE_URL}
-                onClick={() => setMenuOpen(false)}
-                className="text-center px-5 py-2 rounded-full bg-[#B74217] text-white font-bold shadow-sm"
-              >
-                Download on iOS
-              </a>,
-              <GooglePlayButton
-                key="play"
-                className="h-10 w-auto"
-                wrapClassName="flex justify-center hover:opacity-90 transition-opacity"
-              />,
-            )
-          ) : (
-            <a
-              href={APP_STORE_URL}
-              onClick={() => setMenuOpen(false)}
-              className="text-center px-5 py-2 rounded-full bg-[#B74217] text-white font-bold shadow-sm"
-            >
-              Download on iOS
-            </a>
-          )}
+          <a
+            href={downloadHref}
+            onClick={() => setMenuOpen(false)}
+            className="text-center px-5 py-2 rounded-full bg-[#B74217] text-white font-bold shadow-sm"
+          >
+            Start Free Trial
+          </a>
         </div>
       )}
     </header>
@@ -941,6 +912,7 @@ const PLANS = [
 ];
 
 function Pricing() {
+  const downloadHref = useDownloadHref();
   return (
     <section id="pricing" className="py-24 bg-white">
       <div className="max-w-5xl mx-auto px-6">
@@ -1050,14 +1022,14 @@ function Pricing() {
               </ul>
 
               <a
-                href={APP_STORE_URL}
+                href={downloadHref}
                 className={`text-center px-5 py-3 rounded-full font-bold text-sm transition-all ${
                   plan.highlight
                     ? "bg-white text-[#B74217] hover:bg-[#333333] hover:text-white shadow-md"
                     : "bg-[#B74217] text-white hover:bg-[#333333] shadow-sm shadow-[#B74217]/20"
                 }`}
               >
-                Download on the App Store
+                Start free trial
               </a>
             </div>
           ))}
@@ -1296,9 +1268,12 @@ function Footer() {
 
       <div className="max-w-6xl mx-auto px-6 mt-10 pt-6 border-t border-white/10 flex flex-col-reverse sm:flex-row items-center justify-between gap-6">
         <p className="text-xs text-center sm:text-left">© {new Date().getFullYear()} BarkFind. All rights reserved.</p>
-        <a href={APP_STORE_URL} aria-label="Download on the App Store" className="inline-block hover:opacity-90 transition-opacity">
-          <img src="/app-store-badge.svg" alt="Download on the App Store" className="h-10 w-auto" />
-        </a>
+        <div className="flex items-center gap-3">
+          <a href={APP_STORE_URL} aria-label="Download on the App Store" className="inline-block hover:opacity-90 transition-opacity">
+            <img src="/app-store-badge.svg" alt="Download on the App Store" className="h-10 w-auto" />
+          </a>
+          {ANDROID_LIVE && <GooglePlayButton className="h-10 w-auto" />}
+        </div>
       </div>
     </footer>
   );

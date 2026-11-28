@@ -1,6 +1,6 @@
 import PageShell, { Section } from "../components/PageShell";
 import { useSeo } from "../lib/seo";
-import { APP_STORE_URL } from "../data/launch";
+import { useDownloadHref } from "../lib/platform";
 
 // Brand paw mark (matches the in-app rating / rewards icon)
 function PawMark({ className = "", color = "currentColor" }: { className?: string; color?: string }) {
@@ -45,7 +45,7 @@ const FAQ = [
   { q: "What if my review isn't approved?", a: "Then it doesn't earn points. Reviews are moderated, and anything found to be fake, spammy or manipulated may have its rewards withheld or revoked. See our Terms of Use." },
   { q: "Do points expire?", a: "Points for the 10 and 20 point treats count for 90 days from the day you post the review, once it's approved. Points towards the year free never expire." },
   { q: "Who can claim Treats?", a: "Anyone with a paid BarkFind subscription through the App Store or Google Play. If you're on a free trial, your points count from your first review, and treats start once your trial becomes a paid subscription. Premium given as a gift or through a partnership earns points but can't be used for treats." },
-  { q: "What if my subscription ends?", a: "Your points keep counting. If you've earned a treat, you can use it to come back for less: 25% or 50% off a month, once every 90 days." },
+  { q: "What if my subscription ends?", a: "Your points keep counting. If you've earned a treat, you can use it to come back for less: 25% or 50% off a month, once every 90 days. On Google Play that comes off your first month back, or a first year free on annual." },
   { q: "I'm on the annual plan, how does a discount work for me?", a: "It doesn't. A percentage off a single yearly bill wouldn't come to much, so annual members get time added to their subscription instead: 30 days at 10 points, 90 days at 20. The year free at 50 points is the same for everyone." },
   { q: "What if a claim doesn't arrive?", a: "Email info@barkfind.com and we'll sort it out. Nothing is lost: if a claim fails, the points stay on your account and you can claim again." },
 ];
@@ -92,6 +92,7 @@ export default function Treats() {
       "Earn treats for honest reviews on BarkFind and get a little back on your subscription. See how points and claims work on the monthly and annual plans.",
     path: "/treats",
   });
+  const downloadHref = useDownloadHref();
   return (
     <PageShell
       title="How Treats work"
@@ -99,8 +100,8 @@ export default function Treats() {
     >
       <p className="text-[#444] leading-relaxed">
         Treats are our way of saying thank you. Every review you leave helps another owner work out whether they can
-        bring their dog, and the more you add, the more you save on BarkFind. The app is on the App Store, and
-        Treats are live with it.
+        bring their dog, and the more you add, the more you save on BarkFind. The app is on the App Store and
+        Google Play, and Treats are live on both.
       </p>
 
       {/* Earning: points */}
@@ -131,7 +132,8 @@ export default function Treats() {
       <Section title="What your points unlock">
         <p>
           What you get depends on your plan, because a percentage off doesn't make much sense on a single yearly bill.
-          Same points, same 90-day window, different treat.
+          Same points, same 90-day window, different treat. How it reaches you depends on where you subscribed: on the
+          App Store it comes off your bill or adds time; on Google Play it always arrives as free days.
         </p>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
           <PlanCard plan="Monthly plan" tiers={MONTHLY_TIERS} />
@@ -147,6 +149,16 @@ export default function Treats() {
             <p className="font-serif text-2xl">50 points: a year free</p>
             <p className="text-sm text-white/80">Reach 50 points for a year free. These points never expire. One per account. If you're on monthly, it moves you onto the annual plan.</p>
           </div>
+        </div>
+
+        <div className="rounded-xl bg-[#FAEFD1] border border-[#B74217]/15 p-5 mt-4 text-sm text-[#444]">
+          <p className="font-bold text-[#1a1a1a] mb-1">On Google Play</p>
+          <p className="leading-relaxed">
+            The same points and the same thresholds, but Google delivers every treat as free days rather than a
+            discount. While you're subscribed, a treat moves your next payment back: 7 free days for the 25% treat,
+            15 for the 50% treat, 30 or 90 for the annual extensions, and 365 for a year free. If your subscription
+            has lapsed, a treat gives you 25% or 50% off your first month back, or a first year free on annual.
+          </p>
         </div>
       </Section>
 
@@ -164,7 +176,7 @@ export default function Treats() {
 
         {/* Limits worth stating plainly */}
         <div className="rounded-xl bg-[#FAEFD1] border border-[#B74217]/15 p-5 mt-2 text-sm text-[#444] flex flex-col gap-2">
-          <p><strong className="text-[#1a1a1a]">How often you can claim.</strong> On monthly, one discount every 90 days, counted from the last one you claimed. On annual, one extension a month, up to three a year. Claiming doesn't use up your points.</p>
+          <p><strong className="text-[#1a1a1a]">How often you can claim.</strong> On monthly, one treat every 90 days, counted from the last one you claimed. On annual, one extension a month, up to three a year. Claiming doesn't use up your points.</p>
           <p><strong className="text-[#1a1a1a]">Up to three extensions a year.</strong> On iPhone, Apple allows a maximum of three subscription extensions per person per year, so annual members can claim at most three times in twelve months.</p>
         </div>
 
@@ -172,17 +184,6 @@ export default function Treats() {
           If a claim doesn't come through, email{" "}
           <a href="mailto:info@barkfind.com" className="text-[#B74217] font-semibold hover:underline">info@barkfind.com</a>.
           Nothing is lost: if a claim fails, the points stay on your account and you can claim again.
-        </div>
-
-        <div className="rounded-xl bg-[#FAEFD1] border border-[#B74217]/15 p-5 mt-3 text-sm text-[#444]">
-          <p className="font-bold text-[#1a1a1a] mb-1">On Android</p>
-          <p className="leading-relaxed">
-            Treats work the same on Google Play: the same points and the same thresholds. Google delivers them as
-            free days instead of discounts. While you're subscribed, a treat moves your next payment back: 7 free
-            days for the 25% treat, 15 for the 50% treat, 30 or 90 for the annual extensions, and 365 for a year
-            free. If your subscription has lapsed, a treat gives you 25% or 50% off your first month back, or a
-            first year free on annual.
-          </p>
         </div>
       </Section>
 
@@ -202,10 +203,10 @@ export default function Treats() {
       <Section title="Start earning Treats">
         <p>BarkFind is free to download, with a 14-day free trial. Start earning points from your very first review.</p>
         <a
-          href={APP_STORE_URL}
+          href={downloadHref}
           className="inline-flex items-center justify-center mt-1 px-7 py-3.5 rounded-full bg-[#B74217] text-white font-bold text-sm hover:bg-[#333333] transition-colors shadow-sm shadow-[#B74217]/25 self-start"
         >
-          Download on the App Store
+          Start free trial
         </a>
       </Section>
     </PageShell>
