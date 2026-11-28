@@ -40,7 +40,7 @@ function Nav() {
             {ordered(
               android,
               <a key="ios" href={APP_STORE_URL} className={navPill}>Download on iOS</a>,
-              <GooglePlayButton key="play" className={navPill} />,
+              <GooglePlayButton key="play" className="h-10 w-auto" />,
             )}
           </div>
         ) : (
@@ -86,7 +86,8 @@ function Nav() {
               </a>,
               <GooglePlayButton
                 key="play"
-                className="text-center px-5 py-2 rounded-full bg-[#B74217] text-white font-bold shadow-sm"
+                className="h-10 w-auto"
+                wrapClassName="flex justify-center hover:opacity-90 transition-opacity"
               />,
             )
           ) : (
@@ -148,7 +149,7 @@ function Hero() {
                 <a key="ios" href={APP_STORE_URL} aria-label="Download on the App Store" className="inline-block hover:opacity-90 transition-opacity">
                   <img src="/app-store-badge.svg" alt="Download on the App Store" className="h-[52px] w-auto" />
                 </a>,
-                <GooglePlayButton key="play" className="inline-flex items-center justify-center h-[52px] px-6 rounded-xl bg-[#1a1a1a] text-white font-bold hover:bg-[#333333] transition-colors" />,
+                <GooglePlayButton key="play" className="h-[52px] w-auto" />,
               )
             ) : (
               <a href={APP_STORE_URL} aria-label="Download on the App Store" className="inline-block hover:opacity-90 transition-opacity">
@@ -1230,7 +1231,7 @@ function DownloadCTA() {
     </a>
   );
   const playButton = (
-    <GooglePlayButton key="play" className="inline-flex items-center justify-center h-[52px] px-6 rounded-xl bg-[#1a1a1a] text-white font-bold hover:bg-[#333333] transition-colors" />
+    <GooglePlayButton key="play" className="h-[52px] w-auto" />
   );
 
   return (
