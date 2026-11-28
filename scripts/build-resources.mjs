@@ -366,7 +366,7 @@ function nameVariants(name, townNames) {
 
 // Matches places to the guide's own text. Skips anything uncertain: a name two
 // places share, or a mention that only appears inside a longer place name.
-function matchPlaces(blocks, places, townNames, limit = 20) {
+function matchPlaces(blocks, places, townNames, limit = 24) {
   const occ = [];
   for (const place of places) {
     for (const v of nameVariants(place.name, townNames)) {
