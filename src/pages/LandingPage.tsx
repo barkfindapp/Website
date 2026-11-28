@@ -1,15 +1,24 @@
 import { useState, useEffect } from "react";
 import { useSeo, organizationSchema, softwareApplicationSchema, faqSchema } from "../lib/seo";
-import EarlyAccessForm from "../components/EarlyAccessForm";
-import { APP_STORE_URL } from "../data/launch";
-import { track } from "../lib/analytics";
-import { fetchFounderOpen } from "../lib/founderDb";
+import { ANDROID_LIVE, APP_STORE_URL } from "../data/launch";
+import { GooglePlayButton } from "../components/StoreButtons";
+import { useIsAndroid } from "../lib/platform";
 import BonfireBanner from "../components/BonfireBanner"; // TEMPORARY: remove after 10 Nov 2026
+
+// Header and hero store buttons: when the Google Play listing is live
+// (ANDROID_LIVE), both stores show, Google Play first on an Android phone, the
+// App Store first everywhere else. Returns the two nodes in render order.
+function ordered(android: boolean, ios: React.ReactNode, play: React.ReactNode) {
+  return android ? [play, ios] : [ios, play];
+}
 
 // ─── Nav ─────────────────────────────────────────────────────────────────────
 
 function Nav() {
   const [menuOpen, setMenuOpen] = useState(false);
+  const android = useIsAndroid();
+  const navPill =
+    "inline-flex items-center px-5 py-2.5 rounded-full bg-[#B74217] text-white text-sm font-bold hover:bg-[#333333] transition-colors shadow-sm shadow-[#B74217]/30";
 
   return (
     <header className="sticky top-0 z-50 bg-[#FAEFD1]/80 backdrop-blur-md border-b border-[#B74217]/10">
@@ -26,12 +35,19 @@ function Nav() {
           <a href="/discover" className="hover:text-[#B74217] transition-colors">Discover</a>
         </nav>
 
-        <a
-          href={APP_STORE_URL}
-          className="hidden md:inline-flex items-center px-5 py-2.5 rounded-full bg-[#B74217] text-white text-sm font-bold hover:bg-[#333333] transition-colors shadow-sm shadow-[#B74217]/30"
-        >
-          Download on iOS
-        </a>
+        {ANDROID_LIVE ? (
+          <div className="hidden md:flex items-center gap-2">
+            {ordered(
+              android,
+              <a key="ios" href={APP_STORE_URL} className={navPill}>Download on iOS</a>,
+              <GooglePlayButton key="play" className={navPill} />,
+            )}
+          </div>
+        ) : (
+          <a href={APP_STORE_URL} className={`hidden md:inline-flex ${navPill}`}>
+            Download on iOS
+          </a>
+        )}
 
         <button
           className="md:hidden p-2 text-[#212121]"
@@ -57,13 +73,31 @@ function Nav() {
           <a href="#pricing" onClick={() => setMenuOpen(false)} className="text-[#585858]">Pricing</a>
           <a href="#faq" onClick={() => setMenuOpen(false)} className="text-[#585858]">FAQ</a>
           <a href="/discover" onClick={() => setMenuOpen(false)} className="text-[#585858]">Discover</a>
-          <a
-            href={APP_STORE_URL}
-            onClick={() => setMenuOpen(false)}
-            className="text-center px-5 py-2 rounded-full bg-[#B74217] text-white font-bold shadow-sm"
-          >
-            Download on iOS
-          </a>
+          {ANDROID_LIVE ? (
+            ordered(
+              android,
+              <a
+                key="ios"
+                href={APP_STORE_URL}
+                onClick={() => setMenuOpen(false)}
+                className="text-center px-5 py-2 rounded-full bg-[#B74217] text-white font-bold shadow-sm"
+              >
+                Download on iOS
+              </a>,
+              <GooglePlayButton
+                key="play"
+                className="text-center px-5 py-2 rounded-full bg-[#B74217] text-white font-bold shadow-sm"
+              />,
+            )
+          ) : (
+            <a
+              href={APP_STORE_URL}
+              onClick={() => setMenuOpen(false)}
+              className="text-center px-5 py-2 rounded-full bg-[#B74217] text-white font-bold shadow-sm"
+            >
+              Download on iOS
+            </a>
+          )}
         </div>
       )}
     </header>
@@ -73,6 +107,7 @@ function Nav() {
 // ─── Hero ─────────────────────────────────────────────────────────────────────
 
 function Hero() {
+  const android = useIsAndroid();
   return (
     <section
       className="relative overflow-hidden"
@@ -94,7 +129,7 @@ function Hero() {
         <div className="flex-1 text-center md:text-left">
           <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/60 text-[#B74217] text-xs font-bold mb-7 border border-[#B74217]/20 shadow-sm backdrop-blur-sm">
             <svg viewBox="0 0 384 512" className="w-3 h-3" fill="currentColor" aria-hidden="true"><path d="M318.7 268.7c-.2-36.7 16.4-64.4 50-84.8-18.8-26.9-47.2-41.7-84.7-44.6-35.5-2.8-74.3 20.7-88.5 20.7-15 0-49.4-19.7-76.4-19.7C63.3 141.2 4 184.8 4 273.5q0 39.3 14.4 81.2c12.8 36.7 59 126.7 107.2 125.2 25.2-.6 43-17.9 75.8-17.9 31.8 0 48.3 17.9 76.4 17.9 48.6-.7 90.4-82.5 102.6-119.3-65.2-30.7-61.7-90-61.7-91.9zm-56.6-164.2c27.3-32.4 24.8-61.9 24-72.5-24.1 1.4-52 16.4-67.9 34.9-17.5 19.8-27.8 44.3-25.6 71.9 26.1 2 49.9-11.4 69.5-34.3z"/></svg>
-            Now on iOS
+            {ANDROID_LIVE ? "Now on iPhone and Android" : "Now on iOS"}
           </div>
 
           <h1 className="font-serif text-4xl md:text-5xl lg:text-[3.75rem] text-[#1a1a1a] leading-[1.1] mb-5 tracking-tight">
@@ -107,9 +142,19 @@ function Hero() {
           </p>
 
           <div className="flex flex-col sm:flex-row items-center gap-4 justify-center md:justify-start">
-            <a href={APP_STORE_URL} aria-label="Download on the App Store" className="inline-block hover:opacity-90 transition-opacity">
-              <img src="/app-store-badge.svg" alt="Download on the App Store" className="h-[52px] w-auto" />
-            </a>
+            {ANDROID_LIVE ? (
+              ordered(
+                android,
+                <a key="ios" href={APP_STORE_URL} aria-label="Download on the App Store" className="inline-block hover:opacity-90 transition-opacity">
+                  <img src="/app-store-badge.svg" alt="Download on the App Store" className="h-[52px] w-auto" />
+                </a>,
+                <GooglePlayButton key="play" className="inline-flex items-center justify-center h-[52px] px-6 rounded-xl bg-[#1a1a1a] text-white font-bold hover:bg-[#333333] transition-colors" />,
+              )
+            ) : (
+              <a href={APP_STORE_URL} aria-label="Download on the App Store" className="inline-block hover:opacity-90 transition-opacity">
+                <img src="/app-store-badge.svg" alt="Download on the App Store" className="h-[52px] w-auto" />
+              </a>
+            )}
             <a
               href="#features"
               className="w-full sm:w-auto px-8 py-3.5 rounded-full bg-[#B74217] text-white font-bold text-base hover:bg-[#333333] transition-colors shadow-lg shadow-[#B74217]/25 text-center"
@@ -124,13 +169,6 @@ function Hero() {
                 <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
               </svg>
               On the App Store
-            </span>
-            <span className="w-1 h-1 rounded-full bg-[#585858]/40" />
-            <span className="flex items-center gap-1.5">
-              <svg className="w-4 h-4 text-[#4FA4A1]" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-              </svg>
-              Founding-member pricing
             </span>
             <span className="w-1 h-1 rounded-full bg-[#585858]/40" />
             <span className="flex items-center gap-1.5">
@@ -502,7 +540,7 @@ function TrustBar() {
     "Community-powered reviews",
     "Somewhere that suits your dog",
     "Cafes, parks, pubs & more",
-    "iOS now, Android coming soon",
+    ANDROID_LIVE ? "iPhone and Android" : "iOS now, Android coming soon",
   ];
   return (
     <div className="bg-white py-5 border-b border-stone-100">
@@ -806,7 +844,7 @@ const STEPS = [
   {
     number: "01",
     title: "Download BarkFind",
-    description: "Get BarkFind free from the App Store. You can browse straight away, and make an account when you want to review or save a place. Founding members get their first year for £19.99.",
+    description: "Get BarkFind free from the App Store. You can browse straight away, and make an account when you want to review or save a place.",
   },
   {
     number: "02",
@@ -1038,7 +1076,7 @@ function Pricing() {
         </div>
 
         <p className="text-center text-xs text-[#8a857c] max-w-2xl mx-auto">Ask Mylo: 60 questions a day on annual and during the trial, 15 a day on monthly, counted over a rolling 30 days rather than a calendar month. Fair-use limits apply. Your saved spots and your own reviews stay yours either way.</p>
-        <p className="text-center text-sm text-[#585858] mt-4">Prices apply in the app · Founding members get their first year for £19.99</p>
+        <p className="text-center text-sm text-[#585858] mt-4">Prices apply in the app · 14-day free trial</p>
       </div>
     </section>
   );
@@ -1125,10 +1163,10 @@ function Testimonials() {
 // ─── FAQ ──────────────────────────────────────────────────────────────────────
 
 const FAQ_ITEMS = [
-  { q: "How do I get started?", a: "Download BarkFind free from the App Store. You can browse straight away, and make an account when you want to review or save a place. Founding members get their first year for £19.99 instead of £39.99." },
+  { q: "How do I get started?", a: "Download BarkFind free from the App Store. You can browse straight away, and make an account when you want to review or save a place." },
   { q: "How does the free trial work?", a: "New subscribers get a 14-day free trial. It's card-gated through Apple: you add a payment method to begin, but you're charged £0 up front. After 14 days it auto-renews into your chosen plan (Monthly £5.99 or Annual £39.99) unless you cancel before then." },
   { q: "What happens after my trial ends?", a: "If you don't subscribe, BarkFind switches to read-only rather than locking you out. You keep your saved spots, your profile and dog profile, and your own reviews, and you can still read other people's reviews and leave new ones. You lose searching for new places, Ask Mylo, saving new favourites, and dog-profile recommendations until you subscribe." },
-  { q: "Is BarkFind available on Android?", a: "BarkFind is on iOS first. Android is on the roadmap and coming soon. Join the list on our homepage to be the first to know when it lands." },
+  { q: "Is BarkFind available on Android?", a: ANDROID_LIVE ? "Yes. BarkFind is on Google Play as well as the App Store, UK only, with the same prices and the same 14-day free trial." : "BarkFind is on iOS first. Android is on the roadmap and coming soon. Join the list on our homepage to be the first to know when it lands." },
   { q: "How are locations verified?", a: "Locations are verified through a combination of community reports, business owner claims, and our moderation team. A verified badge means the dog-friendly status has been confirmed." },
   { q: "What is a Dog Profile?", a: "A Dog Profile lets you add details about your dog, breed, size, temperament, so BarkFind can personalise recommendations based on what suits your dog specifically." },
   { q: "How do the review rewards work?", a: "Once you're using BarkFind, leaving honest reviews earns treats: a little back on your subscription for helping other owners find their way. What you get depends on whether you're on the monthly or annual plan. The full rules, and how claiming works, are on the Treats page." },
@@ -1182,68 +1220,17 @@ function FAQ() {
   );
 }
 
-// ─── Early Access CTA ─────────────────────────────────────────────────────────
+// ─── Download CTA ─────────────────────────────────────────────────────────────
 
 function DownloadCTA() {
-  const [open, setOpen] = useState(true);
-  const [email, setEmail] = useState("");
-  const [status, setStatus] = useState<"idle" | "loading" | "done" | "error">("idle");
-  const [founderSent, setFounderSent] = useState(false);
-  const [errorMsg, setErrorMsg] = useState("");
-
-  useEffect(() => {
-    // Default to the open state; api/founder re-checks before it sends anything.
-    fetchFounderOpen().then(setOpen).catch(() => setOpen(true));
-  }, []);
-
-  const submit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!email.trim()) return;
-    setStatus("loading");
-    setErrorMsg("");
-    try {
-      const res = await fetch("/api/founder", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: email.trim().toLowerCase() }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (res.ok) {
-        // No event properties on the Starter plan, so open vs closed is two names.
-        track(data.founder ? "Founder Signup" : "Founder Signup Closed");
-        setFounderSent(!!data.founder);
-        setStatus("done");
-      } else {
-        setErrorMsg(data.error || "Something went wrong. Please try again.");
-        setStatus("error");
-      }
-    } catch {
-      setErrorMsg("Something went wrong. Please try again.");
-      setStatus("error");
-    }
-  };
-
-  const form = (buttonLabel: string) => (
-    <div className="max-w-md mx-auto">
-      <form onSubmit={submit} className="flex flex-col sm:flex-row gap-2.5">
-        <input
-          type="email"
-          required
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          placeholder="Enter your email"
-          className="flex-1 px-5 py-3.5 rounded-full text-[#2F291E] text-sm font-medium outline-none focus:ring-2 focus:ring-white/40 bg-white shadow-sm"
-        />
-        <button
-          type="submit"
-          disabled={status === "loading"}
-          className="px-7 py-3.5 rounded-full bg-white text-[#B74217] font-bold text-sm hover:bg-[#333333] hover:text-white transition-colors disabled:opacity-60 whitespace-nowrap shadow-sm"
-        >
-          {status === "loading" ? "…" : buttonLabel}
-        </button>
-      </form>
-      {status === "error" && <p className="mt-3 text-white/70 text-xs">{errorMsg}</p>}
-    </div>
+  const android = useIsAndroid();
+  const appStoreBadge = (
+    <a key="ios" href={APP_STORE_URL} aria-label="Download on the App Store" className="inline-block hover:opacity-90 transition-opacity">
+      <img src="/app-store-badge.svg" alt="Download on the App Store" className="h-[52px] w-auto" />
+    </a>
+  );
+  const playButton = (
+    <GooglePlayButton key="play" className="inline-flex items-center justify-center h-[52px] px-6 rounded-xl bg-[#1a1a1a] text-white font-bold hover:bg-[#333333] transition-colors" />
   );
 
   return (
@@ -1257,56 +1244,12 @@ function DownloadCTA() {
       <div className="absolute -bottom-16 -left-16 w-64 h-64 rounded-full opacity-10 pointer-events-none" style={{ background: "radial-gradient(circle, #F5F1E9 0%, transparent 70%)" }} />
 
       <div className="relative max-w-2xl mx-auto px-6 text-center">
-        {open ? (
-          <>
-            <h2 className="font-serif text-3xl md:text-4xl lg:text-5xl text-white mb-5">Become a founding member</h2>
-            <p className="text-white/80 text-lg mb-8 leading-relaxed">
-              Our first 100 members get their first year of BarkFind Premium for <strong className="text-white">£19.99</strong> instead of £39.99. Pop your email in and we'll send your founding-member link straight away.
-            </p>
-            {status === "done" ? (
-              <div className="max-w-md mx-auto bg-white/15 backdrop-blur-sm rounded-2xl p-5 text-white border border-white/20">
-                <p className="font-bold mb-1">Check your inbox.</p>
-                <p className="text-white/80 text-sm leading-relaxed">
-                  {founderSent
-                    ? "We've sent your founding-member link. Open it on your iPhone before you sign up in the app, so the founding price is applied."
-                    : "The founding places have just gone, but you're on the newsletter. You can download BarkFind free and start a 14-day trial."}
-                </p>
-              </div>
-            ) : (
-              form("Send my link")
-            )}
-            <p className="text-white/55 text-xs mt-4 max-w-md mx-auto leading-relaxed">
-              One link per email. It renews at £39.99 a year unless you cancel. We'll also send you the occasional BarkFind newsletter, and you can unsubscribe at any time.
-            </p>
-          </>
-        ) : (
-          <>
-            <h2 className="font-serif text-3xl md:text-4xl lg:text-5xl text-white mb-5">Founding places have gone</h2>
-            <p className="text-white/80 text-lg mb-8 leading-relaxed">
-              All 100 founding places have been taken. Thank you. You can still download BarkFind free and start a 14-day free trial.
-            </p>
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-8">
-              <a href={APP_STORE_URL} className="inline-flex items-center justify-center px-8 py-3.5 rounded-full bg-white text-[#B74217] font-bold text-base hover:bg-[#333333] hover:text-white transition-colors shadow-lg">Download on the App Store</a>
-              <a href={APP_STORE_URL} aria-label="Download on the App Store" className="inline-block hover:opacity-90 transition-opacity"><img src="/app-store-badge.svg" alt="Download on the App Store" className="h-[52px] w-auto" /></a>
-            </div>
-            {status === "done" ? (
-              <div className="max-w-md mx-auto bg-white/15 backdrop-blur-sm rounded-2xl p-5 text-white border border-white/20"><p className="font-bold">You're on the newsletter.</p></div>
-            ) : (
-              form("Keep me posted")
-            )}
-          </>
-        )}
-
-        {/* Android, same list, tagged android */}
-        <div className="mt-10 pt-8 border-t border-white/15 w-full max-w-md mx-auto">
-          <div className="flex items-center justify-center gap-2 mb-2 text-white/90">
-            <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-              <path d="M6 18a1 1 0 001 1h1v3.5a1.5 1.5 0 003 0V19h2v3.5a1.5 1.5 0 003 0V19h1a1 1 0 001-1V8H6v10zM3.5 8A1.5 1.5 0 002 9.5v6a1.5 1.5 0 003 0v-6A1.5 1.5 0 003.5 8zm17 0A1.5 1.5 0 0019 9.5v6a1.5 1.5 0 003 0v-6A1.5 1.5 0 0020.5 8zM15.5 3.2l1.3-1.3a.4.4 0 10-.56-.56l-1.48 1.48A5.96 5.96 0 0012 2c-.99 0-1.92.24-2.75.66L7.77 1.34a.4.4 0 10-.56.56l1.3 1.3A5.98 5.98 0 006 7h12a5.98 5.98 0 00-2.5-3.8zM9.5 5.5a.75.75 0 110-1.5.75.75 0 010 1.5zm5 0a.75.75 0 110-1.5.75.75 0 010 1.5z" />
-            </svg>
-            <p className="font-bold text-sm">On Android?</p>
-          </div>
-          <p className="text-white/60 text-sm mb-4">Join the list, we'll email you when BarkFind reaches Android.</p>
-          <EarlyAccessForm platform="android" buttonLabel="Notify me" compact />
+        <h2 className="font-serif text-3xl md:text-4xl lg:text-5xl text-white mb-5">Get BarkFind</h2>
+        <p className="text-white/80 text-lg mb-8 leading-relaxed">
+          Download BarkFind free and start a 14-day free trial.
+        </p>
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+          {ANDROID_LIVE ? ordered(android, appStoreBadge, playButton) : appStoreBadge}
         </div>
       </div>
     </section>

@@ -6,10 +6,10 @@
 // second argument. Filter events by page in the dashboard instead (the creator
 // slug is already in the URL).
 //
-// Note: the App Store buttons on the homepage get NO event. Plausible's
-// outbound-link tracking already counts clicks to apps.apple.com, so an extra
-// event here would double count. (Those buttons are #download anchors until
-// launch day; they become real App Store links then.)
+// Note: the store buttons on the homepage get NO event. Plausible's
+// outbound-link tracking already counts clicks to apps.apple.com, and it counts
+// play.google.com the same way once the Google Play button is live, so an extra
+// event here would double count.
 export function track(event: string) {
   try {
     (window as unknown as { plausible?: (e: string) => void }).plausible?.(event);

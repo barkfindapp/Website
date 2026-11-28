@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { ANDROID_LIVE } from "../data/launch";
 
 // Lightweight, dependency-free head management for our hand-rolled router.
 // Each route is a full page load (links are real <a href>), so we only need to
@@ -131,7 +132,9 @@ export const softwareApplicationSchema: Record<string, unknown> = {
   "@type": "MobileApplication",
   name: "BarkFind",
   applicationCategory: "TravelApplication",
-  operatingSystem: "iOS",
+  // Reflects what BarkFind actually ships on: iOS today, "iOS, Android" once the
+  // Google Play listing is live (ANDROID_LIVE in src/data/launch.ts).
+  operatingSystem: ANDROID_LIVE ? "iOS, Android" : "iOS",
   description:
     "BarkFind is a UK app for finding dog-friendly places, cafes, pubs, parks, restaurants and more, reviewed by dog owners on one map.",
   url: SITE_URL,
