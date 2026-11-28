@@ -163,22 +163,6 @@ function Hero() {
               See how it works
             </a>
           </div>
-
-          <div className="mt-8 flex items-center gap-4 justify-center md:justify-start text-sm text-[#585858]">
-            <span className="flex items-center gap-1.5">
-              <svg className="w-4 h-4 text-[#4FA4A1]" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-              </svg>
-              On the App Store
-            </span>
-            <span className="w-1 h-1 rounded-full bg-[#585858]/40" />
-            <span className="flex items-center gap-1.5">
-              <svg className="w-4 h-4 text-[#4FA4A1]" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-              </svg>
-              14-day free trial
-            </span>
-          </div>
         </div>
 
         <div className="flex-shrink-0 relative mx-auto w-[300px] md:w-[360px] lg:w-[420px]">
@@ -541,7 +525,7 @@ function TrustBar() {
     "Community-powered reviews",
     "Somewhere that suits your dog",
     "Cafes, parks, pubs & more",
-    ANDROID_LIVE ? "iPhone and Android" : "iOS now, Android coming soon",
+    ANDROID_LIVE ? "14-day free trial" : "iOS now, Android coming soon",
   ];
   return (
     <div className="bg-white py-5 border-b border-stone-100">
