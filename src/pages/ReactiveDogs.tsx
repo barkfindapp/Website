@@ -35,7 +35,7 @@ const FAQ: { q: string; a: string }[] = [
   },
   {
     q: "Is it free?",
-    a: "Browsing the map, opening any place and reading its dog policy and restrictions is free for everyone. BarkFind Premium adds search built around your dog, recommendations matched to their temperament and size, saved places and Ask Mylo. It is £5.99 a month or £39.99 a year, on iPhone, UK only.",
+    a: `Browsing the map, opening any place and reading its dog policy and restrictions is free for everyone. BarkFind Premium adds search built around your dog, recommendations matched to their temperament and size, saved places and Ask Mylo. It is £5.99 a month or £39.99 a year, ${ANDROID_LIVE ? "on iPhone and Android, UK only" : "on iPhone, UK only"}.`,
   },
   {
     q: "Do you cover my area?",
