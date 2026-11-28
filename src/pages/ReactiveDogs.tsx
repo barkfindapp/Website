@@ -137,7 +137,7 @@ export default function ReactiveDogs() {
             {ANDROID_LIVE ? "Get BarkFind" : "Get BarkFind on iPhone"}
           </a>
           {ANDROID_LIVE && (
-            <GooglePlayButton className="inline-flex items-center gap-2 w-fit px-5 py-2.5 rounded-full bg-[#1a1a1a] text-white text-sm font-bold hover:bg-[#333333] transition-colors shadow-sm" />
+            <GooglePlayButton className="h-10 w-auto" />
           )}
         </div>
       </Section>
@@ -223,7 +223,7 @@ export default function ReactiveDogs() {
               Get BarkFind
             </a>
             {ANDROID_LIVE && (
-              <GooglePlayButton className="inline-flex items-center px-6 py-3 rounded-full bg-[#1a1a1a] text-white text-sm font-bold hover:bg-[#333333] transition-colors shadow-sm" />
+              <GooglePlayButton className="h-11 w-auto" />
             )}
           </div>
         </div>

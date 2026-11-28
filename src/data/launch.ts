@@ -10,4 +10,4 @@ export const APP_STORE_URL = "https://apps.apple.com/gb/app/id6782144377";
 // the only thing needed: everything that mentions Android or links to Google Play
 // is gated on it, and the "Android coming soon" wording shows while it is false.
 export const PLAY_STORE_URL = "https://play.google.com/store/apps/details?id=com.barkfind.app";
-export const ANDROID_LIVE = false;
+export const ANDROID_LIVE = true;

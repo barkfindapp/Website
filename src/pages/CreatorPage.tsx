@@ -139,7 +139,7 @@ function CreatorContent({ creator }: { creator: Creator }) {
                     <p className="text-white text-sm mb-4">
                       This code works on iPhone. On Android, download BarkFind from Google Play and start the 14-day free trial.
                     </p>
-                    <GooglePlayButton className="block text-center px-6 py-4 rounded-full bg-white text-ink font-bold hover:opacity-90 transition-opacity" />
+                    <GooglePlayButton className="h-[52px] w-auto" />
                   </div>
                 ) : (
                   <div className="rounded-2xl bg-ink p-5">
