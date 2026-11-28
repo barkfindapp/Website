@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useSeo, organizationSchema, softwareApplicationSchema, faqSchema } from "../lib/seo";
 import { ANDROID_LIVE, APP_STORE_URL } from "../data/launch";
 import { GooglePlayButton } from "../components/StoreButtons";
+import NearbyPlaces from "../components/NearbyPlaces";
 import { useIsAndroid, useDownloadHref } from "../lib/platform";
 import BonfireBanner from "../components/BonfireBanner"; // TEMPORARY: remove after 10 Nov 2026
 
@@ -1317,6 +1318,7 @@ export default function LandingPage() {
       <Nav />
       <Hero />
       <TrustBar />
+      <NearbyPlaces />
       <AppShowcase />
       <Mylo />
       <Features />
