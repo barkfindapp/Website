@@ -142,6 +142,29 @@ export default function ReactiveDogs() {
         </div>
       </Section>
 
+      <Section title="Secure dog fields, when your dog needs total space">
+        <p>
+          The most dependable walk for a dog that struggles around others is often a secure dog field: a
+          private, fully fenced field you book for your dog alone. No other dogs, nobody appearing round a
+          corner, just room to run off-lead and come down from it all. For a reactive or nervous dog, it can
+          be the one walk in the week where neither of you has to keep watch.
+        </p>
+        <p>
+          They are usually booked by the hour, online, and you take the field on your own. You will find the
+          ones owners have checked among the reactive-friendly places in the guides and on the map, tagged
+          with the space and the enclosure that make them work.
+        </p>
+        <a
+          href="/dog-friendly?reactive=1"
+          className="inline-flex items-center gap-2 w-fit text-sm font-bold text-[#2F6F6C] hover:underline"
+        >
+          Find secure fields and other reactive-friendly places
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+            <path d="M6 3l5 5-5 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </a>
+      </Section>
+
       <Section title="Start exploring">
         <p>
           The place to begin is the map and the town guides. Open a guide for where you are headed, read the
