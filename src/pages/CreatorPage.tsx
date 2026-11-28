@@ -3,7 +3,8 @@ import PageShell from "../components/PageShell";
 import EarlyAccessForm from "../components/EarlyAccessForm";
 import { useSeo } from "../lib/seo";
 import { isAndroid } from "../lib/platform";
-import { LAUNCHED } from "../data/launch";
+import { ANDROID_LIVE, LAUNCHED } from "../data/launch";
+import { GooglePlayButton } from "../components/StoreButtons";
 import { CREATORS, type Creator } from "../data/creators";
 import { fetchCreator } from "../lib/creatorsDb";
 import { track } from "../lib/analytics";
@@ -133,12 +134,21 @@ function CreatorContent({ creator }: { creator: Creator }) {
             </div>
             <div className="mt-6">
               {android ? (
-                <div className="rounded-2xl bg-ink p-5">
-                  <p className="text-white text-sm mb-4">
-                    BarkFind is on iPhone first. Leave your email and you will hear the day it reaches Android.
-                  </p>
-                  <EarlyAccessForm platform="android" buttonLabel="Notify me" compact />
-                </div>
+                ANDROID_LIVE ? (
+                  <div className="rounded-2xl bg-ink p-5">
+                    <p className="text-white text-sm mb-4">
+                      This code works on iPhone. On Android, download BarkFind from Google Play and start the 14-day free trial.
+                    </p>
+                    <GooglePlayButton className="block text-center px-6 py-4 rounded-full bg-white text-ink font-bold hover:opacity-90 transition-opacity" />
+                  </div>
+                ) : (
+                  <div className="rounded-2xl bg-ink p-5">
+                    <p className="text-white text-sm mb-4">
+                      BarkFind is on iPhone first. Leave your email and you will hear the day it reaches Android.
+                    </p>
+                    <EarlyAccessForm platform="android" buttonLabel="Notify me" compact />
+                  </div>
+                )
               ) : (
                 <a
                   href={redeemUrl(creator.offerCode)}
@@ -160,7 +170,9 @@ function CreatorContent({ creator }: { creator: Creator }) {
         )}
 
         <p className="mt-4 text-xs text-ink/60 leading-relaxed">
-          iPhone only for now. You can cancel the renewal at any time in your Apple settings.
+          {ANDROID_LIVE
+            ? "The code works on iPhone only. You can cancel the renewal at any time in your Apple settings."
+            : "iPhone only for now. You can cancel the renewal at any time in your Apple settings."}
         </p>
       </div>
     </PageShell>

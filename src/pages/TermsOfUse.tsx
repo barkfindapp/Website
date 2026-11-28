@@ -13,7 +13,7 @@ export default function TermsOfUse() {
     path: "/terms",
   });
   return (
-    <PageShell title="Terms of Use" meta="Last updated: 13 October 2026">
+    <PageShell title="Terms of Use" meta="Last updated: 28 November 2026">
         <p className="text-[#444] leading-relaxed">
           These Terms of Use ("Terms") govern your access to and use of the BarkFind mobile app and the
           barkfind.com website (together, the "Service"), operated by BarkFind Limited (company no. GB17093288),
@@ -49,12 +49,12 @@ export default function TermsOfUse() {
           </p>
           <Bullets
             items={[
-              <><strong>Payment</strong> is charged to your Apple App Store account at confirmation of purchase.</>,
+              <><strong>Payment</strong> is charged to your Apple App Store account or your Google Play account, depending on where you subscribed, when you confirm the purchase.</>,
               <><strong>Auto-renewal:</strong> Your subscription automatically renews unless cancelled at least 24 hours before the end of the current period. Your account is charged for renewal within 24 hours before the end of the current period.</>,
               <><strong>Free trial:</strong> If you do not cancel before the trial ends, it converts to a paid subscription. Any unused portion of a free trial is forfeited if you purchase a subscription.</>,
-              <><strong>Managing and cancelling:</strong> You can manage or cancel your subscription, and turn off auto-renewal, in your App Store account settings. Deleting the app does not cancel your subscription.</>,
+              <><strong>Managing and cancelling:</strong> You can manage or cancel your subscription, and turn off auto-renewal, in your App Store account settings on iPhone, or in Subscriptions in the Google Play app on Android. On the App Store, cancel at least 24 hours before the end of the current period to avoid being charged for the next one. On Google Play, cancel before the renewal date. Deleting the app does not cancel your subscription.</>,
               <><strong>Price changes:</strong> We may change subscription prices; changes apply to future billing periods and we will give notice as required by the App Store.</>,
-              <><strong>Refunds</strong> are handled by Apple in accordance with App Store policies; we generally cannot issue refunds directly.</>,
+              <><strong>Refunds</strong> are handled by Apple or Google under their own policies; we generally cannot issue refunds directly.</>,
             ]}
           />
         </Section>
@@ -190,7 +190,15 @@ export default function TermsOfUse() {
           />
         </Section>
 
-        <Section title="17. Contact">
+        <Section title="17. Google Play">
+          <p>
+            If you downloaded BarkFind from Google Play, your purchase and use of the app are also subject to
+            Google Play's terms of service. These Terms are between you and BarkFind, not Google, and BarkFind
+            is responsible for the app and its content.
+          </p>
+        </Section>
+
+        <Section title="18. Contact">
           <div className="rounded-2xl bg-[#FAEFD1] p-6">
             <p className="font-bold text-[#1a1a1a] mb-1">BarkFind Limited</p>
             <p className="text-sm text-[#585858]">80A Walliscote Road, Weston-Super-Mare BS23 1ED, United Kingdom</p>

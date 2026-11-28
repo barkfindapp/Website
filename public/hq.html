@@ -888,9 +888,10 @@ table.ads-t th,table.ads-t td{padding:8px 10px;white-space:nowrap}table.ads-t td
       $("m-none").hidden=!(proc===0);
       kv($("m-kv"),[
         ["Paying on the App Store",n(sub.store_active)],
+        ["Paying on Google Play",n(sub.play_active)],
         ["Production subscribers (RevenueCat)",n(rc.production_active)],
-        ["On a free trial",n(sub.store_trial)],
-        ["Cancelled, still entitled",n(sub.store_cancelled_entitled)],
+        ["On a free trial",n((sub.store_trial||0)+(sub.play_trial||0))],
+        ["Cancelled, still entitled",n((sub.store_cancelled_entitled||0)+(sub.play_cancelled_entitled||0))],
         ["Promotional (comped)",n(sub.promotional_active)],
         ["New subscription rows, 7 days",n(sub.new_7d)],
         ["RevenueCat last synced",(sub.revenuecat&&sub.revenuecat.synced_at)?new Date(sub.revenuecat.synced_at).toLocaleString("en-GB",{hour:"2-digit",minute:"2-digit",day:"numeric",month:"short"}):"–"]

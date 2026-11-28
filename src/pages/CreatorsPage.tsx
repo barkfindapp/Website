@@ -4,6 +4,7 @@ import StoryBand from "../components/StoryBand";
 import { useSeo } from "../lib/seo";
 import CreatorApplyForm from "../components/CreatorApplyForm";
 import { CREATOR_TERMS_VERSION } from "../data/creatorTerms";
+import { ANDROID_LIVE } from "../data/launch";
 
 // The public-facing creator programme page. Not linked from anywhere and not
 // indexed: it is sent by link on purpose. When the programme opens up, the only
@@ -222,7 +223,7 @@ function Questions() {
     },
     {
       q: `What do my followers actually get?`,
-      a: `20% off their first year of Premium, £31.99 instead of £39.99, paid when they sign up. A code has no free trial. It works on iPhone; Android is coming.`,
+      a: `20% off their first year of Premium, £31.99 instead of £39.99, paid when they sign up. A code has no free trial. ${ANDROID_LIVE ? "It works on iPhone only for now." : "It works on iPhone; Android is coming."}`,
     },
     {
       q: `What can I not do with the code?`,
@@ -444,7 +445,7 @@ export default function CreatorsPage() {
           venue's own dog policy, the council restrictions and what other owners found when they turned up,
           so people know before they set off.
         </p>
-        <p>BarkFind is live on iPhone, UK only. Android is planned but not built.</p>
+        <p>{ANDROID_LIVE ? "BarkFind is live on iPhone and Android, UK only. Creator codes work on iPhone only for now." : "BarkFind is live on iPhone, UK only. Android is planned but not built."}</p>
       </Section>
 
       <Section title="How you can help">

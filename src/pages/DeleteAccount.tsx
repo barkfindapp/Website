@@ -80,6 +80,10 @@ export default function DeleteAccount() {
           Apple. Cancel separately via <strong>iPhone Settings → your name → Subscriptions → BarkFind</strong> to stop
           future charges.
         </p>
+        <p>
+          On Android, cancel in the Google Play app: profile picture, Payments and subscriptions, Subscriptions,
+          BarkFind. Deleting your BarkFind account doesn't cancel a Google Play subscription.
+        </p>
       </Section>
     </PageShell>
   );

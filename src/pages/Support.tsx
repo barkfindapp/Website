@@ -1,5 +1,6 @@
 import PageShell, { Section, Bullets } from "../components/PageShell";
 import { useSeo } from "../lib/seo";
+import { ANDROID_LIVE } from "../data/launch";
 
 function QA({ q, children }: { q: string; children: React.ReactNode }) {
   return (
@@ -44,7 +45,7 @@ export default function Support() {
           <p>BarkFind is on the App Store. You can browse without an account; create one when you want to review, save a place, add a dog profile or subscribe. New subscribers get a 14-day free trial.</p>
         </QA>
         <QA q="Which devices are supported?">
-          <p>BarkFind is on iPhone (iOS). Android is on the way; register interest on our homepage to be notified when it launches.</p>
+          <p>{ANDROID_LIVE ? "BarkFind is on iPhone and Android, UK only." : "BarkFind is on iPhone (iOS). Android is on the way; register interest on our homepage to be notified when it launches."}</p>
         </QA>
       </Section>
 
@@ -57,6 +58,7 @@ export default function Support() {
         </QA>
         <QA q="How do I cancel or manage my subscription?">
           <p>Subscriptions are billed through your Apple App Store account. Manage or cancel any time via <strong>iPhone Settings → your name → Subscriptions → BarkFind</strong>. Deleting the app does not cancel your subscription.</p>
+          <p>On Android, subscriptions are billed through Google Play. Manage or cancel in the Google Play app: tap your profile picture, then Payments and subscriptions, then Subscriptions, then BarkFind.</p>
         </QA>
         <QA q="Can I get a refund?">
           <p>Refunds are handled by Apple under App Store policy. You can request one at <a href="https://reportaproblem.apple.com" target="_blank" rel="noopener noreferrer" className="text-[#B74217] font-semibold hover:underline">reportaproblem.apple.com</a>.</p>
@@ -69,6 +71,7 @@ export default function Support() {
         </QA>
         <QA q="How do I change location permissions?">
           <p>Go to <strong>iPhone Settings → BarkFind → Location</strong> and choose your preference at any time.</p>
+          <p>On Android, go to Settings, then Apps, then BarkFind, then Permissions, then Location.</p>
         </QA>
       </Section>
 

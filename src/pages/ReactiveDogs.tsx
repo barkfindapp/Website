@@ -1,6 +1,7 @@
 import PageShell, { Section, Bullets } from "../components/PageShell";
 import StoryBand from "../components/StoryBand";
-import { APP_STORE_URL } from "../data/launch";
+import { ANDROID_LIVE, APP_STORE_URL } from "../data/launch";
+import { GooglePlayButton } from "../components/StoreButtons";
 import { useSeo, faqSchema, breadcrumbSchema, organizationSchema } from "../lib/seo";
 
 // Reactive-dogs pillar page: /reactive-dogs. A hand-authored hub, so it lives as
@@ -128,12 +129,17 @@ export default function ReactiveDogs() {
             </>,
           ]}
         />
-        <a
-          href={APP_STORE_URL}
-          className="inline-flex items-center gap-2 w-fit px-5 py-2.5 rounded-full bg-[#B74217] text-white text-sm font-bold hover:bg-[#333333] transition-colors shadow-sm shadow-[#B74217]/30"
-        >
-          Get BarkFind on iPhone
-        </a>
+        <div className="flex flex-col sm:flex-row gap-3">
+          <a
+            href={APP_STORE_URL}
+            className="inline-flex items-center gap-2 w-fit px-5 py-2.5 rounded-full bg-[#B74217] text-white text-sm font-bold hover:bg-[#333333] transition-colors shadow-sm shadow-[#B74217]/30"
+          >
+            {ANDROID_LIVE ? "Get BarkFind" : "Get BarkFind on iPhone"}
+          </a>
+          {ANDROID_LIVE && (
+            <GooglePlayButton className="inline-flex items-center gap-2 w-fit px-5 py-2.5 rounded-full bg-[#1a1a1a] text-white text-sm font-bold hover:bg-[#333333] transition-colors shadow-sm" />
+          )}
+        </div>
       </Section>
 
       <Section title="Start exploring">
@@ -207,14 +213,19 @@ export default function ReactiveDogs() {
           <h2 className="font-serif text-2xl md:text-3xl text-[#1a1a1a] mb-4">Find somewhere your dog can actually settle</h2>
           <p className="mb-6">
             Free to browse the map and read any place's policy. Premium adds search built around your dog.
-            iPhone, UK only.
+            {ANDROID_LIVE ? " iPhone and Android, UK only." : " iPhone, UK only."}
           </p>
-          <a
-            href={APP_STORE_URL}
-            className="inline-flex items-center px-6 py-3 rounded-full bg-[#B74217] text-white text-sm font-bold hover:bg-[#333333] transition-colors shadow-sm shadow-[#B74217]/30"
-          >
-            Get BarkFind
-          </a>
+          <div className="flex flex-col sm:flex-row gap-3">
+            <a
+              href={APP_STORE_URL}
+              className="inline-flex items-center px-6 py-3 rounded-full bg-[#B74217] text-white text-sm font-bold hover:bg-[#333333] transition-colors shadow-sm shadow-[#B74217]/30"
+            >
+              Get BarkFind
+            </a>
+            {ANDROID_LIVE && (
+              <GooglePlayButton className="inline-flex items-center px-6 py-3 rounded-full bg-[#1a1a1a] text-white text-sm font-bold hover:bg-[#333333] transition-colors shadow-sm" />
+            )}
+          </div>
         </div>
       </section>
     </PageShell>

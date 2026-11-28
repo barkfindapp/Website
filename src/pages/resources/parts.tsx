@@ -1,4 +1,4 @@
-import { APP_STORE_URL, LAUNCHED } from "../../data/launch";
+import { ANDROID_LIVE, APP_STORE_URL, LAUNCHED } from "../../data/launch";
 import { useState } from "react";
 import { dateParts, formatDate, type EventItem, type Guide, type GuidePhoto, type NewsPost, type PlaceTeaser } from "./data";
 
@@ -41,7 +41,9 @@ export function DownloadCta({ placeCount }: { placeCount?: number }) {
   const href = LAUNCHED ? APP_STORE_URL : "/#download";
   const label = LAUNCHED ? "Download BarkFind" : "Get early access";
   const note = LAUNCHED
-    ? "Free to download on iPhone."
+    ? ANDROID_LIVE
+      ? "Free to download on iPhone and Android."
+      : "Free to download on iPhone."
     : "BarkFind is coming to iPhone soon.";
   // No claim that every place has reviews or a Mylo verdict.
   const adds = placeCount
